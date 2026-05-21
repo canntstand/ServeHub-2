@@ -13,8 +13,28 @@ if [ -z "$SECRET_VAULTWARDEN_PASSWORD" ]; then
     exit 1
 fi
 
-chmod +x scripts/synapse_init.sh
-./scripts/synapse_init.sh
+if [ -z "$SYNAPSE_SERVER_NAME" ]; then
+    echo "Ошибка: переменная SYNAPSE_SERVER_NAME не задана в .env"
+    exit 1
+fi
+
+OS_TYPE="$(uname -s)"
+
+if [[ "$OS_TYPE" == *"MINGW"* || "$OS_TYPE" == *"MSYS"* ]]; then
+    echo "Определена ОС: Windows (Git Bash)"
+    MSYS_NO_PATHCONV=1 docker run -it --rm \
+        -v "//$(pwd)/matrix/data:/data" \
+        -e SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME} \
+        -e SYNAPSE_REPORT_STATS=no \
+        matrixdotorg/synapse:v1.152.1 generate
+else
+    echo "Определена ОС: Linux"
+    docker run -it --rm \
+        -v "$(pwd)/matrix/data:/data" \
+        -e SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME} \
+        -e SYNAPSE_REPORT_STATS=no \
+        matrixdotorg/synapse:v1.152.1 generate
+fi
 
 CONFIG_PATH="matrix/data/homeserver.yaml"
 echo "Полная перезапись конфигурации homeserver.yaml..."
@@ -91,8 +111,36 @@ sed -i '/^VAULTWARDEN_ADMIN_HASH=/d' .env
 echo "VAULTWARDEN_ADMIN_HASH=${HASH_TOKEN}" >> .env
 echo "Хэш успешно сгенерирован и добавлен в .env"
 
+CERT_DIR="./certs/live/${SYNAPSE_SERVER_NAME}"
+
+if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
+    echo "Сертификаты не найдены. Создаем временные сертификаты для запуска Nginx..."
+
+    mkdir -p "${CERT_DIR}"
+
+    openssl req -x509 -nodes -channels 3 -days 1 \
+        -newkey rsa:2048 \
+        -keyout "${CERT_DIR}/privkey.pem" \
+        -out "${CERT_DIR}/fullchain.pem" \
+        -subj "/CN=localhost" > /dev/null 2>&1
+    
+    NEED_REAL_CERT=true
+else
+    echo "Валидные SSL-сертификаты уже существуют."
+    NEED_REAL_CERT=false
+fi
+
 echo "Запуск Docker-контейнеров..."
-docker compose up -d
+docker compose -f docker-compose.local.yaml up -d
+
+if [ "$NEED_REAL_CERT" = true ]; then
+    echo "Запуск Certbot для получения реальных SSL-сертификатов..."
+    
+    docker compose -f docker-compose.local.yaml run --rm certbot
+    
+    echo "Перезагрузка конфигурации Nginx для применения реальных сертификатов..."
+    docker compose -f docker-compose.local.yaml exec nginx_proxy nginx -s reload
+fi
 
 echo "Ожидание запуска Synapse (15 секунд)..."
 sleep 15

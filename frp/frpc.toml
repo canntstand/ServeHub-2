@@ -1,0 +1,26 @@
+serverAddr = "{{ .Envs.FRP_SERVER_IP }}"
+serverPort = 7000
+auth.method = "token"
+auth.token = "{{ .Envs.FRP_TOKEN }}"
+
+[[proxies]]
+name = "http_traffic"
+type = "tcp"
+localIP = "nginx_proxy"
+localPort = 80
+remotePort = 80
+
+[[proxies]]
+name = "https_traffic"
+type = "tcp"
+localIP = "nginx_proxy"
+localPort = 443
+remotePort = 443
+transport.proxyProtocolVersion = "v2"
+
+[[proxies]]
+name = "secure_ssh"
+type = "tcp"
+localIP = "host.docker.internal"
+localPort = 22
+remotePort = "{{ .Envs.FRP_SSH_REMOTE_PORT }}"

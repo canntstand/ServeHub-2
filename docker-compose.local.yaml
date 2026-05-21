@@ -35,18 +35,38 @@ services:
     container_name: nginx_proxy
     expose:
       - 80
+      - 443
     restart: always
     environment:
       - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
     volumes:
       - ./nginx/templates/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./nginx/www:/usr/share/nginx/html:ro
+      - ./certs:/etc/letsencrypt:ro
     depends_on:
       - synapse
       - navidrome
       - audiobookshelf
       - nextcloud
       - vaultwarden
+  
+  certbot:
+    image: certbot/certbot:latest
+    container_name: certbot
+    volumes:
+      - ./certs:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    environment:
+      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+    entrypoint: ""
+    command: >
+      certonly --webroot
+      -w /var/www/certbot
+      -d "${SYNAPSE_SERVER_NAME}"
+      --email ${EMAIL}
+      --agree-tos
+      --no-eff-email
+      --non-interactive
 
   nginx_exporter:
     image: nginx/nginx-prometheus-exporter:latest
@@ -58,25 +78,20 @@ services:
     depends_on:
       - nginx
 
-  tuna_matrix:
-    container_name: tuna_matrix
-    image: yuccastream/tuna:latest
+  frpc:
+    image: snowdreamtech/frpc:latest
+    container_name: frpc
     restart: always
+    volumes:
+      - ./frp/frpc.toml:/etc/frp/frpc.toml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
-      - TUNA_TOKEN=${TUNA_TOKEN}
-      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
-    command: http nginx:80 --domain=${SYNAPSE_SERVER_NAME} --https-redirect
+      - FRP_SERVER_IP=${FRP_SERVER_IP}
+      - FRP_TOKEN=${FRP_TOKEN}
+      - FRP_SSH_REMOTE_PORT=${FRP_SSH_REMOTE_PORT}
     depends_on:
       - nginx
-
-  tuna_ssh:
-    container_name: tuna_ssh
-    image: yuccastream/tuna:latest
-    restart: always
-    network_mode: "host"
-    environment:
-      - TUNA_TOKEN=${TUNA_TOKEN}
-    command: tcp 22 --port=${TUNA_SSH_PORT}
 
   navidrome:
     container_name: navidrome
