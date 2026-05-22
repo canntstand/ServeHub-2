@@ -118,7 +118,7 @@ if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
 
     mkdir -p "${CERT_DIR}"
 
-    openssl req -x509 -nodes -channels 3 -days 1 \
+    openssl req -x509 -nodes -days 1 \
         -newkey rsa:2048 \
         -keyout "${CERT_DIR}/privkey.pem" \
         -out "${CERT_DIR}/fullchain.pem" \

@@ -24,4 +24,3 @@ type = "tcp"
 localIP = "host.docker.internal"
 localPort = 22
 remotePort = "{{ .Envs.FRP_SSH_REMOTE_PORT }}"
-maxConns = 10

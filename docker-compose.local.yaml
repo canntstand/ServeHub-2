@@ -58,7 +58,6 @@ services:
       - ./certbot/www:/var/www/certbot
     environment:
       - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
-    entrypoint: ""
     command: >
       certonly --webroot
       -w /var/www/certbot
@@ -74,7 +73,7 @@ services:
     restart: always
     ports:
       - "9113:9113"
-    command: --nginx.scrape-uri=http://nginx_proxy:80/stub_status
+    command: --nginx.scrape-uri=http://nginx_proxy:8080/stub_status
     depends_on:
       - nginx
 

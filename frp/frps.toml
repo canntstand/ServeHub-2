@@ -2,4 +2,3 @@ bindPort = 7000
 auth.method = "token"
 auth.token = "{{ .Envs.FRP_TOKEN }}"
 maxPortsPerClient = 10
-maxConnPoolCount = 50

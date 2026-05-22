@@ -7,4 +7,4 @@ services:
     environment:
       - FRP_TOKEN=${FRP_TOKEN}
     volumes:
-      - ./frps.toml:/etc/frp/frps.toml:ro
+      - ./frp/frps.toml:/etc/frp/frps.toml:ro

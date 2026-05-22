@@ -2,7 +2,7 @@
 ## Подготовка
 1. sudo systemctl enable --now docker && sudo systemctl enable --now containerd
 2. Установите argon2 (для генерации хеша пароля vaultwarden)
-3. git clone [https://github.com/canntstand/Mini-PC-setup-FRP](https://github.com/canntstand/Mini-PC-setup-FRP) && cd Mini-PC-setup-FRP (на VPS и на локалку)
+3. git clone https://github.com/canntstand/Mini-PC-setup-FRP && cd Mini-PC-setup-FRP (на VPS и на локалку)
 4. Подготовить внешний VPS: создать там минимальный файл .env с переменной FRP_TOKEN и запустить серверную часть FRP через Docker Compose: docker compose -f docker-compose.remote.yaml up -d
 5. В DNS-панели вашего домена направить A-запись (и wildcard-запись *) на публичный IP-адрес вашего VPS. Выбрать любой свободный порт на VPS для проброса SSH наружу и указать его в переменную FRP_SSH_REMOTE_PORT в .env на локальной машине.
 6. Зарегистрировать капчу на Google reCAPTCHA Admin. Выбрать CAPTCHAv2 (флажок "Я не робот") и обязательно отключить "Verify the origin of reCAPTCHA solutions". Скопировать полученные ключи.
