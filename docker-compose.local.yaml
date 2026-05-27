@@ -50,6 +50,7 @@ services:
       - audiobookshelf
       - nextcloud
       - vaultwarden
+      - portainer
 
   certbot:
     image: certbot/certbot:latest
@@ -168,6 +169,7 @@ services:
     image: nextcloud:stable
     container_name: nextcloud_configure
     restart: "no"
+    user: www-data
     depends_on:
       - nextcloud
     volumes:
@@ -178,13 +180,12 @@ services:
       -c "
       echo 'Waiting for Nextcloud to be installed...';
       until [ -f /var/www/html/config/config.php ]; do sleep 2; done;
-      sleep 10;
+      sleep 15;
         
       echo 'Applying system fixes...';
 
       php occ config:system:set trusted_domains 1 --value='${SYNAPSE_SERVER_NAME}';
-
-      php occ config:system:set trusted_proxies 0 --value='nginx';
+      php occ config:system:set trusted_proxies 0 --value='172.16.0.0/12';
 
       php occ config:system:set maintenance_window_start --value=2 --type=int;
       php occ background-job:set cron;
@@ -331,6 +332,16 @@ services:
       - /dev:/dev:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /sys/fs/cgroup:/cgroup:ro
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: always
+    expose:
+      - 9000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer/data:/data
 
 volumes:
   synapse_db_data:

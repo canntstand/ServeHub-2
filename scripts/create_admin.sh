@@ -5,7 +5,7 @@ fi
 
 echo "Регистрация администратора Synapse из .env..."
 
-docker compose exec -it synapse register_new_matrix_user \
+docker compose -f docker-compose.local.yaml exec -it synapse register_new_matrix_user \
     -c /data/homeserver.yaml \
     -u "$ADMIN_USER" \
     -p "$ADMIN_PASSWORD" \
