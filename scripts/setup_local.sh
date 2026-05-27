@@ -136,10 +136,11 @@ docker compose -f docker-compose.local.yaml up -d
 if [ "$NEED_REAL_CERT" = true ]; then
     echo "Запуск Certbot для получения реальных SSL-сертификатов..."
     
+    sudo rm -rf "${CERT_DIR}"
     docker compose -f docker-compose.local.yaml run --rm certbot
     
     echo "Перезагрузка конфигурации Nginx для применения реальных сертификатов..."
-    docker compose -f docker-compose.local.yaml exec nginx_proxy nginx -s reload
+    docker compose -f docker-compose.local.yaml exec nginx nginx -s reload
 fi
 
 echo "Ожидание запуска Synapse (15 секунд)..."

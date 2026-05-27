@@ -16,14 +16,6 @@ server {
         deny all;
     }
 }
-server {
-    listen 8081;
-    server_name localhost nginx_proxy ${SYNAPSE_SERVER_NAME};
-
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
-}
 
 server {
     listen 80 proxy_protocol;

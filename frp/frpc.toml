@@ -9,6 +9,7 @@ type = "tcp"
 localIP = "nginx_proxy"
 localPort = 80
 remotePort = 80
+transport.proxyProtocolVersion = "v2"
 
 [[proxies]]
 name = "https_traffic"

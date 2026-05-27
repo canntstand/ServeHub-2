@@ -43,6 +43,7 @@ services:
       - ./nginx/templates/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./nginx/www:/usr/share/nginx/html:ro
       - ./certs:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
     depends_on:
       - synapse
       - navidrome
@@ -61,7 +62,6 @@ services:
     command: >
       certonly --webroot
       -w /var/www/certbot
-      --http-01-port 8081
       -d "${SYNAPSE_SERVER_NAME}"
       --email ${EMAIL}
       --agree-tos
