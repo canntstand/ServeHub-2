@@ -7,3 +7,6 @@ navidrome/
 audiobookshelf/
 certs/
 certs-data/
+prometheus/
+nginx/
+portainer/
