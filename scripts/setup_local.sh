@@ -143,6 +143,9 @@ else
     NEED_REAL_CERT=false
 fi
 
+echo "Настройка прав доступа для папок с данными..."
+sudo chmod -R 777 ./grafana/ ./matrix/ ./nextcloud/ ./vaultwarden/ ./synapse/
+
 echo "Запуск Docker-контейнеров (исключая Certbot)..."
 MAIN_SERVICES="synapse synapse_db nginx nginx_exporter frpc navidrome audiobookshelf nextcloud nextcloud_db nextcloud_configure vaultwarden vaultwarden_db prometheus_init prometheus grafana node_exporter cadvisor portainer"
 
@@ -151,7 +154,7 @@ docker compose -f docker-compose.local.yaml up -d $MAIN_SERVICES
 if [ "$NEED_REAL_CERT" = true ]; then
     echo "Запуск официального Certbot..."
     docker compose -f docker-compose.local.yaml build certbot
-    
+
     echo "Удаляем временные заглушки перед получением реальных сертификатов..."
     rm -rf "${CERT_DIR:?}"/*
     docker compose -f docker-compose.local.yaml run --rm certbot

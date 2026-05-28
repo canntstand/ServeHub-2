@@ -3,3 +3,6 @@ certs/
 certs-data/
 matrix/
 vaultwarden/
+grafana/
+synapse/
+nextcloud/
