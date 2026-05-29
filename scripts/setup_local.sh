@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+echo "Проверка автозапуска Docker..."
+if ! systemctl is-enabled --quiet docker; then
+    echo "Включаю автозапуск Docker..."
+    sudo systemctl enable docker
+fi
+
+sudo systemctl start docker
 
 if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
@@ -100,7 +107,7 @@ if [ "$NEED_REAL_CERT" = true ]; then
     docker compose -f docker-compose.local.yaml exec nginx nginx -s reload
 fi
 
-sleep 15
+docker compose -f docker-compose.local.yaml wait
 chmod +x scripts/create_admin.sh
 ./scripts/create_admin.sh
 

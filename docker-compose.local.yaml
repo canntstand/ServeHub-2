@@ -1,8 +1,15 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   synapse:
     container_name: synapse
     image: matrixdotorg/synapse:latest
-    restart: always
+    restart: unless-stopped
+    logging: *default-logging
     expose:
       - 8008
     volumes:
@@ -12,11 +19,16 @@ services:
         condition: service_healthy
     environment:
       - SYNAPSE_REPORT_STATS=no
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
 
   synapse_db:
     container_name: synapse_db
+    logging: *default-logging
     image: postgres:18
-    restart: always
+    restart: unless-stopped
     environment:
       - POSTGRES_DB=${POSTGRES_DB_SYNAPSE}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -29,14 +41,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   nginx:
     image: nginx:stable
     container_name: nginx_proxy
+    logging: *default-logging
     expose:
       - 80
       - 443
-    restart: always
+    restart: unless-stopped
     environment:
       - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
     volumes:
@@ -51,12 +68,17 @@ services:
       - nextcloud
       - vaultwarden
       - portainer
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   certbot:
     build:
       context: .
       dockerfile: Dockerfile.certbot
     container_name: certbot
+    logging: *default-logging
     volumes:
       - ./certs:/etc/letsencrypt
       - ./certs-data:/var/lib/letsencrypt
@@ -75,21 +97,31 @@ services:
       -d "${SYNAPSE_SERVER_NAME}"
       -d "*.${SYNAPSE_SERVER_NAME}"
       --email "${EMAIL}"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   nginx_exporter:
     image: nginx/nginx-prometheus-exporter:latest
     container_name: nginx_exporter
-    restart: always
+    restart: unless-stopped
+    logging: *default-logging
     ports:
       - "9113:9113"
     command: --nginx.scrape-uri=http://nginx_proxy:8080/stub_status
     depends_on:
       - nginx
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   frpc:
     image: snowdreamtech/frpc:latest
     container_name: frpc
-    restart: always
+    restart: unless-stopped
+    logging: *default-logging
     volumes:
       - ./frp/frpc.toml:/etc/frp/frpc.toml:ro
     extra_hosts:
@@ -99,11 +131,16 @@ services:
       - FRP_TOKEN=${FRP_TOKEN}
     depends_on:
       - nginx
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   navidrome:
     container_name: navidrome
     image: deluan/navidrome:latest
-    restart: always
+    restart: unless-stopped
+    logging: *default-logging
     expose:
       - 4533
     environment:
@@ -113,11 +150,16 @@ services:
     volumes:
       - ./navidrome/data:/data
       - /home/${HOME_USER_NAME}/Music:/music:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   audiobookshelf:
     container_name: audiobookshelf
     image: advplyr/audiobookshelf:latest
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     expose:
       - 80
     environment:
@@ -129,11 +171,16 @@ services:
       - /home/${HOME_USER_NAME}/Audiobooks:/audiobooks
       - /home/${HOME_USER_NAME}/Podcasts:/podcasts
       - /home/${HOME_USER_NAME}/Books:/books
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   nextcloud_db:
     image: postgres:18
     container_name: nextcloud_db
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     volumes:
       - nextcloud_db_data:/var/lib/postgresql
     environment:
@@ -147,11 +194,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   nextcloud:
     image: nextcloud:stable
     container_name: nextcloud
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     expose:
       - 80
     depends_on:
@@ -170,10 +222,15 @@ services:
     volumes:
       - ./nextcloud/html:/var/www/html
       - /home/${HOME_USER_NAME}/NextcloudData:/var/www/html/data
+    deploy:
+      resources:
+        limits:
+          memory: 1.5M
 
   nextcloud_configure:
     image: nextcloud:stable
     container_name: nextcloud_configure
+    logging: *default-logging
     restart: "no"
     user: www-data
     depends_on:
@@ -206,11 +263,16 @@ services:
         
       echo 'Configuration applied successfully!';
       "
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   vaultwarden_db:
     image: postgres:18
     container_name: vaultwarden_db
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     volumes:
       - vaultwarden_db_data:/var/lib/postgresql
     environment:
@@ -224,11 +286,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   vaultwarden:
     image: vaultwarden/server:latest
     container_name: vaultwarden
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     expose:
       - 80
       - 3012
@@ -243,11 +310,16 @@ services:
       - ADMIN_TOKEN=${VAULTWARDEN_ADMIN_HASH}
     volumes:
       - ./vaultwarden/data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   prometheus_init:
     image: alpine:latest
     container_name: prometheus_init
     restart: "no"
+    logging: *default-logging
     user: "root"
     volumes:
       - ./prometheus:/mnt/prometheus
@@ -259,11 +331,16 @@ services:
       mkdir -p /mnt/grafana/data &&
       chown -R 472:472 /mnt/grafana/data
       "
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     expose:
       - 9090
     extra_hosts:
@@ -280,11 +357,16 @@ services:
         condition: service_started
       cadvisor:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     expose:
       - 3000
     environment:
@@ -301,11 +383,16 @@ services:
         condition: service_completed_successfully
       prometheus:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   node_exporter:
     image: prom/node-exporter:latest
     container_name: node_exporter
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     network_mode: "host"
     pid: "host"
     privileged: true
@@ -319,11 +406,16 @@ services:
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/rootfs"
       - "--collector.filesystem.mount-points-exclude=^/rootfs/(sys|proc|dev|host|etc|var/lib/docker)($$|/)"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.54.1
     container_name: cadvisor
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     privileged: true
     ports:
       - "8090:8090"
@@ -340,29 +432,44 @@ services:
       - /dev:/dev:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /sys/fs/cgroup:/cgroup:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   portainer:
     image: portainer/portainer-ce:latest
     container_name: portainer
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     expose:
       - 9000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./portainer/data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   blackbox_exporter:
     image: prom/blackbox-exporter:v0.25.0
     container_name: blackbox_exporter
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     volumes:
       - ./monitoring/blackbox.yml:/etc/blackbox_exporter/config.yml
     command:
       - "--config.file=/etc/blackbox_exporter/config.yml"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   monitoring_configure:
     image: alpine:latest
     container_name: monitoring_configure
+    logging: *default-logging
     restart: "no"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -413,11 +520,16 @@ services:
         echo "APP_SECRET=${MONITORING_SECRET}" >> /mnt/matrix_alertmanager/matrix_alertmanager.env;
         
         echo 'Мониторинг успешно сконфигурирован!';
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   alertmanager:
     image: prom/alertmanager:v0.27.0
     container_name: alertmanager
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     command:
@@ -429,22 +541,27 @@ services:
         condition: service_started
       monitoring_configure:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   matrix_alertmanager:
     image: jaywink/matrix-alertmanager:latest
     container_name: matrix_alertmanager
-    restart: always
+    logging: *default-logging
+    restart: unless-stopped
     env_file:
       - ./matrix_alertmanager/matrix_alertmanager.env
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
     depends_on:
       synapse:
         condition: service_started
       monitoring_configure:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 volumes:
   synapse_db_data:
