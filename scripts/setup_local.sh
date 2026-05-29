@@ -96,8 +96,9 @@ else
 fi
 
 echo "Запуск основных сервисов..."
-MAIN_SERVICES="synapse synapse_db nginx nginx_exporter frpc navidrome audiobookshelf nextcloud nextcloud_db nextcloud_configure vaultwarden vaultwarden_db prometheus_init prometheus grafana node_exporter cadvisor portainer blackbox_exporter monitoring_configure alertmanager matrix_alertmanager"
+MAIN_SERVICES="synapse synapse_db nginx nginx_exporter frpc navidrome audiobookshelf nextcloud nextcloud_db nextcloud_configure vaultwarden vaultwarden_db prometheus_init prometheus grafana node_exporter cadvisor portainer blackbox_exporter monitoring_configure alertmanager"
 docker compose -f docker-compose.local.yaml up -d $MAIN_SERVICES
+docker compose -f docker-compose.local.yaml wait monitoring_configure
 
 if [ "$NEED_REAL_CERT" = true ]; then
     echo "Получение реального сертификата..."
