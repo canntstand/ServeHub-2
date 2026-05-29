@@ -225,7 +225,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1.5M
+          memory: 1.5G
 
   nextcloud_configure:
     image: nextcloud:stable
