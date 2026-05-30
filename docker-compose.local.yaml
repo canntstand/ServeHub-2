@@ -474,7 +474,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./monitoring:/mnt/monitoring
-      - ./matrix_alertmanager:/mnt/matrix_alertmanager
     environment:
       - MATRIX_BOT_USERNAME=${MATRIX_BOT_USERNAME}
       - MATRIX_BOT_PASSWORD=${MATRIX_BOT_PASSWORD}
@@ -486,9 +485,7 @@ services:
         condition: service_started
       prometheus_init:
         condition: service_completed_successfully
-    entrypoint:
-      - /bin/sh
-      - -c
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         apk add --no-cache curl jq gettext docker-cli;
@@ -499,31 +496,20 @@ services:
         echo 'Регистрация пользователя бота в Matrix...';
         docker exec synapse register_new_matrix_user -c /data/homeserver.yaml -u "${MATRIX_BOT_USERNAME}" -p "${MATRIX_BOT_PASSWORD}" --no-admin || echo 'Пользователь уже существует или пропущен';
 
-        echo 'Авторизация бота и получение Access Token...';
-        LOGIN_JSON=$$(curl -s -X POST -H 'Content-Type: application/json' -d '{"type":"m.login.password","user":"${MATRIX_BOT_USERNAME}","password":"${MATRIX_BOT_PASSWORD}"}' http://synapse:8008/_matrix/client/v3/login);
-
+        echo 'Авторизация бота для получения временного токена...';
+        LOGIN_JSON=$$(curl -s -X POST -H 'Content-Type: application/json' -d "{\"type\":\"m.login.password\",\"user\":\"${MATRIX_BOT_USERNAME}\",\"password\":\"${MATRIX_BOT_PASSWORD}\"}" http://synapse:8008/_matrix/client/v3/login);
         TOKEN=$$(echo $$LOGIN_JSON | jq -r '.access_token');
+
         if [ "$$TOKEN" = "null" ] || [ -z "$$TOKEN" ]; then
-          echo 'Ошибка: Не удалось получить access_token бота!';
-          echo $$LOGIN_JSON;
+          echo 'Ошибка: Не удалось получить токен для входа в комнату!';
           exit 1;
         fi;
 
+        echo 'Автоматическое присоединение бота к комнате...';
+        curl -s -X POST -H "Authorization: Bearer $$TOKEN" -H 'Content-Type: application/json' -d '{}' "http://synapse:8008/_matrix/client/v3/rooms/${MATRIX_ROOM_ID}/join" || echo 'Бот уже состоит в комнате';
+
         echo 'Генерация alertmanager.yml на основе шаблона...';
         envsubst < /mnt/monitoring/alertmanager.template.yml > /mnt/monitoring/alertmanager.yml;
-
-        echo 'Создание динамического env-файла для matrix_alertmanager...';
-        mkdir -p /mnt/matrix_alertmanager;
-
-        cat <<EOF > /mnt/matrix_alertmanager/config.json
-        {
-          "homeserverUrl": "http://synapse:8008",
-          "userId": "@$$MATRIX_BOT_USERNAME:$$SYNAPSE_SERVER_NAME",
-          "accessToken": "$$TOKEN",
-          "appSecret": "$$MONITORING_SECRET",
-          "roomId": "$$MATRIX_ROOM_ID"
-        }
-        EOF
 
         echo 'Мониторинг успешно сконфигурирован!';
     deploy:
@@ -557,10 +543,12 @@ services:
     container_name: matrix_alertmanager
     logging: *default-logging
     restart: unless-stopped
-    volumes:
-      - ./matrix_alertmanager/config.json:/app/config.json:ro
     environment:
-      - CONFIG_PATH=/app/config.json
+      - MATRIX_HOMESERVER_URL=http://synapse:8008
+      - MATRIX_USER=@${MATRIX_BOT_USERNAME}:${SYNAPSE_SERVER_NAME}
+      - MATRIX_PASS=${MATRIX_BOT_PASSWORD} 
+      - APP_SECRET=${MONITORING_SECRET}
+      - MATRIX_ROOM_ID=${MATRIX_ROOM_ID} 
     depends_on:
       synapse:
         condition: service_started
