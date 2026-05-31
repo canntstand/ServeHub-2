@@ -1,11 +1,12 @@
 FROM amneziavpn/amnezia-wg:latest
 
-RUN apt-get update && apt-get install -y bash
+RUN apk update && apk add --no-cache bash
 
 COPY amnezia-tools/awg-quick /usr/local/bin/awg-quick
-RUN chmod +x /usr/local/bin/awg-quick
+COPY amnezia-tools/awg /usr/local/bin/awg
 
-COPY amnezia-tools/awg /usr/local/bin/awg 
-RUN chmod +x /usr/local/bin/awg
+RUN chmod +x /usr/local/bin/awg*
 
-CMD ["bash", "-c", "awg-quick up /opt/amnezia/awg/awg0.conf"]
+ENV PATH="/usr/local/bin:${PATH}"
+
+CMD ["bash", "-c", "awg-quick up /opt/amnezia/awg/awg0.conf && tail -f /dev/null"]
