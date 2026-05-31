@@ -16,8 +16,8 @@ services:
       - SYS_MODULE
     volumes:
       - /lib/modules:/lib/modules:ro
-      - ./amnezia-data/client_server.conf:/etc/wireguard/wg0.conf:ro
-    command: wg-quick up wg0
+      - ./amnezia-data/client_server.conf:/opt/amnezia/awg/awg0.conf:ro
+    command: bash -c "wg-quick up wg0 --userspace"
 
   uptime-kuma:
     image: louislam/uptime-kuma:2.3.2
