@@ -20,6 +20,7 @@ services:
     volumes:
       - /lib/modules:/lib/modules:ro
       - ./amnezia-data/client_server.conf:/opt/amnezia/awg/awg0.conf:ro
+      - ./amnezia-tools:/amnezia-tools
     logging: *default-logging
 
   uptime-kuma:
