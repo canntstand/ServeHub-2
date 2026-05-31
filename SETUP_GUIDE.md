@@ -2,7 +2,7 @@
 
 ## 1. Развертывание AmneziaWG (на внешнем VPS)
 1. На VPS: Выполнить `git clone https://github.com/canntstand/Mini-PC-setup && cd Mini-PC-setup` и создать там `.env` по примеру `.env.example`.
-2. На VPS: Запустить автоматическую настройку сетевой части и генерацию ключей AmneziaWG одной командой: `chmod +x scripts/setup_remote.sh && ./scripts/setup_remote.sh`.
+2. На VPS: Запустить автоматическую настройку сетевой части и генерацию ключей AmneziaWG одной командой: `chmod +x scripts/setup_remote.sh && sudo ./scripts/setup_remote.sh`.
 3. Скрипт сам создаст конфигурацию сети туннеля в подсети `10.8.1.0/24` и сгенерирует клиентские файлы в папке `./amnezia-data/`.
 
 ## 2. Подготовка и деплой

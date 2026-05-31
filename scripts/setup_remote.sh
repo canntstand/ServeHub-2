@@ -5,7 +5,11 @@ CONFIG_FILE="$DATA_DIR/client_server.conf"
 
 if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
+else
+    echo "ОШИБКА: Файл .env не найден!"
+    exit 1
 fi
+
 PUBLIC_IP=${SERVER_IP:-$(curl -s ifconfig.me)}
 VPN_PORT=39311
 
@@ -18,14 +22,15 @@ echo "Инициализация структуры AmneziaWG..."
 mkdir -p "$DATA_DIR"
 
 gen_key() {
-    docker run --rm ghcr.io/amnezia-vpn/amneziawg-go:latest wg genkey
+    docker run --rm amneziavpn/amnezia-wg:latest wg genkey
 }
 get_pub() {
-    echo "$1" | docker run --rm -i ghcr.io/amnezia-vpn/amneziawg-go:latest wg pubkey
+    echo "$1" | docker run --rm -i amneziavpn/amnezia-wg:latest wg pubkey
 }
 gen_psk() {
-    docker run --rm ghcr.io/amnezia-vpn/amneziawg-go:latest wg genpsk
+    docker run --rm amneziavpn/amnezia-wg:latest wg genpsk
 }
+
 
 echo "Генерация криптографических ключей..."
 SERVER_PRIV=$(gen_key)

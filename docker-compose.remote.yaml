@@ -5,18 +5,19 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  amnezia-awg:
-    image: amnezia-awg2
-    container_name: amnezia-awg
+  amnezia-wg:
+    image: amneziavpn/amnezia-wg:latest
+    container_name: amnezia-wg
     restart: always
     network_mode: host
+    privileged: true
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
     volumes:
       - /lib/modules:/lib/modules:ro
-      - ./amnezia-data/client_server.conf:/opt/amnezia/awg/awg0.conf:rw
-    logging: *default-logging
+      - ./amnezia-data/client_server.conf:/etc/wireguard/wg0.conf:ro
+    command: wg-quick up wg0
 
   uptime-kuma:
     image: louislam/uptime-kuma:2.3.2
