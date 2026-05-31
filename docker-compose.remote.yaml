@@ -5,30 +5,17 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  amneziawg:
-    image: ghcr.io/amnezia-vpn/amneziawg-go:latest
-    container_name: amneziawg
-    restart: always
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    volumes:
-      - ./amneziawg:/etc/amneziawg
-      - /lib/modules:/lib/modules:ro
-    ports:
-      - "51820:51820/udp"
-  
   amnezia-awg:
     image: amnezia-awg2
     container_name: amnezia-awg
     restart: always
     network_mode: host
     cap_add:
-      - CAP_NET_ADMIN
-      - CAP_SYS_MODULE
+      - NET_ADMIN
+      - SYS_MODULE
     volumes:
       - /lib/modules:/lib/modules:ro
-      - ./amnezia-data:/opt/amnezia/awg:rw
+      - ./amnezia-data/client_server.conf:/opt/amnezia/awg/awg0.conf:rw
     logging: *default-logging
 
   uptime-kuma:
@@ -36,10 +23,10 @@ services:
     container_name: uptime-kuma
     logging: *default-logging
     restart: always
-    ports:
-      - "127.0.0.1:3002:3001"
     volumes:
       - ./uptime-kuma-data:/app/data
+    networks:
+      - vps_network
     deploy:
       resources:
         limits:
@@ -50,12 +37,22 @@ services:
     container_name: nginx_vps
     logging: *default-logging
     restart: always
-    network_mode: host
+    ports:
+      - "443:443"
+      - "80:80"
+      - "3001:3001"
+      - "2222:2222"
     environment:
       - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+    networks:
+      - vps_network
     volumes:
       - ./nginx/nginx.remote.conf:/etc/nginx/nginx.conf:ro
     deploy:
       resources:
         limits:
           memory: 512M
+
+networks:
+  vps_network:
+    name: vps_network

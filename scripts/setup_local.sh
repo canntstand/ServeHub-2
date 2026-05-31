@@ -1,6 +1,29 @@
 #!/bin/bash
 set -e
 
+echo "Проверка системы и установка зависимостей..."
+
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DISTRO=$ID
+else
+    echo "Ошибка: Не удалось определить дистрибутив."
+    exit 1
+fi
+
+if [[ "$DISTRO" == "arch" ]]; then
+    sudo pacman -Syu --noconfirm argon2 openssl
+elif [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" || "$DISTRO" == "pop" || "$DISTRO" == "mint" ]]; then
+    sudo apt update
+    sudo apt install -y argon2 openssl
+elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" || "$DISTRO" == "rocky" || "$DISTRO" == "almalinux" ]]; then
+    sudo dnf install -y epel-release
+    sudo dnf install -y argon2 openssl
+else
+    echo "Дистрибутив '$DISTRO' не поддерживается этим скриптом."
+    exit 1
+fi
+
 echo "Проверка автозапуска Docker..."
 if ! systemctl is-enabled --quiet docker; then
     echo "Включаю автозапуск Docker..."
