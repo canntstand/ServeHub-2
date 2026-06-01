@@ -5,23 +5,6 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  amnezia-wg:
-    image: amneziavpn/amnezia-wg:latest
-    container_name: amnezia-wg
-    restart: always
-    network_mode: host
-    privileged: true
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    volumes:
-      - /lib/modules:/lib/modules:ro
-      - ./amnezia-data/client_server.conf:/opt/amnezia/awg/awg0.conf:ro
-      - ./amnezia-tools/awg-quick:/usr/local/bin/awg-quick:ro
-      - ./amnezia-tools/awg:/usr/local/bin/awg:ro
-    command: sh -c "chmod +x /usr/local/bin/awg* && awg-quick up /opt/amnezia/awg/awg0.conf --userspace"
-    logging: *default-logging
-
   uptime-kuma:
     image: louislam/uptime-kuma:2.3.2
     container_name: uptime-kuma

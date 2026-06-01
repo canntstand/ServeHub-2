@@ -1,1 +1,0 @@
-Сюда нужно класть созданные конфиги для vpn (client_home.conf и client_server.conf)

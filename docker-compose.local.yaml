@@ -542,7 +542,7 @@ services:
       resources:
         limits:
           memory: 512M
-  
+
   amnezia-client:
     image: amnezia-awg2
     container_name: amnezia-client
@@ -553,7 +553,7 @@ services:
       - SYS_MODULE
     volumes:
       - /lib/modules:/lib/modules:ro
-       ./amnezia-data/client_home.conf:/opt/amnezia/awg/awg0.conf:rw
+        ./amnezia-data/client_home.conf:/opt/amnezia/awg/awg0.conf:rw
     logging: *default-logging
 
   heartbeat_to_vps:
