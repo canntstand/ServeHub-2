@@ -7,17 +7,17 @@
 1. Обновить все пакеты (к прим. sudo apt update && sudo apt upgrade).
 2. Настроить SSH + пользователей по плану ниже.
 3. Установить [Docker](https://docs.docker.com/engine/install/)
-4. Установить [AmneziaWG Kernel Module](https://github.com/amnezia-vpn/amneziawg-linux-kernel-module)
-5. `sudo systemctl enable --now docker`
-6. Установить Git -> `git clone https://github.com/canntstand/Mini-PC-setup && cd Mini-PC-setup`
-7. Создать `.env` по примеру `.env.example` (на обоих серверах файлы должны быть идентичные).
+4. `sudo systemctl enable --now docker`
+5. Установить Git -> `git clone https://github.com/canntstand/Mini-PC-setup && cd Mini-PC-setup`
+6. Создать `.env` по примеру `.env.example` (на обоих серверах файлы должны быть идентичные).
 
 ## 2. На удаленном сервере
-1. `sudo docker compose -f docker-compose.remote.yaml up -d`
-2. `ssh -L 3001:127.0.0.1:3001 -L 3002:127.0.0.1:3002 user@ip`
-2. Перейти в браузере по `http://127.0.0.1:3001` в Uptime Kuma. Создать новый монитор с типом **Push** и задать ему имя `Home-Server`. Это необходимо, чтобы локальный контейнер `heartbeat_to_vps` смог считать его токен и начать ежеминутную отправку отчетов о жизнеспособности домашнего ПК.
-4. Перейти в браузере по `http://127.0.0.1:3002` в WireGuard панель, создать админ пользователя и создать всех клиентов (в зависимости от того сколько устройств планируется подключить к VPN).
-5. Скачать конфиг клиента, которому принадлежит IP `10.8.0.2` (чтобы подключить локальный сервер).
+1. Установить [AmneziaWG Kernel Module](https://github.com/amnezia-vpn/amneziawg-linux-kernel-module)
+2. `sudo docker compose -f docker-compose.remote.yaml up -d`
+3. `ssh -L 3001:127.0.0.1:3001 -L 3002:127.0.0.1:3002 user@ip`
+4. Перейти в браузере по `http://127.0.0.1:3001` в Uptime Kuma. Создать новый монитор с типом **Push** и задать ему имя `Home-Server`. Это необходимо, чтобы локальный контейнер `heartbeat_to_vps` смог считать его токен и начать ежеминутную отправку отчетов о жизнеспособности домашнего ПК.
+5. Перейти в браузере по `http://127.0.0.1:3002` в WireGuard панель, создать админ пользователя и создать всех клиентов (в зависимости от того сколько устройств планируется подключить к VPN).
+6. Скачать конфиг клиента, которому принадлежит IP `10.8.0.2` (чтобы подключить локальный сервер).
 
 ## 3. На локальном сервере
 1. Положить скопированный WireGuard конфиг в папку `amnezia-data/` и назвать файл `awg0.conf`.
