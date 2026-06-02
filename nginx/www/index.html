@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель Сервера</title>
+    <title>Панель Сервера — Сервисы и Инструменты</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,600;14..32,700&display=swap');
@@ -30,86 +30,93 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
-            padding: 30px 20px;
+            justify-content: center;
+            padding: 40px 24px;
+            gap: 32px;
         }
 
-        .wrapper {
+        /* Главный заголовок над панелями */
+        .main-header {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .main-title {
+            color: #ffffff;
+            font-size: 48px;
+            font-weight: 800;
+            letter-spacing: -2px;
+            margin: 0 0 8px 0;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            background: var(--gradient-accent);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .main-sub {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            letter-spacing: 1px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        /* стили для двух независимых панелей */
+        .glass-panel {
             background: var(--glass-light);
             backdrop-filter: blur(35px);
             -webkit-backdrop-filter: blur(35px);
             border: 1px solid rgba(255, 255, 255, 0.25);
             border-radius: 40px;
-            padding: 50px 40px;
+            padding: 38px 40px;
             width: 100%;
             max-width: 1400px;
             text-align: center;
             box-shadow: 0 40px 80px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-            margin: auto 0;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        .header-area {
+        .glass-panel:hover {
+            box-shadow: 0 45px 85px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        /* Заголовок панели: белый цвет + линия-разделитель */
+        .panel-header {
+            margin-bottom: 32px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 14px;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 45px;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
-        h1 {
-            color: #ffffff;
-            font-size: 38px;
+        .panel-title {
+            color: #ffffff;  /* теперь белый цвет */
+            font-size: 28px;
             font-weight: 700;
-            margin: 0 0 12px 0;
-            letter-spacing: -1.5px;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            margin: 0;
+            letter-spacing: -0.5px;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+            /* убираем градиент, оставляем чисто белый */
         }
 
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: rgba(255, 255, 255, 0.8);
+        /* декоративный элемент справа от заголовка (необязательный, для баланса) */
+        .panel-badge {
             font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.55);
             background: rgba(255, 255, 255, 0.08);
-            padding: 6px 16px;
+            padding: 4px 12px;
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(5px);
-        }
-
-        .pulse-dot {
-            width: 8px;
-            height: 8px;
-            background-color: #10b981;
-            border-radius: 50%;
-            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-            }
-
-            70% {
-                transform: scale(1);
-                box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
-            }
-
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-            }
+            letter-spacing: 0.5px;
         }
 
         .tile-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 24px;
         }
 
@@ -118,7 +125,7 @@
             background: var(--tile-bg);
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 28px;
-            padding: 35px 28px;
+            padding: 30px 20px;
             text-decoration: none;
             color: #ffffff;
             transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -167,9 +174,9 @@
 
         .tile p {
             margin: 0;
-            font-size: 13.5px;
+            font-size: 13px;
             color: rgba(255, 255, 255, 0.85);
-            line-height: 1.6;
+            line-height: 1.5;
             text-align: center;
             font-weight: 400;
         }
@@ -177,7 +184,7 @@
         .tile-btn {
             margin-top: 20px;
             width: 100%;
-            padding: 12px;
+            padding: 10px 12px;
             border-radius: 14px;
             background: rgba(255, 255, 255, 0.15);
             border: 1px solid rgba(255, 255, 255, 0.12);
@@ -191,7 +198,7 @@
         }
 
         .tile:hover {
-            background: rgba(30, 30, 40, 0.65);
+            background: rgba(30, 30, 40, 0.75);
             border-color: transparent;
             transform: translateY(-8px) scale(1.01);
             box-shadow: 0 20px 40px var(--gradient-glow), 0 0 0 2px var(--orange-base);
@@ -219,7 +226,7 @@
         }
 
         .github-footer {
-            margin-top: 30px;
+            margin-top: 10px;
             display: inline-flex;
             align-items: center;
             gap: 10px;
@@ -258,30 +265,57 @@
             transform: rotate(360deg);
         }
 
-        @media (max-width: 1200px) {
+        /* адаптивность */
+        @media (max-width: 1300px) {
+            .tile-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 1000px) {
             .tile-grid {
                 grid-template-columns: repeat(3, 1fr);
             }
+            .panel-title {
+                font-size: 26px;
+            }
+            .main-title {
+                font-size: 40px;
+            }
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 750px) {
             .tile-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+            .glass-panel {
+                padding: 28px 24px;
+            }
+            .panel-header {
+                padding-bottom: 12px;
+                margin-bottom: 28px;
+            }
         }
 
-        @media (max-width: 600px) {
-            .wrapper {
-                padding: 30px 20px;
+        @media (max-width: 550px) {
+            body {
+                padding: 24px 16px;
+                gap: 24px;
             }
-
             .tile-grid {
                 grid-template-columns: 1fr;
                 gap: 16px;
             }
-
-            h1 {
-                font-size: 28px;
+            .glass-panel {
+                padding: 24px 18px;
+            }
+            .panel-title {
+                font-size: 24px;
+            }
+            .main-title {
+                font-size: 32px;
+                letter-spacing: -1px;
             }
         }
     </style>
@@ -289,58 +323,21 @@
 
 <body>
 
-    <div class="wrapper">
-        <div class="header-area">
-            <h1>Домашний сервер</h1>
-            <div class="status-badge">
-                <div class="pulse-dot"></div>
-                <span>Сервер Онлайн</span>
-            </div>
+    <!-- ОБЩИЙ ЗАГОЛОВОК "ДОМАШНИЙ СЕРВЕР" НАД ДВУМЯ ПАНЕЛЯМИ -->
+    <div class="main-header">
+        <div class="main-title">Домашний сервер</div>
+        <div class="main-sub">управление сервисами и инфраструктурой</div>
+    </div>
+
+    <!-- ПАНЕЛЬ 1: СЕРВИСЫ -->
+    <div class="glass-panel">
+        <div class="panel-header">
+            <h2 class="panel-title">✨ Сервисы</h2>
+            <div class="panel-badge">личные сервисы</div>
         </div>
 
         <div class="tile-grid">
-            <a href="/nextcloud" class="tile">
-                <div class="tile-content">
-                    <div class="icon-box">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                        </svg>
-                    </div>
-                    <h3>Nextcloud</h3>
-                    <p>Личное облачное хранилище, совместная работа, календари и контакты.</p>
-                </div>
-                <div class="tile-btn">Открыть</div>
-            </a>
-
-            <a href="/navidrome" class="tile">
-                <div class="tile-content">
-                    <div class="icon-box">
-                        <svg viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="10" />
-                            <circle cx="12" cy="12" r="3" />
-                            <path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
-                        </svg>
-                    </div>
-                    <h3>Navidrome</h3>
-                    <p>Музыкальный сервер для трансляции вашей личной коллекции треков.</p>
-                </div>
-                <div class="tile-btn">Открыть</div>
-            </a>
-
-            <a href="/audiobookshelf" class="tile">
-                <div class="tile-content">
-                    <div class="icon-box">
-                        <svg viewBox="0 0 24 24">
-                            <path
-                                d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5v-15z" />
-                        </svg>
-                    </div>
-                    <h3>Audiobooks</h3>
-                    <p>Сервер для аудиокниг, подкастов и цифровых изданий.</p>
-                </div>
-                <div class="tile-btn">Открыть</div>
-            </a>
-
+            <!-- Vaultwarden -->
             <a href="/vaultwarden/" class="tile">
                 <div class="tile-content">
                     <div class="icon-box">
@@ -357,6 +354,75 @@
                 <div class="tile-btn">Управлять</div>
             </a>
 
+            <!-- Matrix (Element) -->
+            <a href="https://app.element.io" target="_blank" class="tile">
+                <div class="tile-content">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                    </div>
+                    <h3>Matrix</h3>
+                    <p>Защищенный мессенджер на базе распределенного движка Synapse.</p>
+                </div>
+                <div class="tile-btn">Чат</div>
+            </a>
+
+            <!-- Navidrome -->
+            <a href="/navidrome" class="tile">
+                <div class="tile-content">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+                        </svg>
+                    </div>
+                    <h3>Navidrome</h3>
+                    <p>Музыкальный сервер для трансляции вашей личной коллекции треков.</p>
+                </div>
+                <div class="tile-btn">Открыть</div>
+            </a>
+
+            <!-- Nextcloud -->
+            <a href="/nextcloud" class="tile">
+                <div class="tile-content">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                        </svg>
+                    </div>
+                    <h3>Nextcloud</h3>
+                    <p>Личное облачное хранилище, совместная работа, календари и контакты.</p>
+                </div>
+                <div class="tile-btn">Открыть</div>
+            </a>
+
+            <!-- Audiobookshelf -->
+            <a href="/audiobookshelf" class="tile">
+                <div class="tile-content">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5v-15z" />
+                        </svg>
+                    </div>
+                    <h3>Audiobooks</h3>
+                    <p>Сервер для аудиокниг, подкастов и цифровых изданий.</p>
+                </div>
+                <div class="tile-btn">Открыть</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- ПАНЕЛЬ 2: ИНСТРУМЕНТЫ -->
+    <div class="glass-panel">
+        <div class="panel-header">
+            <h2 class="panel-title">🛠️ Инструменты</h2>
+            <div class="panel-badge">мониторинг & утилиты</div>
+        </div>
+
+        <div class="tile-grid">
+            <!-- Borg UI -->
             <a href="/borg" class="tile">
                 <div class="tile-content">
                     <div class="icon-box">
@@ -372,48 +438,7 @@
                 <div class="tile-btn">Бэкапы</div>
             </a>
 
-            <a href="https://app.element.io" target="_blank" class="tile">
-                <div class="tile-content">
-                    <div class="icon-box">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                        </svg>
-                    </div>
-                    <h3>Matrix</h3>
-                    <p>Защищенный мессенджер на базе распределенного движка Synapse.</p>
-                </div>
-                <div class="tile-btn">Чат</div>
-            </a>
-
-            <a href="/portainer/" class="tile">
-                <div class="tile-content">
-                    <div class="icon-box">
-                        <svg viewBox="0 0 24 24">
-                            <path
-                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                            <line x1="12" y1="22.08" x2="12" y2="12" />
-                        </svg>
-                    </div>
-                    <h3>Portainer</h3>
-                    <p>Управление Docker-контейнерами, образами, томами и логами через веб-интерфейс.</p>
-                </div>
-                <div class="tile-btn">Управлять</div>
-            </a>
-
-            <a href="/grafana" class="tile">
-                <div class="tile-content">
-                    <div class="icon-box">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M3 3v18h18M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
-                        </svg>
-                    </div>
-                    <h3>Grafana</h3>
-                    <p>Мониторинг ресурсов, нагрузки и системных метрик железа.</p>
-                </div>
-                <div class="tile-btn">Смотреть</div>
-            </a>
-
+            <!-- Uptime Kuma -->
             <a href="/uptime-kuma/" class="tile">
                 <div class="tile-content">
                     <div class="icon-box">
@@ -426,13 +451,57 @@
                 </div>
                 <div class="tile-btn">Статус</div>
             </a>
+
+            <!-- WireGuard Панель (wg-easy) -->
+            <a href="/wg-easy/" class="tile">
+                <div class="tile-content">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            <path d="M12 8v8 M9 11l3-3 3 3" />
+                        </svg>
+                    </div>
+                    <h3>WireGuard Панель</h3>
+                    <p>Управление VPN сетью и пользователями.</p>
+                </div>
+                <div class="tile-btn">Управлять</div>
+            </a>
+
+            <!-- Portainer -->
+            <a href="/portainer/" class="tile">
+                <div class="tile-content">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                            <line x1="12" y1="22.08" x2="12" y2="12" />
+                        </svg>
+                    </div>
+                    <h3>Portainer</h3>
+                    <p>Управление Docker-контейнерами, образами, томами и логами через веб-интерфейс.</p>
+                </div>
+                <div class="tile-btn">Управлять</div>
+            </a>
+
+            <!-- Grafana -->
+            <a href="/grafana" class="tile">
+                <div class="tile-content">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M3 3v18h18M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
+                        </svg>
+                    </div>
+                    <h3>Grafana</h3>
+                    <p>Мониторинг ресурсов, нагрузки и системных метрик железа.</p>
+                </div>
+                <div class="tile-btn">Смотреть</div>
+            </a>
         </div>
     </div>
 
     <a href="https://github.com/canntstand/Mini-PC-setup" target="_blank" class="github-footer">
         <svg viewBox="0 0 16 16">
-            <path
-                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
         </svg>
         <span>GitHub Проекта</span>
     </a>

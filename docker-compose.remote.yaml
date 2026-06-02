@@ -12,6 +12,8 @@ services:
     restart: always
     volumes:
       - ./uptime-kuma-data:/app/data
+    expose:
+      - 3001
     networks:
       - vps_network
     deploy:
@@ -42,7 +44,7 @@ services:
           memory: 512M
 
   wg-easy:
-    image: ghcr.io/wg-easy/wg-easy:latest
+    image: ghcr.io/wg-easy/wg-easy:15.3
     container_name: wg-easy
     environment:
       - LANG=en
