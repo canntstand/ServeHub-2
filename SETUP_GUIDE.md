@@ -8,14 +8,14 @@
 2. Настроить SSH + пользователей по плану ниже.
 3. Установить [Docker](https://docs.docker.com/engine/install/)
 4. `sudo systemctl enable --now docker`
-5. Установить Git -> `git clone https://github.com/canntstand/Mini-PC-setup && cd Mini-PC-setup`
+5. Установить Git -> `git clone https://github.com/canntstand/ServeHub-2 && cd ServeHub-2`
 6. Создать `.env` по примеру `.env.example` (на обоих серверах файлы должны быть идентичные).
 
 ## 2. На удаленном сервере
 1. Установить [AmneziaWG Kernel Module](https://github.com/amnezia-vpn/amneziawg-linux-kernel-module)
 2. `sudo docker compose -f docker-compose.remote.yaml up -d`
 3. `ssh -L 3001:127.0.0.1:3001 -L 3002:127.0.0.1:3002 user@ip`
-4. Перейти в браузере по `http://127.0.0.1:3001` в Uptime Kuma. Создать новый монитор с типом **Push** и задать ему имя `Home-Server`. Это необходимо, чтобы локальный контейнер `heartbeat_to_vps` смог считать его токен и начать ежеминутную отправку отчетов о жизнеспособности домашнего ПК.
+4. Перейти в браузере по `http://127.0.0.1:3001` в Uptime Kuma. Создать новый монитор с типом **Push** и задать ему имя `Home-Server`. Это необходимо, чтобы локальный контейнер `heartbeat_to_vps` смог считать его токен и начать ежеминутную отправку отчетов о жизнеспособности локального сервера.
 5. Перейти в браузере по `http://127.0.0.1:3002` в WireGuard панель, создать админ пользователя и создать всех клиентов (в зависимости от того сколько устройств планируется подключить к VPN).
 6. Скачать конфиг клиента, которому принадлежит IP `10.8.0.2` (чтобы подключить локальный сервер).
 
@@ -32,7 +32,7 @@
 6. Выставить и проверить параметры безопасности: `PasswordAuthentication no`, `PermitRootLogin no`, `MaxAuthTries 3`, `PermitEmptyPasswords no`.
 7. Если вверху файла sshd_config есть строка `Include /etc/ssh/sshd_config.d/*.conf`, зайти в файлы внутри этой папки и также перевести параметр `PasswordAuthentication` в состояние `no`.
 8. Применить настройки и перезапустить службу: `sudo systemctl restart ssh`.
-9. ВАЖНО: Не закрывая текущий терминал, открыть новое окно на ПК и проверить вход через команду `ssh user@ip`.
+9. ВАЖНО: Не закрывая текущий терминал, открыть новое окно и проверить вход через команду `ssh user@ip`.
 10. Настроить защиту от брутфорса: `chmod +x scripts/fail2ban_setup.sh && ./scripts/fail2ban_setup.sh`.
 
 ## Пользование сервисами
@@ -48,5 +48,5 @@
     - Аудиокниги — Audiobookshelf
     - VPN — AmneziaWG
 6. Подключение по SSH к машинам инфраструктуры
-    - К серверу: `ssh user@10.8.0.1`
-    - К пк: `ssh user@10.8.0.2`
+    - К удаленному серверу: `ssh user@10.8.0.1`
+    - К локальному серверу: `ssh user@10.8.0.2`
