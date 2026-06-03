@@ -31,10 +31,10 @@ fi
 
 if [ "$NEED_REAL_CERT" = true ]; then
     echo "Получение реального сертификата..."
-    docker compose -f docker-compose.remote.yaml build certbot
+    sudo docker compose -f docker-compose.remote.yaml build certbot
     rm -rf "${CERT_DIR:?}"/*
-    docker compose -f docker-compose.remote.yaml run --rm certbot
-    docker compose -f docker-compose.remote.yaml exec nginx nginx -s reload
+    sudo docker compose -f docker-compose.remote.yaml run --rm certbot
+    sudo docker compose -f docker-compose.remote.yaml exec nginx nginx -s reload
 fi
 
 echo "Применение системных настроек для работы VPN..."
