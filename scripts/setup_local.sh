@@ -39,12 +39,10 @@ else
     exit 1
 fi
 
-
 if [ -z "$SECRET_VAULTWARDEN_PASSWORD" ] || [ -z "$SYNAPSE_SERVER_NAME" ] || [ -z "$WEBNAMES_APIKEY" ]; then
     echo "ОШИБКА: Не заданы обязательные переменные в .env"
     exit 1
 fi
-
 
 echo "Подготовка директорий..."
 DIRS=("./matrix/data" "./grafana/data" "./vaultwarden/data" "./synapse/data" "./navidrome/data" "./audiobookshelf/data" "./certs" "./prometheus/data" "./nginx/templates" "./matrix_alertmanager")
@@ -106,21 +104,6 @@ HASH_TOKEN=$(echo -n "$SECRET_VAULTWARDEN_PASSWORD" | argon2 "$SALT" -e -id -k 1
 sed -i '/^VAULTWARDEN_ADMIN_HASH=/d' .env
 echo "VAULTWARDEN_ADMIN_HASH=${HASH_TOKEN}" >> .env
 
-if [ ! -d "./certbot-dns-webnames" ]; then
-    git clone https://github.com/regtime-ltd/certbot-dns-webnames.git ./certbot-dns-webnames
-fi
-curl -s -k "https://www.webnames.ru/scripts/json_domain_zone_manager.pl?action=get_config_certbot&domain=${SYNAPSE_SERVER_NAME}&apikey=${WEBNAMES_APIKEY}" -o ./certbot-dns-webnames/config.sh
-chmod +x ./certbot-dns-webnames/*.sh
-
-CERT_DIR="./certs/live/${SYNAPSE_SERVER_NAME}"
-if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
-    mkdir -p "${CERT_DIR}"
-    openssl req -x509 -nodes -days 1 -newkey rsa:2048 -keyout "${CERT_DIR}/privkey.pem" -out "${CERT_DIR}/fullchain.pem" -subj "/CN=localhost"
-    NEED_REAL_CERT=true
-else
-    NEED_REAL_CERT=false
-fi
-
 echo "Запуск инфраструктуры настройки..."
 docker compose -f docker-compose.local.yaml up -d monitoring_configure
 
@@ -141,14 +124,6 @@ done
 echo "Запуск остальных сервисов..."
 MAIN_SERVICES="synapse synapse_db nginx nginx_exporter navidrome audiobookshelf nextcloud nextcloud_db nextcloud_configure vaultwarden vaultwarden_db prometheus_init prometheus grafana node_exporter cadvisor portainer alertmanager matrix_alertmanager"
 docker compose -f docker-compose.local.yaml up -d $MAIN_SERVICES
-
-if [ "$NEED_REAL_CERT" = true ]; then
-    echo "Получение реального сертификата..."
-    docker compose -f docker-compose.local.yaml build certbot
-    rm -rf "${CERT_DIR:?}"/*
-    docker compose -f docker-compose.local.yaml run --rm certbot
-    docker compose -f docker-compose.local.yaml exec nginx nginx -s reload
-fi
 
 sleep 15
 chmod +x scripts/create_admin.sh

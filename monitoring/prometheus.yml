@@ -27,6 +27,6 @@ scrape_configs:
       - targets: ['localhost:9090']
 
   - job_name: 'wg-easy'
-    metrics_path: /metrics/prometheus
+    metrics_path: /wg-easy/metrics/prometheus
     static_configs:
-        - targets: ['10.8.0.1:51821']
+        - targets: ['10.8.0.1:80']

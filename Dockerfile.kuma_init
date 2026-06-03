@@ -1,0 +1,8 @@
+FROM python:3.14-slim
+
+RUN pip install --no-cache-dir uptime-kuma-api
+
+WORKDIR /app
+COPY configure_kuma.py .
+
+CMD ["python", "setup_kuma.py"]

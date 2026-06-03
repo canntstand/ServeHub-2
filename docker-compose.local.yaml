@@ -51,16 +51,13 @@ services:
     container_name: nginx_proxy
     logging: *default-logging
     ports:
-      - "443:443"
       - "80:80"
     restart: unless-stopped
     environment:
       - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
     volumes:
-      - ./nginx/templates/local.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/templates/nginx.local.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./nginx/www:/usr/share/nginx/html:ro
-      - ./certs:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
     depends_on:
       - synapse
       - navidrome
@@ -68,35 +65,6 @@ services:
       - nextcloud
       - vaultwarden
       - portainer
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  certbot:
-    build:
-      context: .
-      dockerfile: Dockerfile.certbot
-    container_name: certbot
-    logging: *default-logging
-    volumes:
-      - ./certs:/etc/letsencrypt
-      - ./certs-data:/var/lib/letsencrypt
-      - ./certbot-dns-webnames:/opt/certbot-dns-webnames
-    environment:
-      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
-    command: >
-      certonly
-      --manual
-      --manual-auth-hook /opt/certbot-dns-webnames/authenticator.sh
-      --manual-cleanup-hook /opt/certbot-dns-webnames/cleanup.sh
-      --preferred-challenges dns-01
-      --agree-tos
-      --no-eff-email
-      --non-interactive
-      -d "${SYNAPSE_SERVER_NAME}"
-      -d "*.${SYNAPSE_SERVER_NAME}"
-      --email "${EMAIL}"
     deploy:
       resources:
         limits:
@@ -239,9 +207,10 @@ services:
     entrypoint: /bin/sh
     command: >
       -c "
-      echo 'Waiting for Nextcloud to be installed...';
-      until [ -f /var/www/html/config/config.php ]; do sleep 2; done;
-      sleep 15;
+      echo 'Waiting for Nextcloud to be installed and ready...';
+      until [ -f /var/www/html/config/config.php ] && php occ status >/dev/null 2>&1; do 
+        sleep 2; 
+      done;
         
       echo 'Applying system fixes...';
 
@@ -296,7 +265,6 @@ services:
     restart: unless-stopped
     expose:
       - 80
-      - 3012
     depends_on:
       vaultwarden_db:
         condition: service_healthy
@@ -472,17 +440,17 @@ services:
         until curl -s http://synapse:8008/_matrix/client/versions; do sleep 3; done;
 
         echo '1. Регистрация пользователя бота в Matrix...';
-        docker exec synapse register_new_matrix_user -c /data/homeserver.yaml -u \"$MATRIX_BOT_USERNAME\" -p \"$MATRIX_BOT_PASSWORD\" --no-admin || echo 'Пользователь уже существует, пропускаем';
+        docker exec synapse register_new_matrix_user -c /data/homeserver.yaml -u \"$$MATRIX_BOT_USERNAME\" -p \"$$MATRIX_BOT_PASSWORD\" --no-admin || echo 'Пользователь уже существует, пропускаем';
 
         echo '2. Получение Access Token для бота...';
-        BOT_TOKEN=$$(curl -s -X POST -H 'Content-Type: application/json' -d \"{\\\"type\\\":\\\"m.login.password\\\",\\\"identifier\\\":{\\\"type\\\":\\\"m.id.user\\\",\\\"user\\\":\\\"$MATRIX_BOT_USERNAME\\\"},\\\"password\\\":\\\"$MATRIX_BOT_PASSWORD\\\"}\" http://synapse:8008/_matrix/client/v3/login | jq -r '.access_token');
+        BOT_TOKEN=$$(curl -s -X POST -H 'Content-Type: application/json' -d \"{\\\"type\\\":\\\"m.login.password\\\",\\\"identifier\\\":{\\\"type\\\":\\\"m.id.user\\\",\\\"user\\\":\\\"$$MATRIX_BOT_USERNAME\\\"},\\\"password\\\":\\\"$$MATRIX_BOT_PASSWORD\\\"}\" http://synapse:8008/_matrix/client/v3/login | jq -r '.access_token');
 
         if [ \"$$BOT_TOKEN\" = \"null\" ] || [ -z \"$$BOT_TOKEN\" ]; then
           echo 'ОШИБКА: Не удалось получить токен бота!'; exit 1;
         fi;
 
         echo '3. Создание комнаты и получение её внутреннего ID (!)...';
-        CREATE_ROOM_RESP=$$(curl -s -X POST -H \"Authorization: Bearer $$BOT_TOKEN\" -H 'Content-Type: application/json' -d \"{\\\"visibility\\\":\\\"private\\\",\\\"room_alias_name\\\":\\\"server-alerts\\\",\\\"name\\\":\\\"Server Alerts\\\",\\\"preset\\\":\\\"private_chat\\\",\\\"invite\\\":[\\\"@$ADMIN_USER:$SYNAPSE_SERVER_NAME\\\"]}\" http://synapse:8008/_matrix/client/v3/createRoom);
+        CREATE_ROOM_RESP=$$(curl -s -X POST -H \"Authorization: Bearer $$BOT_TOKEN\" -H 'Content-Type: application/json' -d \"{\\\"visibility\\\":\\\"private\\\",\\\"room_alias_name\\\":\\\"server-alerts\\\",\\\"name\\\":\\\"Server Alerts\\\",\\\"preset\\\":\\\"private_chat\\\",\\\"invite\\\":[\\\"@$$ADMIN_USER:$$SYNAPSE_SERVER_NAME\\\"]}\" http://synapse:8008/_matrix/client/v3/createRoom);
         
         ERRCODE=$$(echo \"$$CREATE_ROOM_RESP\" | jq -r '.errcode');
         
@@ -560,47 +528,6 @@ services:
       resources:
         limits:
           memory: 512M
-
-  heartbeat_to_vps:
-    image: alpine:latest
-    container_name: heartbeat_to_vps
-    user: root
-    restart: always
-    environment:
-      - SERVER_IP=10.8.0.1
-      - ADMIN_USER=${ADMIN_USER}
-      - ADMIN_PASS=${ADMIN_PASSWORD}
-    command: |
-      sh -c '
-      apk add --no-cache curl jq
-
-      echo "Ожидание туннеля до VPS..."
-      until ping -c 1 -W 1 10.8.0.1 > /dev/null 2>&1; do sleep 2; done;
-
-      echo "Авторизация..."
-      TOKEN=$$(curl -s -X POST "http://$$SERVER_IP:3001/api/v1/login" \
-        -H "Content-Type: application/json" \
-        -d "$$(printf "{\x22username\x22:\x22%s\x22,\x22password\x22:\x22%s\x22}" "$$ADMIN_USER" "$$ADMIN_PASS")" | jq -r ".token")
-
-      if [ -z "$$TOKEN" ] || [ "$$TOKEN" = "null" ]; then
-        echo "ОШИБКА: Не удалось получить токен авторизации!"
-        exit 1
-      fi
-
-      echo "Получение Push-токена..."
-      PUSH_TOKEN=$$(curl -s -X GET "http://$$SERVER_IP:3001/api/v1/monitor" -H "Authorization: Bearer $$TOKEN" | jq -r ".[] | select(.name==\x22Home-Server\x22) | .pushToken")
-        
-      if [ -z "$$PUSH_TOKEN" ] || [ "$$PUSH_TOKEN" = "null" ]; then
-        echo "ОШИБКА: Не удалось получить Push-токен! Убедитесь, что в Kuma создан хотя бы один монитор."
-        exit 1
-      fi
-
-      echo "Запуск бесконечного цикла пингов (токен: $$PUSH_TOKEN)..."
-      while true; do
-        curl -sS "http://$$SERVER_IP:3001/api/push/$$PUSH_TOKEN?status=up&msg=OK" > /dev/null
-        sleep 60
-      done
-      '
   
   amnezia-client:
     build:

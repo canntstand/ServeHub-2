@@ -12,6 +12,7 @@ services:
     restart: unless-stopped
     environment:
       - UPTIME_KUMA_BASE_URL=/uptime-kuma/
+      - UPTIME_KUMA_DB_TYPE=sqlite
     volumes:
       - ./uptime-kuma-data:/app/data
     ports:
@@ -27,8 +28,13 @@ services:
     logging: *default-logging
     restart: unless-stopped
     network_mode: "host"
+    environment:
+      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
     volumes:
-      - ./nginx/nginx.remote.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/templates/nginx.remote.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/www:/usr/share/nginx/html:ro
+      - ./certs:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
     deploy:
       resources:
         limits:
@@ -36,6 +42,35 @@ services:
     depends_on:
       - wg-easy
       - uptime-kuma
+  
+  certbot:
+    build:
+      context: .
+      dockerfile: Dockerfile.certbot
+    container_name: certbot
+    logging: *default-logging
+    volumes:
+      - ./certs:/etc/letsencrypt
+      - ./certs-data:/var/lib/letsencrypt
+      - ./certbot-dns-webnames:/opt/certbot-dns-webnames
+    environment:
+      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+    command: >
+      certonly
+      --manual
+      --manual-auth-hook /opt/certbot-dns-webnames/authenticator.sh
+      --manual-cleanup-hook /opt/certbot-dns-webnames/cleanup.sh
+      --preferred-challenges dns-01
+      --agree-tos
+      --no-eff-email
+      --non-interactive
+      -d "${SYNAPSE_SERVER_NAME}"
+      -d "*.${SYNAPSE_SERVER_NAME}"
+      --email "${EMAIL}"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   wg-easy:
     image: ghcr.io/wg-easy/wg-easy:15.3
@@ -45,18 +80,17 @@ services:
       - WG_HOST=${SERVER_IP}
       - PORT=51821
       - WG_PORT=51820
+      - WEBROOT_BIND_ADDRESS=127.0.0.1
       - WG_DEFAULT_ADDRESS=10.8.0.x
       - PROMETHEUS_ENABLED=true
       - WG_BASE_URL=/wg-easy
-      - INIT_ENABLED=true
-      - INIT_USERNAME=${ADMIN_USER}
-      - INIT_PASSWORD=${ADMIN_PASSWORD}
       - WG_DEFAULT_DNS=1.1.1.1
       - WG_PERSISTENT_KEEPALIVE=25
       - WG_ALLOWED_IPS=0.0.0.0/0
       - EXPERIMENTAL_AWG=true
       - OVERRIDE_AUTO_AWG=awg
       - INSECURE=true
+      - WG_DEVICE=eth0
     volumes:
       - ./config:/etc/wireguard
       - /lib/modules:/lib/modules:ro
@@ -65,3 +99,17 @@ services:
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
+
+  kuma_init:
+    build:
+      context: .
+      dockerfile: Dockerfile.kuma_init
+    container_name: kuma_init
+    network_mode: "host"
+    environment:
+      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+      - ADMIN_USER=${ADMIN_USER}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    depends_on:
+      uptime-kuma:
+        condition: service_started
