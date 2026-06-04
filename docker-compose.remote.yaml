@@ -21,6 +21,11 @@ services:
       resources:
         limits:
           memory: 512M
+    healthcheck:
+      test: ["CMD", "node", "extra/healthcheck.js"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   nginx:
     image: nginx:stable
@@ -40,8 +45,10 @@ services:
         limits:
           memory: 512M
     depends_on:
-      - wg-easy
-      - uptime-kuma
+      wg-easy:
+        condition: service_healthy
+      uptime_kuma:
+        condition: service_healthy
   
   certbot:
     build:
@@ -91,6 +98,9 @@ services:
       - OVERRIDE_AUTO_AWG=awg
       - INSECURE=true
       - WG_DEVICE=eth0
+      - INIT_ENABLED=true
+      - INIT_USERNAME=${ADMIN_USER}
+      - INIT_PASSWORD=${ADMIN_PASSWORD}
     volumes:
       - ./config:/etc/wireguard
       - /lib/modules:/lib/modules:ro
@@ -99,12 +109,19 @@ services:
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
+    healthcheck:
+      test: ["CMD", "awg", "show", "awg0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   kuma_init:
     build:
       context: .
       dockerfile: Dockerfile.kuma_init
     container_name: kuma_init
+    restart: "no"  
     network_mode: "host"
     environment:
       - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
@@ -112,4 +129,4 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     depends_on:
       uptime-kuma:
-        condition: service_started
+        condition: service_healthy
