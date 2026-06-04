@@ -107,6 +107,9 @@ services:
       - ./gatus/data:/data
     environment:
       - TZ=Europe/Moscow
+      - ADMIN_USER=${ADMIN_USER}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}
+      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
     deploy:
       resources:
         limits:

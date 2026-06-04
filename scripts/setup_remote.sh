@@ -158,13 +158,18 @@ print_separator
 log_info "Применение системных настроек ядра Linux..."
 
 add_sysctl_param() {
-    local param="$1" local value="$2" line="${param}=${value}"
+    local param="$1"
+    local value="$2"
+    local line="${param}=${value}"
+    
     if grep -qxF "$line" /etc/sysctl.conf; then
-        echo -e "  [Ядро] Параметр $line уже активен."
+        echo -e "  [Ядро] Параметр ${GREEN}$line${NC} уже активен."
     else
         echo "$line" | sudo tee -a /etc/sysctl.conf > /dev/null
+        echo -e "  [Ядро] Добавлен параметр: ${YELLOW}$line${NC}"
     fi
 }
+
 
 add_sysctl_param "net.ipv4.ip_forward" "1"
 add_sysctl_param "net.ipv4.conf.all.src_valid_mark" "1"

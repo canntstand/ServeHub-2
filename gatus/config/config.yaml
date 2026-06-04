@@ -1,7 +1,7 @@
 security:
   basic:
-    username: "${ADMIN_USER}"
-    password: "${ADMIN_PASSWORD_HASH}"
+    username: $ADMIN_USER
+    password: $ADMIN_PASSWORD_HASH
 
 endpoints:
   - name: "Is Local Server Alive?"
