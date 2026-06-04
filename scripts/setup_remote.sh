@@ -22,6 +22,39 @@ if [[ "$EUID" -ne 0 ]]; then
     exit 1
 fi
 
+# ==========================================
+log_info "Определение дистрибутива и установка базовых зависимостей..."
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DISTRO=$ID
+else
+    log_error "Не удалось определить дистрибутив (нет /etc/os-release)."
+    exit 1
+fi
+
+install_pkg() {
+    if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" || "$DISTRO" == "pop" || "$DISTRO" == "mint" ]]; then
+        sudo apt-get update -qq
+        sudo apt-get install -y "$@"
+    elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" || "$DISTRO" == "rocky" || "$DISTRO" == "almalinux" ]]; then
+        sudo dnf install -y epel-release
+        sudo dnf install -y "$@"
+    elif [[ "$DISTRO" == "arch" ]]; then
+        sudo pacman -Syu --noconfirm "$@"
+    else
+        log_error "Дистрибутив '$DISTRO' не поддерживается."
+        exit 1
+    fi
+}
+
+for tool in openssl curl git; do
+    if ! command -v "$tool" &>/dev/null; then
+        log_warn "$tool не найден. Устанавливаю..."
+        install_pkg "$tool"
+    fi
+done
+log_success "Базовые зависимости проверены."
+
 print_separator
 echo -e "${CYAN}         🚀 ИНИЦИАЛИЗАЦИЯ И НАСТРОЙКА ИНФРАСТРУКТУРЫ SERVEHUB-2 🚀${NC}"
 print_separator
@@ -73,7 +106,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     export "$var_name_clean"="$var_value"
 done < "$ENV_FILE"
 
-required_vars=("ADMIN_USER" "ADMIN_PASSWORD" "SYNAPSE_SERVER_NAME" "WEBNAMES_APIKEY")
+required_vars=("ADMIN_USER" "ADMIN_PASSWORD" "SYNAPSE_SERVER_NAME" "WEBNAMES_APIKEY" "EMAIL")
 for var in "${required_vars[@]}"; do
     if [ -z "${!var:-}" ]; then
         log_error "Ошибка: Переменная $var не задана в файле .env!"
@@ -186,20 +219,51 @@ add_iptables_rule FORWARD -i wg0 -j ACCEPT
 add_iptables_rule FORWARD -o wg0 -j ACCEPT
 add_iptables_rule POSTROUTING -t nat -s 10.8.0.0/24 -o "$DEFAULT_IF" -j MASQUERADE
 
-if ! command -v netfilter-persistent &>/dev/null; then
-    log_warn "netfilter-persistent не найден. Устанавливаю iptables-persistent..."
-    sudo apt-get update -qq && sudo apt-get install -y iptables-persistent
-fi
+# ==========================================
+log_info "Сохранение правил iptables..."
+saved=false
 
 if command -v netfilter-persistent &>/dev/null; then
     netfilter-persistent save
-    log_success "Правила iptables сохранены (netfilter-persistent)."
-elif command -v iptables-save &>/dev/null && [ -d /etc/iptables ]; then
-    iptables-save > /etc/iptables/rules.v4
-    log_info "Правила сохранены в /etc/iptables/rules.v4"
+    log_success "Правила сохранены (netfilter-persistent)."
+    saved=true
 else
+    if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" || "$DISTRO" == "pop" || "$DISTRO" == "mint" ]]; then
+        log_warn "netfilter-persistent не найден. Пытаюсь установить iptables-persistent..."
+        sudo apt-get update -qq && sudo apt-get install -y iptables-persistent
+        if command -v netfilter-persistent &>/dev/null; then
+            netfilter-persistent save
+            log_success "Правила сохранены (netfilter-persistent)."
+            saved=true
+        fi
+    elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" || "$DISTRO" == "rocky" || "$DISTRO" == "almalinux" ]]; then
+        log_warn "netfilter-persistent не найден. Пробую iptables-services..."
+        if ! rpm -q iptables-services &>/dev/null; then
+            sudo dnf install -y iptables-services
+        fi
+        sudo service iptables save
+        sudo systemctl enable iptables
+        log_success "Правила сохранены через iptables-services."
+        saved=true
+    elif [[ "$DISTRO" == "arch" ]]; then
+        log_warn "Arch Linux: сохранение через iptables-save..."
+        mkdir -p /etc/iptables
+        iptables-save > /etc/iptables/iptables.rules
+        sudo systemctl enable --now iptables
+        sudo systemctl enable iptables-restore.service
+        log_success "Создан systemd-сервис для восстановления iptables."
+        saved=true
+    else
+        log_warn "Неизвестный дистрибутив. Сохраняю через iptables-save в /etc/iptables/rules.v4"
+        mkdir -p /etc/iptables
+        iptables-save > /etc/iptables/rules.v4
+        log_info "Добавьте восстановление в автозагрузку (например, systemd unit)."
+        saved=true
+    fi
+fi
+
+if [ "$saved" = false ]; then
     log_error "Не удалось сохранить правила iptables. После перезагрузки они пропадут."
-    log_error "Установите iptables-persistent вручную или настройте сохранение через iptables-save."
 fi
 
 log_success "Сетевые правила применены."
@@ -222,20 +286,11 @@ while [ $elapsed -lt $max_wait ]; do
     elapsed=$((elapsed + 3))
 done
 
-if [ "$NEED_REAL_CERT" = true ]; then
-    log_info "Перезагрузка nginx для применения новых сертификатов..."
-    sudo docker compose -f docker-compose.remote.yaml restart nginx
-    sleep 5
-fi
-
 print_separator
 echo -e "${CYAN}               📊 ТЕКУЩИЙ СТАТУС ЗАПУЩЕННЫХ СЕРВИСОВ 📊${NC}"
 print_separator
 sudo docker compose -f docker-compose.remote.yaml ps
 
-echo ""
-log_info "Логи контейнера Gatus (последние 5 строк):"
-sudo docker compose -f docker-compose.remote.yaml logs --tail=5 gatus
 print_separator
 
 log_success "Инициализация инфраструктуры завершена."
