@@ -24,4 +24,4 @@ then
   echo "There are no config files in the /config folder"
 fi
 
-/bin/sh
+tail -f /dev/null

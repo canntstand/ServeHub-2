@@ -129,7 +129,6 @@ services:
     container_name: nginx_exporter
     restart: unless-stopped
     logging: *default-logging
-    network_mode: "host"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: --nginx.scrape-uri=http://host.docker.internal:8080/stub_status
