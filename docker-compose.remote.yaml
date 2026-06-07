@@ -106,6 +106,8 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:51822:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./gatus/config:/config
       - ./gatus/data:/data
@@ -127,9 +129,12 @@ services:
     container_name: nginx_exporter
     restart: unless-stopped
     logging: *default-logging
+    network_mode: "host"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: --nginx.scrape-uri=http://host.docker.internal:8080/stub_status
     ports:
       - "9113:9113"
-    command: --nginx.scrape-uri=http://nginx_proxy:8080/stub_status
     depends_on:
       nginx:
         condition: service_healthy

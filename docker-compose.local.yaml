@@ -558,6 +558,7 @@ services:
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
+    privileged: true
     devices:
       - /dev/net/tun:/dev/net/tun
     volumes:

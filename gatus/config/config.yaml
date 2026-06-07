@@ -3,7 +3,13 @@ web:
   
 endpoints:
   - name: "Is Local Server Alive?"
-    url: "http://nginx_vps/health-check"
+    url: "http://host.docker.internal:8080/health-check"
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: "Is VPS Server Alive?"
+    url: "http://host.docker.internal:8080/vps-health-check"
     interval: 60s
     conditions:
       - "[STATUS] == 200"

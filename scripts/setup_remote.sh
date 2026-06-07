@@ -277,7 +277,7 @@ log_success "Сетевые правила применены."
 print_separator
 log_info "Запуск контейнеров (gatus, nginx, wg-easy)..."
 
-sudo docker compose -f docker-compose.remote.yaml up -d gatus nginx wg-easy
+sudo docker compose -f docker-compose.remote.yaml up -d gatus nginx wg-easy nginx_exporter
 
 log_info "Ожидание запуска сервисов..."
 max_wait=30
