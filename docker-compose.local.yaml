@@ -162,7 +162,7 @@ services:
     expose:
       - 5432
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -265,12 +265,13 @@ services:
     depends_on:
       vaultwarden_db:
         condition: service_healthy
+    env_file:
+    - .env.vaultwarden-hash
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@vaultwarden_db:5432/${POSTGRES_DB_VAULTWARDEN}
       - DOMAIN=https://${SYNAPSE_SERVER_NAME}/vaultwarden
       - SIGNUPS_ALLOWED=true
       - WEBSOCKET_ENABLED=true
-      - ADMIN_TOKEN=${VAULTWARDEN_ADMIN_HASH}
     volumes:
       - ./apps-data/vaultwarden/data:/data
     deploy:

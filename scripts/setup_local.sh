@@ -160,11 +160,9 @@ log_info "Генерация хэша пароля Vaultwarden..."
 SALT=$(openssl rand -hex 8)
 HASH_TOKEN=$(echo -n "$SECRET_VAULTWARDEN_PASSWORD" | argon2 "$SALT" -e -id -k 19456 -t 2 -p 1)
 
-HASH_TOKEN_ESCAPED="${HASH_TOKEN//\$/\$\$}"
-
-sed -i '/^VAULTWARDEN_ADMIN_HASH=/d' .env
-printf 'VAULTWARDEN_ADMIN_HASH=%s\n' "$HASH_TOKEN_ESCAPED" >> .env
-log_success "Хэш Vaultwarden добавлен в .env."
+sed -i '/^ADMIN_TOKEN=/d' .env.vaultwarden-hash
+printf 'ADMIN_TOKEN=%s\n' "$HASH_TOKEN" >> .env.vaultwarden-hash
+log_success "Хэш Vaultwarden добавлен в .env.vaultwarden-hash."
 # ==========================================
 log_info "Генерация ключа шифрования Portainer..."
 mkdir -p secrets
@@ -279,13 +277,12 @@ else
         sudo systemctl enable iptables
         log_success "Правила сохранены через iptables-services."
         saved=true
-    elif [[ "$DISTRO" == "arch" || "$DISTRO" == "endeavouros" ]]; then
+   elif [[ "$DISTRO" == "arch" || "$DISTRO" == "endeavouros" ]]; then
         log_warn "Arch/EndeavourOS: сохранение через iptables-save..."
         mkdir -p /etc/iptables
         iptables-save > /etc/iptables/iptables.rules
         sudo systemctl enable --now iptables
-        sudo systemctl enable iptables-restore.service
-        log_success "Создан systemd-сервис для восстановления iptables."
+        log_success "Сервис iptables успешно добавлен в автозагрузку."
         saved=true
     else
         log_warn "Неизвестный дистрибутив. Сохраняю через iptables-save в /etc/iptables/rules.v4"
