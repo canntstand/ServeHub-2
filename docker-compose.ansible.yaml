@@ -1,0 +1,15 @@
+services:
+  ansible:
+    image: alpine/ansible:latest
+    container_name: ansible
+    environment:
+      - ANSIBLE_HOST_KEY_CHECKING=False
+      - ANSIBLE_CONFIG=/ansible/ansible.cfg
+    volumes:
+      - .:/ansible:ro
+      - ~/.ssh/id_ed25519:/root/.ssh/id_ed25519:ro
+      - ~/.ssh/id_ed25519.pub:/root/.ssh/id_ed25519.pub:ro
+      - ~/.ssh/known_hosts:/root/.ssh/known_hosts:ro
+    working_dir: /ansible
+    stdin_open: true
+    tty: true

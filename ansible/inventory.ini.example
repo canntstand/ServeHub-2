@@ -1,0 +1,5 @@
+[vps]
+vps-server ansible_host=YOUR_VPS_IP ansible_user=YOUR_USERNAME ansible_python_interpreter=/usr/bin/python3
+
+[local]
+local-server ansible_host=YOUR_LOCAL_IP ansible_user=YOUR_USERNAME ansible_python_interpreter=/usr/bin/python3

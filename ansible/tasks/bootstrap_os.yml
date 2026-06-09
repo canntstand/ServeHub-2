@@ -18,14 +18,14 @@
   apt:
     update_cache: yes
     upgrade: safe
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: "PACMAN: Обновление системы (Arch Linux)"
   pacman:
     update_cache: yes
     upgrade: yes
     extra_args: --noconfirm
-  when: ansible_os_family == "Archlinux"
+  when: ansible_facts['os_family'] == "Archlinux"
 
 # =========================================================================
 # ПУНКТ 2: НАСТРОЙКА SSH И ПОЛЬЗОВАТЕЛЕЙ
@@ -34,7 +34,7 @@
   user:
     name: "{{ deploy_user }}"
     shell: /bin/bash
-    groups: "{{ 'sudo' if ansible_os_family == 'Debian' else 'wheel' }}"
+    groups: "{{ 'sudo' if ansible_facts['os_family'] == 'Debian' else 'wheel' }}"
     append: yes
     state: present
 
@@ -95,13 +95,13 @@
   apt:
     name: fail2ban
     state: present
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: "Fail2ban: Установка пакета (Arch Linux)"
   pacman:
     name: fail2ban
     state: present
-  when: ansible_os_family == "Archlinux"
+  when: ansible_facts['os_family'] == "Archlinux"
 
 - name: "Fail2ban: Копирование вашего кастомного jail.local"
   copy:
@@ -128,47 +128,47 @@
     name: [docker.io, docker-compose, docker-compose-v2, docker-doc, podman-docker, containerd, runc]
     state: absent
     purge: yes
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: "Docker: Установка базовых утилит (Ubuntu/Debian)"
   apt:
     name: [ca-certificates, curl, gnupg]
     state: present
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: "Docker: Создание директории для ключей репозиториев (/etc/apt/keyrings)"
   file:
     path: /etc/apt/keyrings
     state: directory
     mode: '0755'
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: "Docker: Скачивание официального GPG ключа (динамически для Ubuntu или Debian)"
   get_url:
-    url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+    url: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
     dest: /etc/apt/keyrings/docker.asc
     mode: '0644'
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: "Docker: Добавление официального репозитория с привязкой ключа (Signed-By)"
   apt_repository:
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }} {{ ansible_facts['distribution_release'] }} stable"
     filename: docker
     state: present
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: "Docker: Установка Docker Engine и официального плагина Compose (Ubuntu/Debian)"
   apt:
     name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]
     update_cache: yes
     state: present
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: "Docker: Установка Docker и Compose (Arch Linux)"
   pacman:
     name: [docker, docker-compose]
     state: present
-  when: ansible_os_family == "Archlinux"
+  when: ansible_facts['os_family'] == "Archlinux"
 
 - name: "Docker: Включение автозагрузки и запуск демона Docker"
   systemd:
@@ -191,23 +191,23 @@
         - software-properties-common
         - python3-launchpadlib
         - gnupg2
-        - "linux-headers-{{ ansible_kernel }}"
+        - "linux-headers-{{ ansible_facts['kernel'] }}"
     state: present
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Arch | Установка базовых утилит сборки и заголовков ядра
   pacman:
     name:
       - linux-headers
       - base-devel
-  state: present
-  when: ansible_os_family == "Archlinux"
+    state: present
+  when: ansible_facts['os_family'] == "Archlinux"
 
 - name: Ubuntu | Добавление официального PPA AmneziaWG
   apt_repository:
     repo: 'ppa:amnezia/ppa'
     state: present
-  when: ansible_distribution == "Ubuntu"
+  when: ansible_facts['distribution'] == "Ubuntu"
 
 - name: Debian | Добавление репозитория AmneziaWG
   block:
@@ -219,16 +219,16 @@
 
     - name: Debian | Добавление репозитория в sources.list
       apt_repository:
-      repo: "deb https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
-      state: present
-  when: ansible_distribution == "Debian"
+        repo: "deb https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
+        state: present
+  when: ansible_facts['distribution'] == "Debian"
 
 - name: Ubuntu/Debian | Установка пакета amneziawg
   apt:
     name: amneziawg
     state: present
     update_cache: yes
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Arch | Установка amneziawg через yay (AUR)
   shell: "yay -S --needed --noconfirm amneziawg-dkms amneziawg-tools"
@@ -236,7 +236,7 @@
   become_user: "{{ deploy_user }}"
   register: yay_output
   changed_when: "'Installing' in yay_output.stdout"
-  when: ansible_os_family == "Archlinux"
+  when: ansible_facts['os_family'] == "Archlinux"
 
 # ====================================================================
 # ШАГ 5: Запуск и автозагрузка Docker
@@ -254,13 +254,13 @@
   apt:
     name: git
     state: present
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Arch | Установка Git
   pacman:
     name: git
     state: present
-  when: ansible_os_family == "Archlinux"
+  when: ansible_facts['os_family'] == "Archlinux"
 
 - name: Клонирование репозитория ServeHub-2
   git:

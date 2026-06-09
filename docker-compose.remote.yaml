@@ -53,6 +53,7 @@ services:
       --agree-tos
       --no-eff-email
       --non-interactive
+      --force-renewal
       -d "${SYNAPSE_SERVER_NAME}"
       -d "*.${SYNAPSE_SERVER_NAME}"
       --email "${EMAIL}"

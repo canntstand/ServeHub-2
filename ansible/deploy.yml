@@ -5,6 +5,7 @@
     - vars/secrets.yml
   vars:
     ansible_user: root
+    ansible_remote_tmp: /tmp/.ansible
   tags: bootstrap
   tasks:
     - name: "Python: Проверка и установка Python3 (необходим для работы Ansible)"
@@ -26,7 +27,7 @@
   handlers:
     - name: Restart SSH
       systemd:
-        name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+        name: "{{ 'ssh' if ansible_facts['os_family'] == 'Debian' else 'sshd' }}"
         state: restarted
 
 - name: "Настройка удаленной инфраструктуры: setup_remote.sh"
@@ -69,8 +70,9 @@
           1. Откройте туннель: ssh -L 51821:127.0.0.1:51821 {{ vps_user }}@{{ hostvars['vps_server']['ansible_host'] }}
           2. Зайдите в браузер: http://127.0.0.1:51821
           3. Включите Prometheus в настройках wg-easy.
-          4. Создайте клиента для локального сервера с ip 10.8.0.2 и скачайте файл конфигурации.
-          5. Сохраните его на вашем локальном сервере по пути: ./configs/amnezia/awg0.conf
+          4. Создайте клиента для локального сервера с ip 10.8.0.2 и скачайте файл конфигурации (либо просто скопируйте текст).
+          5. Можно также сразу создать клиенты для остальных устройств (можно будет сделать потом)
+          6. Сохраните его на вашем локальном сервере по пути: ./configs/amnezia/awg0.conf
           ======================================================================
           Как только файл на месте, нажмите ENTER для продолжения деплоя...
 
