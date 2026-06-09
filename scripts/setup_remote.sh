@@ -146,26 +146,25 @@ fi
 
 NEED_REAL_CERT=false
 if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
-    log_warn "SSL-сертификаты не найдены. Создаю временную самоподписанную заглушку..."
-    mkdir -p "${CERT_DIR}"
-    openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
-        -keyout "${CERT_DIR}/privkey.pem" \
-        -out "${CERT_DIR}/fullchain.pem" \
-        -subj "/CN=localhost" > /dev/null 2>&1
+    log_info "SSL-сертификаты не найдены. Будет запрошен новый."
+    NEED_REAL_CERT=true
+elif ! openssl x509 -checkend 2592000 -noout -in "${CERT_DIR}/fullchain.pem" >/dev/null 2>&1; then
+    log_warn "Сертификат истекает скоро. Будет обновлён."
     NEED_REAL_CERT=true
 else
-    if ! openssl x509 -checkend 2592000 -noout -in "${CERT_DIR}/fullchain.pem" >/dev/null 2>&1; then
-        log_warn "Сертификат истекает скоро. Будет запрошен новый."
-        NEED_REAL_CERT=true
-    else
-        log_info "Действительный сертификат найден."
-    fi
+    log_info "Действительный сертификат найден."
 fi
 
 if [ "$NEED_REAL_CERT" = true ]; then
     log_info "Запуск Certbot для получения сертификатов..."
     sudo docker compose -f docker-compose.remote.yaml build certbot
-    sudo docker compose -f docker-compose.remote.yaml run --rm certbot
+    
+    if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
+        sudo docker compose -f docker-compose.remote.yaml run --rm certbot
+    else
+        sudo docker compose -f docker-compose.remote.yaml run --rm certbot renew --non-interactive
+    fi
+    
     log_success "Сертификаты успешно получены/обновлены."
 fi
 

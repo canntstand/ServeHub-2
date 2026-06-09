@@ -5,7 +5,6 @@
     - vars/secrets.yml
   vars:
     ansible_user: root
-    ansible_remote_tmp: /tmp/.ansible
   tags: bootstrap
   tasks:
     - name: "Python: Проверка и установка Python3 (необходим для работы Ansible)"
