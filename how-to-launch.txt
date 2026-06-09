@@ -1,0 +1,5 @@
+ansible-playbook deploy.yml -e "bootstrap_target=vps"
+ИЛИ
+ansible-playbook deploy.yml -e "bootstrap_target=local"
+ИЛИ
+ansible-playbook deploy.yml -e "bootstrap_target=vps,local"

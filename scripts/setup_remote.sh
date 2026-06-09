@@ -276,7 +276,7 @@ else
     else
         log_warn "Неизвестный дистрибутив. Сохраняю через iptables-save в /etc/iptables/rules.v4"
         mkdir -p /etc/iptables
-        iptables-save > /etc/iptables/rules.v4
+        sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
         log_info "Добавьте восстановление в автозагрузку (например, systemd unit)."
         saved=true
     fi

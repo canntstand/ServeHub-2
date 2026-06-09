@@ -38,7 +38,7 @@
     append: yes
     state: present
 
-- name: "Sudoers: Настройка беспарольного sudo для {{ deploy_user }} (чтобы Ansible мог работать дальше)"
+- name: "Sudoers: Настройка беспарольного sudo для {{ deploy_user }}"
   lineinfile:
     path: /etc/sudoers.d/90-ansible-users
     line: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL"
@@ -123,25 +123,41 @@
 # =========================================================================
 # ПУНКТ 3: УСТАНОВКА DOCKER
 # =========================================================================
-- name: "Docker: Установка зависимостей репозитория (Ubuntu/Debian)"
+- name: "Docker: Удаление старых конфликтующих пакетов дистрибутива (Ubuntu/Debian)"
   apt:
-    name: [apt-transport-https, ca-certificates, curl, gnupg, lsb-release]
+    name: [docker.io, docker-compose, docker-compose-v2, docker-doc, podman-docker, containerd, runc]
+    state: absent
+    purge: yes
+  when: ansible_os_family == "Debian"
+
+- name: "Docker: Установка базовых утилит (Ubuntu/Debian)"
+  apt:
+    name: [ca-certificates, curl, gnupg]
     state: present
   when: ansible_os_family == "Debian"
 
-- name: "Docker: Добавление официального GPG ключа Docker (Ubuntu/Debian)"
-  apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
+- name: "Docker: Создание директории для ключей репозиториев (/etc/apt/keyrings)"
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
   when: ansible_os_family == "Debian"
 
-- name: "Docker: Добавление официального APT репозитория (Ubuntu/Debian)"
+- name: "Docker: Скачивание официального GPG ключа (динамически для Ubuntu или Debian)"
+  get_url:
+    url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+  when: ansible_os_family == "Debian"
+
+- name: "Docker: Добавление официального репозитория с привязкой ключа (Signed-By)"
   apt_repository:
-    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+    filename: docker
     state: present
   when: ansible_os_family == "Debian"
 
-- name: "Docker: Установка Docker Engine и Compose Plugin (Ubuntu/Debian)"
+- name: "Docker: Установка Docker Engine и официального плагина Compose (Ubuntu/Debian)"
   apt:
     name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]
     update_cache: yes
@@ -160,8 +176,108 @@
     state: started
     enabled: yes
 
-- name: "Docker: Добавление пользователя {{ deploy_user }} в группу docker (чтобы запускать контейнеры без sudo)"
+- name: "Docker: Добавление пользователя {{ deploy_user }} в группу docker"
   user:
     name: "{{ deploy_user }}"
     groups: docker
     append: yes
+
+# ====================================================================
+# ШАГ 4: Установка AmneziaWG
+# ====================================================================
+- name: Ubuntu/Debian | Установка утилит сборки и заголовков текущего ядра
+  apt:
+    name:
+        - software-properties-common
+        - python3-launchpadlib
+        - gnupg2
+        - "linux-headers-{{ ansible_kernel }}"
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Arch | Установка базовых утилит сборки и заголовков ядра
+  pacman:
+    name:
+      - linux-headers
+      - base-devel
+  state: present
+  when: ansible_os_family == "Archlinux"
+
+- name: Ubuntu | Добавление официального PPA AmneziaWG
+  apt_repository:
+    repo: 'ppa:amnezia/ppa'
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+- name: Debian | Добавление репозитория AmneziaWG
+  block:
+    - name: Debian | Добавление GPG-ключа репозитория
+      apt_key:
+        keyserver: keyserver.ubuntu.com
+        id: 57290828
+        state: present
+
+    - name: Debian | Добавление репозитория в sources.list
+      apt_repository:
+      repo: "deb https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
+      state: present
+  when: ansible_distribution == "Debian"
+
+- name: Ubuntu/Debian | Установка пакета amneziawg
+  apt:
+    name: amneziawg
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Arch | Установка amneziawg через yay (AUR)
+  shell: "yay -S --needed --noconfirm amneziawg-dkms amneziawg-tools"
+  become: true
+  become_user: "{{ deploy_user }}"
+  register: yay_output
+  changed_when: "'Installing' in yay_output.stdout"
+  when: ansible_os_family == "Archlinux"
+
+# ====================================================================
+# ШАГ 5: Запуск и автозагрузка Docker
+# ====================================================================
+- name: Включение службы Docker в автозагрузку и ее запуск
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+
+# ====================================================================
+# ШАГ 6: Клонирование репозитория
+# ====================================================================
+- name: Установка Git (Ubuntu/Debian)
+  apt:
+    name: git
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Arch | Установка Git
+  pacman:
+    name: git
+    state: present
+  when: ansible_os_family == "Archlinux"
+
+- name: Клонирование репозитория ServeHub-2
+  git:
+    repo: 'https://github.com/canntstand/ServeHub-2'
+    dest: "/home/{{ deploy_user }}/ServeHub-2"
+    clone: yes
+    update: yes
+  become: true
+  become_user: "{{ deploy_user }}"
+
+# ====================================================================
+# ШАГ 7: Настройка окружения (.env)
+# ====================================================================
+- name: Генерация файла .env из шаблона env.j2
+  template:
+    src: env.j2
+    dest: "/home/{{ deploy_user }}/ServeHub-2/.env"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0600'

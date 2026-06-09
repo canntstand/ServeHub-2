@@ -1,5 +1,5 @@
 - name: "Bootstrap: Первичная подготовка операционных систем"
-  hosts: vps, local
+  hosts: "{{ bootstrap_target | default('vps, local') }}"
   gather_facts: no
   vars_files:
     - vars/secrets.yml
@@ -28,3 +28,45 @@
       systemd:
         name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
         state: restarted
+
+- name: "Настройка удаленной инфраструктуры: setup_remote.sh"
+  hosts: vps
+  vars_files:
+    - vars/secrets.yml
+  become: yes
+  tasks:
+    - name: "Запуск скрипта настройки удаленного сервера"
+      shell: "chmod +x scripts/setup_remote.sh && ./scripts/setup_remote.sh"
+      args:
+        chdir: "/home/{{ vps_user }}/ServeHub-2"
+
+- name: "Ожидание конфигурации WireGuard"
+  hosts: localhost
+  connection: local
+  vars_files:
+    - vars/secrets.yml
+  tasks:
+    - name: "Пауза для генерации конфига"
+      ansible.builtin.pause:
+        prompt: |
+          ======================================================================
+          ⚙️ НАСТРОЙКА WIREGUARD И PROMETHEUS (РУЧНОЙ ШАГ):
+          ======================================================================
+          1. Откройте туннель: ssh -L 51821:127.0.0.1:51821 {{ vps_user }}@{{ hostvars['vps_server']['ansible_host'] }}
+          2. Зайдите в браузер: http://127.0.0.1:51821
+          3. Включите Prometheus в настройках wg-easy.
+          4. Создайте клиента для локального сервера с ip 10.8.0.2 и скачайте файл конфигурации.
+          5. Сохраните его на вашем локальном сервере по пути: ./configs/amnezia/awg0.conf
+          ======================================================================
+          Как только файл на месте, нажмите ENTER для продолжения деплоя...
+
+- name: "Настройка локальной инфраструктуры: setup_local.sh"
+  hosts: local
+  vars_files:
+    - vars/secrets.yml
+  become: yes
+  tasks:
+    - name: "Запуск скрипта настройки локального сервера"
+      shell: "chmod +x scripts/setup_local.sh && ./scripts/setup_local.sh"
+      args:
+        chdir: "/home/{{ local_user }}/ServeHub-2"
