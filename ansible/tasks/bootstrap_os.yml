@@ -12,88 +12,7 @@
   when: "'local' in group_names"
 
 # =========================================================================
-# ПУНКТ 1: ОБНОВЛЕНИЕ СИСТЕМЫ И УСТАНОВКА БАЗОВЫХ ПАКЕТОВ
-# =========================================================================
-- name: "APT: Обновление кэша и пакетов (Ubuntu/Debian)"
-  apt:
-    update_cache: yes
-    upgrade: safe
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: "Arch: Полное обновление системы и установка всех необходимых пакетов"
-  block:
-    - name: "Arch: Полное обновление системы"
-      pacman:
-        update_cache: yes
-        upgrade: yes
-        extra_args: --noconfirm
-
-    - name: "Arch: Установка Docker, заголовков ядра и инструментов сборки"
-      pacman:
-        name:
-          - docker
-          - docker-compose
-          - linux-headers
-          - base-devel
-          - git
-          - fail2ban
-        state: present
-        extra_args: --noconfirm
-
-    - name: "Arch: Установка yay (если ещё нет)"
-      become: true
-      become_user: "{{ deploy_user }}"
-      shell: |
-        if ! command -v yay &> /dev/null; then
-          git clone https://aur.archlinux.org/yay.git /tmp/yay
-          cd /tmp/yay && makepkg -si --noconfirm
-        fi
-      args:
-        creates: /usr/bin/yay
-
-    - name: "Arch: Установка amneziawg из AUR"
-      become: true
-      become_user: "{{ deploy_user }}"
-      shell: "yay -S --needed --noconfirm amneziawg-dkms amneziawg-tools"
-      register: yay_output
-      changed_when: "'Installing' in yay_output.stdout or 'upgraded' in yay_output.stdout"
-
-    - name: "Arch: Проверка расхождения версий ядра"
-      shell: |
-        if [ -f /boot/vmlinuz-linux ]; then
-          installed=$(file -b /boot/vmlinuz-linux | grep -oP 'version \K[\d.]+' | head -1)
-        else
-          installed=$(pacman -Q linux | awk '{print $2}' | sed 's/\.arch.*//')
-        fi
-        running=$(uname -r | sed 's/-arch.*//')
-        if [ "$running" != "$installed" ]; then
-          echo "reboot_needed"
-        else
-          echo "ok"
-        fi
-      register: kernel_check
-      changed_when: false
-
-    - name: "Arch: Перезагрузка после обновления ядра"
-      ansible.builtin.reboot:
-        msg: "Перезагрузка для применения нового ядра"
-        connect_timeout: 10
-        reboot_timeout: 300
-        pre_reboot_delay: 5
-        post_reboot_delay: 15
-      when: kernel_check.stdout == "reboot_needed"
-
-    - name: "Arch: Проверка и пересборка DKMS модулей"
-      shell: |
-        dkms status | grep -q amneziawg || dkms autoinstall
-        modprobe amneziawg || true
-      changed_when: false
-      when: kernel_check.stdout == "reboot_needed"
-
-  when: ansible_facts['os_family'] == "Archlinux"
-
-# =========================================================================
-# ПУНКТ 2: НАСТРОЙКА SSH И ПОЛЬЗОВАТЕЛЕЙ
+# ПУНКТ 1: СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ (до установки пакетов, чтобы в Arch блоке был пользователь)
 # =========================================================================
 - name: "Юзер: Создание пользователя {{ deploy_user }} и добавление в группы"
   user:
@@ -111,7 +30,113 @@
     create: yes
     mode: '0440'
 
-- name: "SSH: Проброс публичного SSH-ключа"
+# =========================================================================
+# ПУНКТ 2: ОБНОВЛЕНИЕ СИСТЕМЫ И УСТАНОВКА БАЗОВЫХ ПАКЕТОВ
+# =========================================================================
+- name: "APT: Обновление кэша и пакетов (Ubuntu/Debian)"
+  apt:
+    update_cache: yes
+    upgrade: safe
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "Arch: Полное обновление системы и установка всех необходимых пакетов"
+  block:
+    - name: "Arch: Полное обновление системы"
+      pacman:
+        update_cache: yes
+        upgrade: yes
+        extra_args: --noconfirm
+
+    - name: "Arch: Установка всех необходимых пакетов (включая инструменты сборки)"
+      pacman:
+        name:
+          - docker
+          - docker-compose
+          - linux-headers
+          - dkms
+          - git
+          - fail2ban
+          - fakeroot
+          - binutils
+          - make
+          - gcc
+          - patch
+          - sudo
+        state: present
+        extra_args: --noconfirm
+
+    - name: "Arch: Проверка наличия yay"
+      stat:
+        path: /usr/bin/yay
+      register: yay_installed
+
+    - name: "Arch: Установка yay из AUR (если отсутствует)"
+      become: true
+      become_user: "{{ deploy_user }}"
+      when: not yay_installed.stat.exists
+      block:
+        - name: "Arch: Клонирование yay"
+          git:
+            repo: https://aur.archlinux.org/yay.git
+            dest: "/home/{{ deploy_user }}/yay"
+            force: yes
+
+        - name: "Arch: Сборка yay"
+          shell: makepkg -si --noconfirm
+          args:
+            chdir: "/home/{{ deploy_user }}/yay"
+
+        - name: "Arch: Очистка исходников yay"
+          file:
+            path: "/home/{{ deploy_user }}/yay"
+            state: absent
+
+    - name: "Arch: Установка amneziawg из AUR"
+      become: true
+      become_user: "{{ deploy_user }}"
+      shell: "yay -S --needed --noconfirm amneziawg-dkms amneziawg-tools"
+      register: yay_output
+      changed_when: "'Installing' in yay_output.stdout or 'upgraded' in yay_output.stdout"
+
+    - name: "Arch: Загрузка модуля amneziawg (проверка)"
+      shell: modprobe amneziawg || true
+      changed_when: false
+
+    - name: "Arch: Проверка расхождения версий ядра"
+      shell: |
+        running=$(uname -r)
+        installed=$(pacman -Q linux | awk '{print $2}' | sed 's/\.arch.*//')
+        if [ "$running" != "$installed" ]; then
+          echo "reboot_needed"
+        else
+          echo "ok"
+        fi
+      register: kernel_check
+      changed_when: false
+
+    - name: "Arch: Перезагрузка после обновления ядра"
+      ansible.builtin.reboot:
+        msg: "Перезагрузка для применения нового ядра"
+        connect_timeout: 10
+        reboot_timeout: 300
+        pre_reboot_delay: 5
+        post_reboot_delay: 15
+        connect_user: root
+      when: kernel_check.stdout == "reboot_needed"
+
+    - name: "Arch: Проверка и пересборка DKMS модулей после перезагрузки"
+      shell: |
+        dkms status | grep -q amneziawg || dkms autoinstall
+        modprobe amneziawg || true
+      changed_when: false
+      when: kernel_check.stdout == "reboot_needed"
+
+  when: ansible_facts['os_family'] == "Archlinux"
+
+# =========================================================================
+# ПУНКТ 3: НАСТРОЙКА SSH И БЕЗОПАСНОСТИ
+# =========================================================================
+- name: "SSH: Проброс публичного SSH-ключа для {{ deploy_user }}"
   authorized_key:
     user: "{{ deploy_user }}"
     state: present
@@ -156,13 +181,14 @@
     sshd_dropins.matched is defined and 
     sshd_dropins.matched > 0
 
+# Fail2ban для Debian (для Arch уже установлен)
 - name: "Fail2ban: Установка пакета (Ubuntu/Debian)"
   apt:
     name: fail2ban
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Fail2ban: Копирование вашего кастомного jail.local"
+- name: "Fail2ban: Копирование кастомного jail.local"
   copy:
     src: "../configs/fail2ban/jail.local"
     dest: "/etc/fail2ban/jail.local"
@@ -180,10 +206,9 @@
   when: fail2ban_config.changed
 
 # =========================================================================
-# ПУНКТ 3: УСТАНОВКА DOCKER
+# ПУНКТ 4: УСТАНОВКА DOCKER (Debian/Ubuntu)
 # =========================================================================
-
-- name: "Docker: Удаление старых конфликтующих пакетов дистрибутива (Ubuntu/Debian)"
+- name: "Docker: Удаление старых конфликтующих пакетов (Ubuntu/Debian)"
   apt:
     name: [docker.io, docker-compose, docker-compose-v2, docker-doc, podman-docker, containerd, runc]
     state: absent
@@ -217,7 +242,7 @@
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Docker: Установка Docker Engine и официального плагина Compose (Ubuntu/Debian)"
+- name: "Docker: Установка Docker Engine и плагина Compose (Ubuntu/Debian)"
   apt:
     name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]
     update_cache: yes
@@ -225,7 +250,7 @@
   when: ansible_facts['os_family'] == "Debian"
 
 # =========================================================================
-# ПУНКТ 4: ЗАПУСК DOCKER
+# ПУНКТ 5: ЗАПУСК DOCKER (общий для всех ОС)
 # =========================================================================
 - name: "Docker: Запуск демона и добавление в автозагрузку"
   systemd:
@@ -252,9 +277,8 @@
     append: yes
 
 # =========================================================================
-# ПУНКТ 5: УСТАНОВКА AmneziaWG
+# ПУНКТ 6: УСТАНОВКА AmneziaWG (Debian/Ubuntu)
 # =========================================================================
-
 - name: "Ubuntu/Debian: Установка утилит сборки и заголовков текущего ядра"
   apt:
     name:
@@ -293,9 +317,8 @@
   when: ansible_facts['os_family'] == "Debian"
 
 # =========================================================================
-# ПУНКТ 6: КЛОНИРОВАНИЕ РЕПОЗИТОРИЯ И НАСТРОЙКА .ENV
+# ПУНКТ 7: КЛОНИРОВАНИЕ РЕПОЗИТОРИЯ И НАСТРОЙКА .ENV
 # =========================================================================
-
 - name: "Клонирование репозитория ServeHub-2"
   git:
     repo: 'https://github.com/canntstand/ServeHub-2'

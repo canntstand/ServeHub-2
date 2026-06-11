@@ -71,7 +71,7 @@
           ======================================================================
           ⚙️ НАСТРОЙКА WIREGUARD И PROMETHEUS (РУЧНОЙ ШАГ):
           ======================================================================
-          1. Откройте туннель: ssh -L 51821:127.0.0.1:51821 {{ vps_user }}@{{ hostvars['vps_server']['ansible_host'] }}
+          1. Откройте туннель: ssh -L 51821:127.0.0.1:51821 {{ vps_user }}@{{ hostvars['vps-server']['ansible_host'] }}
           2. Зайдите в браузер: http://127.0.0.1:51821
           3. Включите Prometheus в настройках wg-easy.
           4. Создайте клиента для локального сервера с ip 10.8.0.2 и скачайте файл конфигурации (либо просто скопируйте текст).
@@ -103,6 +103,6 @@
     - name: "Запуск скрипта настройки локального сервера"
       shell: |
         chmod +x scripts/setup_local.sh
-        ./scripts/setup_local.sh 2>&1 | tee /home/{{ vps_user }}/setup_local.log; exit ${PIPESTATUS[0]}
+        ./scripts/setup_local.sh 2>&1 | tee /home/{{ local_user }}/setup_local.log; exit ${PIPESTATUS[0]}
       args:
         chdir: "/home/{{ local_user }}/ServeHub-2"
