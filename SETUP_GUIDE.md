@@ -10,6 +10,7 @@
 4. Создать ssh ключ `ssh-keygen -t ed25519 -C "your_email@example.com"`
 5. Зайти в терминал WSL
 6. В wsl выполнить `mkdir -p ~/.ssh && cp /mnt/c/Users/ВАШЕ_ИМЯ_ПОЛЬЗОВАТЕЛЯ/.ssh/id_ed25519 ~/.ssh/ && chmod 600 ~/.ssh/id_ed25519` 
+7. Подготовить 2 чистых Linux сервера с включенным ssh (Ubuntu/Debian/Arch)
 7. Запустить файл: `./manage_deploy.sh` (при первой установке лучше выбрать 1 пункт)
 8. Остальные шаги сообщит скрипт
 

@@ -12,7 +12,7 @@
   when: "'local' in group_names"
 
 # =========================================================================
-# ПУНКТ 1: ОБНОВЛЕНИЕ СИСТЕМЫ
+# ПУНКТ 1: ОБНОВЛЕНИЕ СИСТЕМЫ И УСТАНОВКА БАЗОВЫХ ПАКЕТОВ
 # =========================================================================
 - name: "APT: Обновление кэша и пакетов (Ubuntu/Debian)"
   apt:
@@ -20,11 +20,76 @@
     upgrade: safe
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "PACMAN: Обновление системы (Arch Linux)"
-  pacman:
-    update_cache: yes
-    upgrade: yes
-    extra_args: --noconfirm
+- name: "Arch: Полное обновление системы и установка всех необходимых пакетов"
+  block:
+    - name: "Arch: Полное обновление системы"
+      pacman:
+        update_cache: yes
+        upgrade: yes
+        extra_args: --noconfirm
+
+    - name: "Arch: Установка Docker, заголовков ядра и инструментов сборки"
+      pacman:
+        name:
+          - docker
+          - docker-compose
+          - linux-headers
+          - base-devel
+          - git
+          - fail2ban
+        state: present
+        extra_args: --noconfirm
+
+    - name: "Arch: Установка yay (если ещё нет)"
+      become: true
+      become_user: "{{ deploy_user }}"
+      shell: |
+        if ! command -v yay &> /dev/null; then
+          git clone https://aur.archlinux.org/yay.git /tmp/yay
+          cd /tmp/yay && makepkg -si --noconfirm
+        fi
+      args:
+        creates: /usr/bin/yay
+
+    - name: "Arch: Установка amneziawg из AUR"
+      become: true
+      become_user: "{{ deploy_user }}"
+      shell: "yay -S --needed --noconfirm amneziawg-dkms amneziawg-tools"
+      register: yay_output
+      changed_when: "'Installing' in yay_output.stdout or 'upgraded' in yay_output.stdout"
+
+    - name: "Arch: Проверка расхождения версий ядра"
+      shell: |
+        if [ -f /boot/vmlinuz-linux ]; then
+          installed=$(file -b /boot/vmlinuz-linux | grep -oP 'version \K[\d.]+' | head -1)
+        else
+          installed=$(pacman -Q linux | awk '{print $2}' | sed 's/\.arch.*//')
+        fi
+        running=$(uname -r | sed 's/-arch.*//')
+        if [ "$running" != "$installed" ]; then
+          echo "reboot_needed"
+        else
+          echo "ok"
+        fi
+      register: kernel_check
+      changed_when: false
+
+    - name: "Arch: Перезагрузка после обновления ядра"
+      ansible.builtin.reboot:
+        msg: "Перезагрузка для применения нового ядра"
+        connect_timeout: 10
+        reboot_timeout: 300
+        pre_reboot_delay: 5
+        post_reboot_delay: 15
+      when: kernel_check.stdout == "reboot_needed"
+
+    - name: "Arch: Проверка и пересборка DKMS модулей"
+      shell: |
+        dkms status | grep -q amneziawg || dkms autoinstall
+        modprobe amneziawg || true
+      changed_when: false
+      when: kernel_check.stdout == "reboot_needed"
+
   when: ansible_facts['os_family'] == "Archlinux"
 
 # =========================================================================
@@ -97,12 +162,6 @@
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Fail2ban: Установка пакета (Arch Linux)"
-  pacman:
-    name: fail2ban
-    state: present
-  when: ansible_facts['os_family'] == "Archlinux"
-
 - name: "Fail2ban: Копирование вашего кастомного jail.local"
   copy:
     src: "../configs/fail2ban/jail.local"
@@ -123,6 +182,7 @@
 # =========================================================================
 # ПУНКТ 3: УСТАНОВКА DOCKER
 # =========================================================================
+
 - name: "Docker: Удаление старых конфликтующих пакетов дистрибутива (Ubuntu/Debian)"
   apt:
     name: [docker.io, docker-compose, docker-compose-v2, docker-doc, podman-docker, containerd, runc]
@@ -143,7 +203,7 @@
     mode: '0755'
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Docker: Скачивание официального GPG ключа (динамически для Ubuntu или Debian)"
+- name: "Docker: Скачивание официального GPG ключа"
   get_url:
     url: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
     dest: /etc/apt/keyrings/docker.asc
@@ -164,17 +224,26 @@
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Docker: Установка Docker и Compose (Arch Linux)"
-  pacman:
-    name: [docker, docker-compose]
-    state: present
-  when: ansible_facts['os_family'] == "Archlinux"
-
-- name: "Docker: Включение автозагрузки и запуск демона Docker"
+# =========================================================================
+# ПУНКТ 4: ЗАПУСК DOCKER
+# =========================================================================
+- name: "Docker: Запуск демона и добавление в автозагрузку"
   systemd:
     name: docker
     state: started
     enabled: yes
+  register: docker_start
+  retries: 3
+  delay: 10
+  until: docker_start is success
+
+- name: "Docker: Проверка работоспособности"
+  shell: docker info
+  register: docker_info
+  changed_when: false
+  retries: 2
+  delay: 5
+  until: docker_info.rc == 0
 
 - name: "Docker: Добавление пользователя {{ deploy_user }} в группу docker"
   user:
@@ -182,10 +251,11 @@
     groups: docker
     append: yes
 
-# ====================================================================
-# ШАГ 4: Установка AmneziaWG
-# ====================================================================
-- name: Ubuntu/Debian | Установка утилит сборки и заголовков текущего ядра
+# =========================================================================
+# ПУНКТ 5: УСТАНОВКА AmneziaWG
+# =========================================================================
+
+- name: "Ubuntu/Debian: Установка утилит сборки и заголовков текущего ядра"
   apt:
     name:
         - software-properties-common
@@ -195,74 +265,38 @@
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
-- name: Arch | Установка базовых утилит сборки и заголовков ядра
-  pacman:
-    name:
-      - linux-headers
-      - base-devel
-    state: present
-  when: ansible_facts['os_family'] == "Archlinux"
-
-- name: Ubuntu | Добавление официального PPA AmneziaWG
+- name: "Ubuntu: Добавление официального PPA AmneziaWG"
   apt_repository:
     repo: 'ppa:amnezia/ppa'
     state: present
   when: ansible_facts['distribution'] == "Ubuntu"
 
-- name: Debian | Добавление репозитория AmneziaWG
+- name: "Debian: Добавление репозитория AmneziaWG"
   block:
-    - name: Debian | Добавление GPG-ключа репозитория
+    - name: "Debian: Добавление GPG-ключа репозитория"
       apt_key:
         keyserver: keyserver.ubuntu.com
         id: 57290828
         state: present
 
-    - name: Debian | Добавление репозитория в sources.list
+    - name: "Debian: Добавление репозитория в sources.list"
       apt_repository:
         repo: "deb https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
         state: present
   when: ansible_facts['distribution'] == "Debian"
 
-- name: Ubuntu/Debian | Установка пакета amneziawg
+- name: "Ubuntu/Debian: Установка пакета amneziawg"
   apt:
     name: amneziawg
     state: present
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
 
-- name: Arch | Установка amneziawg через yay (AUR)
-  shell: "yay -S --needed --noconfirm amneziawg-dkms amneziawg-tools"
-  become: true
-  become_user: "{{ deploy_user }}"
-  register: yay_output
-  changed_when: "'Installing' in yay_output.stdout"
-  when: ansible_facts['os_family'] == "Archlinux"
+# =========================================================================
+# ПУНКТ 6: КЛОНИРОВАНИЕ РЕПОЗИТОРИЯ И НАСТРОЙКА .ENV
+# =========================================================================
 
-# ====================================================================
-# ШАГ 5: Запуск и автозагрузка Docker
-# ====================================================================
-- name: Включение службы Docker в автозагрузку и ее запуск
-  systemd:
-    name: docker
-    enabled: yes
-    state: started
-
-# ====================================================================
-# ШАГ 6: Клонирование репозитория
-# ====================================================================
-- name: Установка Git (Ubuntu/Debian)
-  apt:
-    name: git
-    state: present
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: Arch | Установка Git
-  pacman:
-    name: git
-    state: present
-  when: ansible_facts['os_family'] == "Archlinux"
-
-- name: Клонирование репозитория ServeHub-2
+- name: "Клонирование репозитория ServeHub-2"
   git:
     repo: 'https://github.com/canntstand/ServeHub-2'
     dest: "/home/{{ deploy_user }}/ServeHub-2"
@@ -271,10 +305,7 @@
   become: true
   become_user: "{{ deploy_user }}"
 
-# ====================================================================
-# ШАГ 7: Настройка окружения (.env)
-# ====================================================================
-- name: Генерация файла .env из шаблона env.j2
+- name: "Генерация файла .env из шаблона env.j2"
   template:
     src: env.j2
     dest: "/home/{{ deploy_user }}/ServeHub-2/.env"
