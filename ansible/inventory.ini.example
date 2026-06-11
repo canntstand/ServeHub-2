@@ -1,8 +1,8 @@
 [vps]
-vps-server ansible_host=YOUR_VPS_IP ansible_python_interpreter=/usr/bin/python3
+vps-server ansible_host=YOUR_VPS_IP ansible_user=VPS_USER ansible_python_interpreter=/usr/bin/python3 typed_password="{{ vps_user_password }}"
 
 [local]
-local-server ansible_host=YOUR_LOCAL_SERVER_IP ansible_python_interpreter=/usr/bin/python3
+local-server ansible_host=YOUR_LOCAL_SERVER_IP ansible_user=LOCAL_SERVER_USER ansible_python_interpreter=/usr/bin/python3 typed_password="{{ local_user_password }}"
 
 [localhost]
 localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3

@@ -104,8 +104,8 @@
 
     - name: "Arch: Проверка расхождения версий ядра"
       shell: |
-        running=$(uname -r)
-        installed=$(pacman -Q linux | awk '{print $2}' | sed 's/\.arch.*//')
+        running=$(uname -r | sed 's/-arch.*//')
+        installed=$(pacman -Q linux | awk '{print $2}' | sed 's/\.arch.*//' | sed 's/-.*//')
         if [ "$running" != "$installed" ]; then
           echo "reboot_needed"
         else
@@ -181,7 +181,6 @@
     sshd_dropins.matched is defined and 
     sshd_dropins.matched > 0
 
-# Fail2ban для Debian (для Arch уже установлен)
 - name: "Fail2ban: Установка пакета (Ubuntu/Debian)"
   apt:
     name: fail2ban

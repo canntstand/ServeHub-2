@@ -12,33 +12,34 @@
   tags: bootstrap
 
   pre_tasks:
-    - name: "Проверка: Доступен ли root с введенным паролем?"
-      wait_for:
-        host: "{{ ansible_host | default(inventory_hostname) }}"
-        port: 22
-        timeout: 2
-      delegate_to: localhost
-      register: root_check
+    - name: "Проверка: Доступен ли root?"
+      ansible.builtin.ping:
       ignore_errors: yes
+      ignore_unreachable: yes
       vars:
         ansible_user: root
-        ansible_password: "{{ typed_password }}"
+        ansible_password: "{{ root_pass }}"
+      register: root_auth_check
 
     - name: "Логика: Настройка подключения под root"
       set_fact:
         ansible_user: root
-        ansible_password: "{{ typed_password }}"
+        ansible_password: "{{ root_pass }}"
         ansible_become: no
-      when: root_check is success
+      when: 
+        - root_auth_check.unreachable is not defined
+        - root_auth_check.failed is not defined
 
     - name: "Логика: Настройка подключения под обычным пользователем"
       set_fact:
         ansible_user: "{{ vps_user if 'vps' in group_names else local_user }}"
-        ansible_password: "{{ typed_password }}"
+        ansible_password: "{{ user_pass }}"
         ansible_become: yes
         ansible_become_method: sudo
-        ansible_become_password: "{{ typed_password }}"
-      when: root_check is failed
+        ansible_become_password: "{{ user_pass }}"
+      when: >
+        (root_auth_check.unreachable is defined and root_auth_check.unreachable) or
+        (root_auth_check.failed is defined and root_auth_check.failed)
 
   tasks:
     - name: "Python: Проверка и установка Python3 (необходим для работы Ansible)"
