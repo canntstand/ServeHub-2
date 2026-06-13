@@ -4,6 +4,11 @@
   vars_files:
     - vars/secrets.yml
   tags: bootstrap
+
+  vars:
+    ansible_password: "{{ user_pass }}"
+    ansible_ssh_pass: "{{ user_pass }}"
+
   pre_tasks:
     - name: "Проверка: Доступен ли root?"
       ansible.builtin.ping:
@@ -11,26 +16,20 @@
       ignore_unreachable: yes
       vars:
         ansible_user: root
-        ansible_password: "{{ root_pass }}"
       register: root_auth_check
 
     - name: "Логика: Настройка подключения под root"
       set_fact:
         ansible_user: root
-        ansible_password: "{{ root_pass }}"
         ansible_become: no
-      when: 
-        - root_auth_check.unreachable is not defined
-        - root_auth_check.failed is not defined
+      when: root_auth_check.ping is defined
 
-    - name: "Логика: Настройка беспарольного/парольного sudo для обычного юзера"
+    - name: "Логика: Настройка sudo для обычного юзера"
       set_fact:
         ansible_become: yes
         ansible_become_method: sudo
         ansible_become_password: "{{ user_pass }}"
-      when: >
-        (root_auth_check.unreachable is defined and root_auth_check.unreachable) or
-        (root_auth_check.failed is defined and root_auth_check.failed)
+      when: root_auth_check.ping is not defined
 
   tasks:
     - name: "Python: Проверка и установка Python3 (необходим для работы Ansible)"
@@ -54,7 +53,7 @@
 
   handlers:
     - name: Restart SSH
-      systemd:
+      ansible.builtin.systemd:
         name: "{{ 'ssh' if ansible_facts['os_family'] == 'Debian' else 'sshd' }}"
         state: restarted
 

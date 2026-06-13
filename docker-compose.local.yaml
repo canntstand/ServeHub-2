@@ -172,7 +172,7 @@ services:
           memory: 512M
 
   nextcloud:
-    image: nextcloud:33.0.5-fpm-alpine
+    image: nextcloud:33.0.5-alpine
     container_name: nextcloud
     logging: *default-logging
     restart: unless-stopped
@@ -216,7 +216,7 @@ services:
       start_period: 30s
 
   nextcloud_cron:
-    image: nextcloud:33.0.5-fpm-alpine
+    image: nextcloud:33.0.5-alpine
     container_name: nextcloud_cron
     restart: unless-stopped
     volumes:
