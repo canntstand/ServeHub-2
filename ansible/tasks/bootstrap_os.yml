@@ -1,17 +1,4 @@
 # =========================================================================
-# ПОДГОТОВКА ПЕРЕМЕННЫХ
-# =========================================================================
-- name: "Определение целевого пользователя для текущего хоста (VPS)"
-  set_fact:
-    deploy_user: "{{ vps_user }}"
-  when: "'vps' in group_names"
-
-- name: "Определение целевого пользователя для текущего хоста (Local)"
-  set_fact:
-    deploy_user: "{{ local_user }}"
-  when: "'local' in group_names"
-
-# =========================================================================
 # ПУНКТ 1: СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ (до установки пакетов, чтобы в Arch блоке был пользователь)
 # =========================================================================
 - name: "Юзер: Создание пользователя {{ deploy_user }} и добавление в группы"
@@ -118,7 +105,7 @@
       ansible.builtin.shell: "sleep 2 && shutdown -r now"
       async: 1
       poll: 0
-      when: ubuntu_kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Archlinux"
+      when: kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Archlinux"
 
     - name: "Ожидание поднятия сервера под пользователем {{ deploy_user }}"
       ansible.builtin.wait_for_connection:
@@ -127,7 +114,7 @@
         delay: 10
       vars:
         ansible_user: "{{ deploy_user }}"
-      when: ubuntu_kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Archlinux"
+      when: kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Archlinux"
 
     - name: "Arch: Проверка и пересборка DKMS модулей после перезагрузки"
       shell: |

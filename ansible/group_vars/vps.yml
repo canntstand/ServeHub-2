@@ -1,0 +1,7 @@
+ansible_host: "{{ vps_public_ip }}"
+ansible_user: "{{ vps_user }}"
+ansible_python_interpreter: /usr/bin/python3
+
+user_pass: "{{ vps_user_password }}"
+
+deploy_user: "{{ vps_user }}"

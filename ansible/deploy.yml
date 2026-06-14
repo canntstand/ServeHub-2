@@ -64,65 +64,29 @@
         name: "{{ 'ssh' if ansible_facts['os_family'] == 'Debian' else 'sshd' }}"
         state: restarted
 
-- name: "Подготовка файлов VPS"
-  hosts: vps
+- name: "Синхронизация репозитория ServeHub-2"
+  hosts: vps, local
   vars_files:
     - vars/secrets.yml
   become: yes
   tasks:
-    - name: "VPS | Проверка наличия папки репозитория"
-      ansible.builtin.stat:
-        path: "/home/{{ vps_user }}/ServeHub-2"
-      register: vps_repo_dir
-
-    - name: "Клонирование репозитория ServeHub-2"
-      git:
+    - name: "Клонирование или обновление репозитория ServeHub-2"
+      ansible.builtin.git:
         repo: "https://github.com/canntstand/ServeHub-2"
-        dest: "/home/{{ vps_user }}/ServeHub-2"
+        dest: "/home/{{ deploy_user }}/ServeHub-2"
         clone: yes
         update: yes
+        force: yes
       become: true
-      become_user: "{{ vps_user }}"
-      when: not vps_repo_dir.stat.exists
+      become_user: "{{ deploy_user }}"
 
     - name: "Генерация файла .env из шаблона env.j2"
-      template:
+      ansible.builtin.template:
         src: env.j2
-        dest: "/home/{{ vps_user }}/ServeHub-2/.env"
-        owner: "{{ vps_user }}"
-        group: "{{ vps_user }}"
+        dest: "/home/{{ deploy_user }}/ServeHub-2/.env"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_user }}"
         mode: "0600"
-      when: not vps_repo_dir.stat.exists
-
-- name: "Подготовка файлов Local"
-  hosts: local
-  vars_files:
-    - vars/secrets.yml
-  become: yes
-  tasks:
-    - name: "Local | Проверка наличия папки репозитория"
-      ansible.builtin.stat:
-        path: "/home/{{ local_user }}/ServeHub-2"
-      register: local_repo_dir
-
-    - name: "Клонирование репозитория ServeHub-2"
-      git:
-        repo: "https://github.com/canntstand/ServeHub-2"
-        dest: "/home/{{ local_user }}/ServeHub-2"
-        clone: yes
-        update: yes
-      become: true
-      become_user: "{{ local_user }}"
-      when: not local_repo_dir.stat.exists
-
-    - name: "Генерация файла .env из шаблона env.j2"
-      template:
-        src: env.j2
-        dest: "/home/{{ local_user }}/ServeHub-2/.env"
-        owner: "{{ local_user }}"
-        group: "{{ local_user }}"
-        mode: "0600"
-      when: not local_repo_dir.stat.exists
 
 - name: "Настройка удаленной инфраструктуры: setup_remote.sh"
   hosts: vps
@@ -130,40 +94,12 @@
     - vars/secrets.yml
   become: yes
   tasks:
-    - name: "VPS | Проверка наличия папки репозитория"
-      ansible.builtin.stat:
-        path: "/home/{{ vps_user }}/ServeHub-2"
-      register: vps_repo_dir
-
-    - name: "VPS | Проверка наличия .env"
-      ansible.builtin.stat:
-        path: "/home/{{ vps_user }}/ServeHub-2/.env"
-      register: vps_env_exists
-
-    - name: "Клонирование репозитория если репозиторий отсутствует"
-      ansible.builtin.git:
-        repo: "https://github.com/canntstand/ServeHub-2"
-        dest: "/home/{{ vps_user }}/ServeHub-2"
-        clone: yes
-        update: yes
-      become_user: "{{ vps_user }}"
-      when: not vps_repo_dir.stat.exists
-
-    - name: "Генерация файла .env из шаблона env.j2"
-      template:
-        src: env.j2
-        dest: "/home/{{ vps_user }}/ServeHub-2/.env"
-        owner: "{{ vps_user }}"
-        group: "{{ vps_user }}"
-        mode: "0600"
-      when: not vps_env_exists.stat.exists
-
     - name: "Запуск скрипта настройки удаленного сервера"
       shell: |
         chmod +x scripts/setup_remote.sh
-        ./scripts/setup_remote.sh 2>&1 | tee /home/{{ vps_user }}/setup_remote.log
+        ./scripts/setup_remote.sh 2>&1 | tee /home/{{ deploy_user }}/setup_remote.log
       args:
-        chdir: "/home/{{ vps_user }}/ServeHub-2"
+        chdir: "/home/{{ deploy_user }}/ServeHub-2"
         executable: /bin/bash
       register: script_result
       failed_when: script_result.rc != 0 or 'ERROR' in script_result.stdout
