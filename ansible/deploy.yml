@@ -1,4 +1,4 @@
-- name: "Bootstrap: Первичная подготовка операционных систем"
+- name: "[Bootstrap] Проверка: доступен ли root?"
   hosts: vps, local
   gather_facts: no
   vars_files:
@@ -10,7 +10,7 @@
     ansible_ssh_pass: "{{ user_pass }}"
 
   pre_tasks:
-    - name: "Проверка: Доступен ли root?"
+    - name: "[SSH] Проверка: доступен ли root?"
       ansible.builtin.ping:
       ignore_errors: yes
       ignore_unreachable: yes
@@ -18,13 +18,13 @@
         ansible_user: root
       register: root_auth_check
 
-    - name: "Логика: Настройка подключения под root"
+    - name: "[SSH] Логика: настройка подключения под root"
       set_fact:
         ansible_user: root
         ansible_become: no
       when: root_auth_check.ping is defined
 
-    - name: "Логика: Настройка sudo для обычного юзера"
+    - name: "[SSH] Логика: настройка sudo для обычного пользователя"
       set_fact:
         ansible_become: yes
         ansible_become_method: sudo
@@ -32,7 +32,7 @@
       when: root_auth_check.ping is not defined
 
   tasks:
-    - name: "Python: Проверка и установка Python3 (необходим для работы Ansible)"
+    - name: "[Python] Установка Python3 (необходим для работы Ansible)"
       raw: |
         if [ "$USER" != "root" ]; then SUDO="sudo"; else SUDO=""; fi
         if command -v apt-get >/dev/null; then
@@ -45,32 +45,32 @@
         fi
       changed_when: false
 
-    - name: "Facts: Сбор системных фактов после проверки Python"
+    - name: "[Facts] Сбор системных фактов после установки Python"
       setup:
 
-    - name: "Проверка поддерживаемой ОС"
+    - name: "[Общее] Проверка поддерживаемой ОС (Debian/Ubuntu или Arch)"
       fail:
         msg: "Неподдерживаемая ОС. Требуется Debian/Ubuntu или Arch Linux"
       when:
         - ansible_facts['os_family'] != 'Debian'
         - ansible_facts['os_family'] != 'Archlinux'
 
-    - name: "Bootstrap: Запуск сценария базовой настройки"
+    - name: "[Bootstrap] Запуск сценария базовой настройки ОС"
       include_tasks: tasks/bootstrap_os.yml
 
   handlers:
-    - name: Restart SSH
+    - name: "[SSH] Перезапуск SSH"
       ansible.builtin.systemd:
         name: "{{ 'ssh' if ansible_facts['os_family'] == 'Debian' else 'sshd' }}"
         state: restarted
 
-- name: "Синхронизация репозитория ServeHub-2"
+- name: "[Git] Синхронизация репозитория ServeHub-2"
   hosts: vps, local
   vars_files:
     - vars/secrets.yml
   become: yes
   tasks:
-    - name: "Клонирование или обновление репозитория ServeHub-2"
+    - name: "[Git] Клонирование или обновление репозитория ServeHub-2"
       ansible.builtin.git:
         repo: "https://github.com/canntstand/ServeHub-2"
         dest: "/home/{{ deploy_user }}/ServeHub-2"
@@ -80,7 +80,7 @@
       become: true
       become_user: "{{ deploy_user }}"
 
-    - name: "Генерация файла .env из шаблона env.j2"
+    - name: "[Общее] Генерация файла .env из шаблона env.j2"
       ansible.builtin.template:
         src: env.j2
         dest: "/home/{{ deploy_user }}/ServeHub-2/.env"
@@ -88,13 +88,13 @@
         group: "{{ deploy_user }}"
         mode: "0600"
 
-- name: "Настройка удаленной инфраструктуры: setup_remote.sh"
+- name: "[WireGuard] Настройка удалённой инфраструктуры (setup_remote.sh)"
   hosts: vps
   vars_files:
     - vars/secrets.yml
   become: yes
   tasks:
-    - name: "Запуск скрипта настройки удаленного сервера"
+    - name: "[WireGuard] Запуск скрипта настройки удалённого сервера"
       shell: |
         chmod +x scripts/setup_remote.sh
         ./scripts/setup_remote.sh 2>&1 | tee /home/{{ deploy_user }}/setup_remote.log
@@ -104,13 +104,13 @@
       register: script_result
       failed_when: script_result.rc != 0 or 'ERROR' in script_result.stdout
 
-- name: "Ожидание конфигурации WireGuard"
+- name: "[WireGuard] Ожидание конфигурации WireGuard"
   hosts: localhost
   connection: local
   vars_files:
     - vars/secrets.yml
   tasks:
-    - name: "Пауза для генерации конфига"
+    - name: "[WireGuard] Пауза для ручной генерации конфига (wg-easy)"
       ansible.builtin.pause:
         prompt: |
           ======================================================================
@@ -120,33 +120,33 @@
           2. Зайдите в браузер: http://127.0.0.1:51821
           3. Включите Prometheus в настройках wg-easy.
           4. Создайте клиента для локального сервера с ip 10.8.0.2 и скачайте файл конфигурации (либо просто скопируйте текст).
-          5. Можно также сразу создать клиенты для остальных устройств (можно будет сделать потом)
+          5. Можно также сразу создать клиентов для остальных устройств (можно будет сделать потом)
           6. Сохраните его на вашем локальном сервере по пути: ./configs/amnezia/awg0.conf
           ======================================================================
           Как только файл на месте, нажмите ENTER для продолжения деплоя...
 
-- name: "Настройка локальной инфраструктуры: setup_local.sh"
+- name: "[WireGuard] Настройка локальной инфраструктуры (setup_local.sh)"
   hosts: local
   vars_files:
     - vars/secrets.yml
   become: yes
   tasks:
-    - name: "Проверка наличиния конфига WireGuard"
+    - name: "[WireGuard] Проверка наличия конфигурационного файла"
       ansible.builtin.stat:
-        path: "/home/{{ local_user }}/ServeHub-2/configs/amnezia/awg0.conf"
+        path: "/home/{{ deploy_user }}/ServeHub-2/configs/amnezia/awg0.conf"
       register: wg_config
 
-    - name: "Ошибка если конфиг отсутствует"
+    - name: "[WireGuard] Ошибка: отсутствует файл конфигурации WireGuard"
       ansible.builtin.fail:
         msg: "WireGuard конфиг не найден! Пожалуйста, создайте его перед продолжением."
       when: not wg_config.stat.exists
 
-    - name: "Запуск скрипта настройки локального сервера"
+    - name: "[WireGuard] Запуск скрипта настройки локального сервера"
       shell: |
         chmod +x scripts/setup_local.sh
-        ./scripts/setup_local.sh 2>&1 | tee /home/{{ local_user }}/setup_local.log
+        ./scripts/setup_local.sh 2>&1 | tee /home/{{ deploy_user }}/setup_local.log
       args:
-        chdir: "/home/{{ local_user }}/ServeHub-2"
+        chdir: "/home/{{ deploy_user }}/ServeHub-2"
         executable: /bin/bash
       register: script_result
       failed_when: script_result.rc != 0 or 'ERROR' in script_result.stdout

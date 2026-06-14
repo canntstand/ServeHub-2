@@ -1,7 +1,7 @@
 # =========================================================================
-# ПУНКТ 1: СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ (до установки пакетов, чтобы в Arch блоке был пользователь)
+# 1. СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ
 # =========================================================================
-- name: "Юзер: Создание пользователя {{ deploy_user }} и добавление в группы"
+- name: "[User] Создание пользователя {{ deploy_user }} и добавление в группы (sudo/wheel)"
   user:
     name: "{{ deploy_user }}"
     shell: /bin/bash
@@ -9,7 +9,7 @@
     append: yes
     state: present
 
-- name: "Sudoers: Настройка беспарольного sudo для {{ deploy_user }}"
+- name: "[Sudoers] Настройка беспарольного sudo для {{ deploy_user }}"
   lineinfile:
     path: /etc/sudoers.d/90-ansible-users
     line: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL"
@@ -18,23 +18,23 @@
     mode: "0440"
 
 # =========================================================================
-# ПУНКТ 2: ОБНОВЛЕНИЕ СИСТЕМЫ И УСТАНОВКА БАЗОВЫХ ПАКЕТОВ
+# 2. ОБНОВЛЕНИЕ СИСТЕМЫ И УСТАНОВКА БАЗОВЫХ ПАКЕТОВ
 # =========================================================================
-- name: "APT: Обновление кэша и пакетов (Ubuntu/Debian)"
+- name: "[APT] Debian/Ubuntu: обновление кэша и пакетов"
   apt:
     update_cache: yes
     upgrade: safe
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Arch: Полное обновление системы и установка всех необходимых пакетов"
+- name: "[Pacman] Arch: полное обновление системы и установка пакетов"
   block:
-    - name: "Arch: Полное обновление системы"
+    - name: "[Pacman] Arch: полное обновление системы"
       pacman:
         update_cache: yes
         upgrade: yes
         extra_args: --noconfirm
 
-    - name: "Arch: Установка всех необходимых пакетов (включая инструменты сборки)"
+    - name: "[Pacman] Arch: установка базовых пакетов (docker, git, fail2ban и др.)"
       pacman:
         name:
           - docker
@@ -52,44 +52,44 @@
         state: present
         extra_args: --noconfirm
 
-    - name: "Arch: Проверка наличия yay"
+    - name: "[Yay] Arch: проверка наличия yay (AUR helper)"
       stat:
         path: /usr/bin/yay
       register: yay_installed
 
-    - name: "Arch: Установка yay из AUR (если отсутствует)"
+    - name: "[Yay] Arch: установка yay из AUR (если отсутствует)"
       become: true
       become_user: "{{ deploy_user }}"
       when: not yay_installed.stat.exists
       block:
-        - name: "Arch: Клонирование yay"
+        - name: "[Yay] Arch: клонирование репозитория yay"
           git:
             repo: https://aur.archlinux.org/yay.git
             dest: "/home/{{ deploy_user }}/yay"
             force: yes
 
-        - name: "Arch: Сборка yay"
+        - name: "[Yay] Arch: сборка и установка yay (makepkg)"
           shell: makepkg -si --noconfirm
           args:
             chdir: "/home/{{ deploy_user }}/yay"
 
-        - name: "Arch: Очистка исходников yay"
+        - name: "[Yay] Arch: очистка временных файлов yay"
           file:
             path: "/home/{{ deploy_user }}/yay"
             state: absent
 
-    - name: "Arch: Установка amneziawg из AUR"
+    - name: "[AmneziaWG] Arch: установка amneziawg из AUR"
       become: true
       become_user: "{{ deploy_user }}"
       shell: "yay -S --needed --noconfirm amneziawg-dkms amneziawg-tools"
       register: yay_output
       changed_when: "'Installing' in yay_output.stdout or 'upgraded' in yay_output.stdout"
 
-    - name: "Arch: Загрузка модуля amneziawg (проверка)"
+    - name: "[AmneziaWG] Arch: загрузка модуля amneziawg"
       shell: modprobe amneziawg || true
       changed_when: false
 
-    - name: "Arch: Проверка расхождения версий ядра"
+    - name: "[Kernel] Arch: проверка расхождения версий ядра (требуется перезагрузка?)"
       shell: |
         running=$(uname -r | sed 's/-arch.*//')
         installed=$(pacman -Q linux | awk '{print $2}' | sed 's/\.arch.*//' | sed 's/-.*//')
@@ -101,13 +101,13 @@
       register: kernel_check
       changed_when: false
 
-    - name: "Arch: Отправка команды на перезагрузку"
+    - name: "[Reboot] Arch: отправка команды на перезагрузку (при необходимости)"
       ansible.builtin.shell: "sleep 2 && shutdown -r now"
       async: 1
       poll: 0
       when: kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Archlinux"
 
-    - name: "Ожидание поднятия сервера под пользователем {{ deploy_user }}"
+    - name: "[Reboot] Arch: ожидание поднятия сервера после перезагрузки (пользователь {{ deploy_user }})"
       ansible.builtin.wait_for_connection:
         connect_timeout: 10
         timeout: 300
@@ -116,7 +116,7 @@
         ansible_user: "{{ deploy_user }}"
       when: kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Archlinux"
 
-    - name: "Arch: Проверка и пересборка DKMS модулей после перезагрузки"
+    - name: "[DKMS] Arch: проверка и пересборка DKMS-модулей после перезагрузки"
       shell: |
         dkms status | grep -q amneziawg || dkms autoinstall
         modprobe amneziawg || true
@@ -126,15 +126,15 @@
   when: ansible_facts['os_family'] == "Archlinux"
 
 # =========================================================================
-# ПУНКТ 3: НАСТРОЙКА SSH И БЕЗОПАСНОСТИ
+# 3. НАСТРОЙКА SSH И БЕЗОПАСНОСТИ
 # =========================================================================
-- name: "SSH: Проброс публичного SSH-ключа для {{ deploy_user }}"
+- name: "[SSH] Добавление публичного ключа для пользователя {{ deploy_user }}"
   authorized_key:
     user: "{{ deploy_user }}"
     state: present
     key: "{{ ssh_public_key }}"
 
-- name: "SSH Конфиг: Настройка параметров безопасности в основном файле"
+- name: "[SSH] Настройка параметров безопасности в основном файле /etc/ssh/sshd_config"
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "{{ item.regexp }}"
@@ -147,19 +147,19 @@
     - { regexp: "^#?PermitEmptyPasswords", line: "PermitEmptyPasswords no" }
   notify: Restart SSH
 
-- name: "SSH Конфиг: Проверка наличия директории sshd_config.d"
+- name: "[SSH] Проверка наличия директории /etc/ssh/sshd_config.d"
   stat:
     path: /etc/ssh/sshd_config.d
   register: sshd_d_dir
 
-- name: "SSH Конфиг: Поиск дополнительных файлов конфигурации в sshd_config.d"
+- name: "[SSH] Поиск дополнительных .conf-файлов в sshd_config.d"
   find:
     paths: /etc/ssh/sshd_config.d
     patterns: "*.conf"
   register: sshd_dropins
   when: sshd_d_dir.stat.exists and sshd_d_dir.stat.isdir
 
-- name: "SSH Конфиг: Отключение PasswordAuthentication во всех вложенных файлах .conf"
+- name: "[SSH] Отключение PasswordAuthentication во всех файлах sshd_config.d/*.conf"
   lineinfile:
     path: "{{ item.path }}"
     regexp: "^#?PasswordAuthentication"
@@ -167,19 +167,19 @@
     state: present
   loop: "{{ sshd_dropins.files | default([]) }}"
   notify: Restart SSH
-  when: >
+  when: >-
     sshd_d_dir.stat.exists and 
     sshd_d_dir.stat.isdir and 
     sshd_dropins.matched is defined and 
     sshd_dropins.matched > 0
 
-- name: "Fail2ban: Установка пакета (Ubuntu/Debian)"
+- name: "[Fail2ban] Debian/Ubuntu: установка пакета"
   apt:
     name: fail2ban
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Fail2ban: Копирование кастомного jail.local"
+- name: "[Fail2ban] Копирование кастомного jail.local"
   copy:
     src: "../configs/fail2ban/jail.local"
     dest: "/etc/fail2ban/jail.local"
@@ -188,7 +188,7 @@
     mode: "0644"
   register: fail2ban_config
 
-- name: "Fail2ban: Включение автозагрузки и запуск службы"
+- name: "[Fail2ban] Включение автозагрузки и (пере)запуск службы"
   systemd:
     name: fail2ban
     state: restarted
@@ -197,9 +197,9 @@
   when: fail2ban_config.changed
 
 # =========================================================================
-# ПУНКТ 4: УСТАНОВКА DOCKER (Debian/Ubuntu)
+# 4. УСТАНОВКА DOCKER (Debian/Ubuntu)
 # =========================================================================
-- name: "Docker: Удаление старых конфликтующих пакетов (Ubuntu/Debian)"
+- name: "[Docker] Debian/Ubuntu: удаление старых конфликтующих пакетов"
   apt:
     name:
       [
@@ -215,34 +215,34 @@
     purge: yes
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Docker: Установка базовых утилит (Ubuntu/Debian)"
+- name: "[Docker] Debian/Ubuntu: установка базовых утилит (ca-certificates, curl, gnupg)"
   apt:
     name: [ca-certificates, curl, gnupg]
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Docker: Создание директории для ключей репозиториев (/etc/apt/keyrings)"
+- name: "[Docker] Debian/Ubuntu: создание директории /etc/apt/keyrings"
   file:
     path: /etc/apt/keyrings
     state: directory
     mode: "0755"
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Docker: Скачивание официального GPG ключа"
+- name: "[Docker] Debian/Ubuntu: скачивание официального GPG-ключа Docker"
   get_url:
     url: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Docker: Добавление официального репозитория с привязкой ключа (Signed-By)"
+- name: "[Docker] Debian/Ubuntu: добавление официального репозитория Docker (Signed-By)"
   apt_repository:
     repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }} {{ ansible_facts['distribution_release'] }} stable"
     filename: docker
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Docker: Установка Docker Engine и плагина Compose (Ubuntu/Debian)"
+- name: "[Docker] Debian/Ubuntu: установка Docker Engine, CLI, containerd и плагинов"
   apt:
     name:
       [
@@ -257,9 +257,9 @@
   when: ansible_facts['os_family'] == "Debian"
 
 # =========================================================================
-# ПУНКТ 5: ЗАПУСК DOCKER (общий для всех ОС)
+# 5. ЗАПУСК DOCKER (общий для всех ОС)
 # =========================================================================
-- name: "Docker: Запуск демона и добавление в автозагрузку"
+- name: "[Docker] Запуск демона и добавление в автозагрузку"
   systemd:
     name: docker
     state: started
@@ -269,7 +269,7 @@
   delay: 10
   until: docker_start is success
 
-- name: "Docker: Проверка работоспособности"
+- name: "[Docker] Проверка работоспособности (docker info)"
   shell: docker info
   register: docker_info
   changed_when: false
@@ -277,16 +277,16 @@
   delay: 5
   until: docker_info.rc == 0
 
-- name: "Docker: Добавление пользователя {{ deploy_user }} в группу docker"
+- name: "[Docker] Добавление пользователя {{ deploy_user }} в группу docker"
   user:
     name: "{{ deploy_user }}"
     groups: docker
     append: yes
 
 # =========================================================================
-# ПУНКТ 6: УСТАНОВКА AmneziaWG (Debian/Ubuntu)
+# 6. УСТАНОВКА AmneziaWG (Debian/Ubuntu)
 # =========================================================================
-- name: "Ubuntu/Debian: Установка утилит сборки и заголовков текущего ядра"
+- name: "[AmneziaWG] Debian/Ubuntu: установка утилит сборки и заголовков ядра"
   apt:
     name:
       - software-properties-common
@@ -298,34 +298,34 @@
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Ubuntu: Добавление официального PPA AmneziaWG"
+- name: "[AmneziaWG] Ubuntu: добавление официального PPA amnezia/ppa"
   apt_repository:
     repo: "ppa:amnezia/ppa"
     state: present
   when: ansible_facts['distribution'] == "Ubuntu"
 
-- name: "Debian: Добавление репозитория AmneziaWG"
+- name: "[AmneziaWG] Debian: добавление репозитория AmneziaWG (через Launchpad)"
   block:
-    - name: "Debian: Добавление GPG-ключа репозитория"
+    - name: "[AmneziaWG] Debian: добавление GPG-ключа репозитория"
       apt_key:
         keyserver: keyserver.ubuntu.com
         id: 57290828
         state: present
 
-    - name: "Debian: Добавление репозитория в sources.list"
+    - name: "[AmneziaWG] Debian: добавление репозитория в sources.list"
       apt_repository:
         repo: "deb https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
         state: present
   when: ansible_facts['distribution'] == "Debian"
 
-- name: "Ubuntu/Debian: Установка пакета amneziawg"
+- name: "[AmneziaWG] Debian/Ubuntu: установка пакета amneziawg"
   apt:
     name: amneziawg
     state: present
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Ubuntu/Debian: Проверка расхождения версий запущенного и установленного ядра"
+- name: "[Kernel] Debian/Ubuntu: проверка расхождения версий запущенного и установленного ядра"
   shell: |
     running_kernel="$(uname -r)"
     latest_installed_kernel="$(dpkg -l 'linux-image-[0-9]*' | awk '/^ii/ {print $2}' | grep -v 'extra' | sort -V | tail -n1 | sed 's/linux-image-//')"
@@ -338,13 +338,13 @@
   changed_when: false
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Ubuntu/Debian: Отправка команды на перезагрузку"
+- name: "[Reboot] Debian/Ubuntu: отправка команды на перезагрузку (при необходимости)"
   ansible.builtin.shell: "sleep 2 && shutdown -r now"
   async: 1
   poll: 0
   when: ubuntu_kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Debian"
 
-- name: "Ожидание поднятия сервера под пользователем {{ deploy_user }}"
+- name: "[Reboot] Debian/Ubuntu: ожидание поднятия сервера после перезагрузки (пользователь {{ deploy_user }})"
   ansible.builtin.wait_for_connection:
     connect_timeout: 10
     timeout: 300
@@ -353,7 +353,7 @@
     ansible_user: "{{ deploy_user }}"
   when: ubuntu_kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Debian"
 
-- name: "Ubuntu/Debian: Принудительный контроль сборки DKMS и загрузка модуля"
+- name: "[DKMS] Debian/Ubuntu: принудительная сборка DKMS и загрузка модуля amneziawg"
   shell: |
     dkms autoinstall -k $(uname -r) || true
     modprobe amneziawg
