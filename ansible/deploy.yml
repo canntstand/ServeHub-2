@@ -48,6 +48,13 @@
     - name: "Facts: Сбор системных фактов после проверки Python"
       setup:
 
+    - name: "Проверка поддерживаемой ОС"
+      fail:
+        msg: "Неподдерживаемая ОС. Требуется Debian/Ubuntu или Arch Linux"
+      when:
+        - ansible_facts['os_family'] != 'Debian'
+        - ansible_facts['os_family'] != 'Archlinux'
+
     - name: "Bootstrap: Запуск сценария базовой настройки"
       include_tasks: tasks/bootstrap_os.yml
 
@@ -56,6 +63,66 @@
       ansible.builtin.systemd:
         name: "{{ 'ssh' if ansible_facts['os_family'] == 'Debian' else 'sshd' }}"
         state: restarted
+
+- name: "Подготовка файлов VPS"
+  hosts: vps
+  vars_files:
+    - vars/secrets.yml
+  become: yes
+  tasks:
+    - name: "VPS | Проверка наличия папки репозитория"
+      ansible.builtin.stat:
+        path: "/home/{{ vps_user }}/ServeHub-2"
+      register: vps_repo_dir
+
+    - name: "Клонирование репозитория ServeHub-2"
+      git:
+        repo: "https://github.com/canntstand/ServeHub-2"
+        dest: "/home/{{ vps_user }}/ServeHub-2"
+        clone: yes
+        update: yes
+      become: true
+      become_user: "{{ vps_user }}"
+      when: not vps_repo_dir.stat.exists
+
+    - name: "Генерация файла .env из шаблона env.j2"
+      template:
+        src: env.j2
+        dest: "/home/{{ vps_user }}/ServeHub-2/.env"
+        owner: "{{ vps_user }}"
+        group: "{{ vps_user }}"
+        mode: "0600"
+      when: not vps_repo_dir.stat.exists
+
+- name: "Подготовка файлов Local"
+  hosts: local
+  vars_files:
+    - vars/secrets.yml
+  become: yes
+  tasks:
+    - name: "Local | Проверка наличия папки репозитория"
+      ansible.builtin.stat:
+        path: "/home/{{ local_user }}/ServeHub-2"
+      register: local_repo_dir
+
+    - name: "Клонирование репозитория ServeHub-2"
+      git:
+        repo: "https://github.com/canntstand/ServeHub-2"
+        dest: "/home/{{ local_user }}/ServeHub-2"
+        clone: yes
+        update: yes
+      become: true
+      become_user: "{{ local_user }}"
+      when: not local_repo_dir.stat.exists
+
+    - name: "Генерация файла .env из шаблона env.j2"
+      template:
+        src: env.j2
+        dest: "/home/{{ local_user }}/ServeHub-2/.env"
+        owner: "{{ local_user }}"
+        group: "{{ local_user }}"
+        mode: "0600"
+      when: not local_repo_dir.stat.exists
 
 - name: "Настройка удаленной инфраструктуры: setup_remote.sh"
   hosts: vps
@@ -68,6 +135,11 @@
         path: "/home/{{ vps_user }}/ServeHub-2"
       register: vps_repo_dir
 
+    - name: "VPS | Проверка наличия .env"
+      ansible.builtin.stat:
+        path: "/home/{{ vps_user }}/ServeHub-2/.env"
+      register: vps_env_exists
+
     - name: "Клонирование репозитория если репозиторий отсутствует"
       ansible.builtin.git:
         repo: "https://github.com/canntstand/ServeHub-2"
@@ -76,7 +148,7 @@
         update: yes
       become_user: "{{ vps_user }}"
       when: not vps_repo_dir.stat.exists
-        
+
     - name: "Генерация файла .env из шаблона env.j2"
       template:
         src: env.j2
@@ -84,6 +156,7 @@
         owner: "{{ vps_user }}"
         group: "{{ vps_user }}"
         mode: "0600"
+      when: not vps_env_exists.stat.exists
 
     - name: "Запуск скрипта настройки удаленного сервера"
       shell: |
@@ -93,7 +166,7 @@
         chdir: "/home/{{ vps_user }}/ServeHub-2"
         executable: /bin/bash
       register: script_result
-      failed_when: script_result.rc != 0
+      failed_when: script_result.rc != 0 or 'ERROR' in script_result.stdout
 
 - name: "Ожидание конфигурации WireGuard"
   hosts: localhost
@@ -122,27 +195,15 @@
     - vars/secrets.yml
   become: yes
   tasks:
-    - name: "Local | Проверка наличия папки репозитория"
+    - name: "Проверка наличиния конфига WireGuard"
       ansible.builtin.stat:
-        path: "/home/{{ local_user }}/ServeHub-2"
-      register: local_repo_dir
+        path: "/home/{{ local_user }}/ServeHub-2/configs/amnezia/awg0.conf"
+      register: wg_config
 
-    - name: "Клонирование репозитория если репозиторий отсутствует"
-      ansible.builtin.git:
-        repo: "https://github.com/canntstand/ServeHub-2"
-        dest: "/home/{{ local_user }}/ServeHub-2"
-        clone: yes
-        update: yes
-      become_user: "{{ local_user }}"
-      when: not local_repo_dir.stat.exists
-        
-    - name: "Генерация файла .env из шаблона env.j2"
-      template:
-        src: env.j2
-        dest: "/home/{{ local_user }}/ServeHub-2/.env"
-        owner: "{{ local_user }}"
-        group: "{{ local_user }}"
-        mode: "0600"
+    - name: "Ошибка если конфиг отсутствует"
+      ansible.builtin.fail:
+        msg: "WireGuard конфиг не найден! Пожалуйста, создайте его перед продолжением."
+      when: not wg_config.stat.exists
 
     - name: "Запуск скрипта настройки локального сервера"
       shell: |
@@ -150,3 +211,6 @@
         ./scripts/setup_local.sh 2>&1 | tee /home/{{ local_user }}/setup_local.log
       args:
         chdir: "/home/{{ local_user }}/ServeHub-2"
+        executable: /bin/bash
+      register: script_result
+      failed_when: script_result.rc != 0 or 'ERROR' in script_result.stdout
