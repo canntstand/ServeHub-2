@@ -216,7 +216,7 @@ services:
       start_period: 30s
 
   nextcloud_cron:
-    image: nextcloud:33.0.5-alpine
+    image: nextcloud:34.0.0-apache
     container_name: nextcloud_cron
     restart: unless-stopped
     volumes:
