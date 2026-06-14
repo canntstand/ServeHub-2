@@ -172,7 +172,7 @@ services:
           memory: 512M
 
   nextcloud:
-    image: nextcloud:33.0.5-alpine
+    image: nextcloud:34.0.0-apache
     container_name: nextcloud
     logging: *default-logging
     restart: unless-stopped

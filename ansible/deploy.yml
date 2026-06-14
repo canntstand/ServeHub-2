@@ -68,7 +68,7 @@
         path: "/home/{{ vps_user }}/ServeHub-2"
       register: vps_repo_dir
 
-    - name: "VPS | Клонирование репозитория, если он отсутствует"
+    - name: "Клонирование репозитория если репозиторий отсутствует"
       ansible.builtin.git:
         repo: "https://github.com/canntstand/ServeHub-2"
         dest: "/home/{{ vps_user }}/ServeHub-2"
@@ -76,6 +76,14 @@
         update: yes
       become_user: "{{ vps_user }}"
       when: not vps_repo_dir.stat.exists
+        
+    - name: "Генерация файла .env из шаблона env.j2"
+      template:
+        src: env.j2
+        dest: "/home/{{ vps_user }}/ServeHub-2/.env"
+        owner: "{{ vps_user }}"
+        group: "{{ vps_user }}"
+        mode: "0600"
 
     - name: "Запуск скрипта настройки удаленного сервера"
       shell: |
@@ -119,7 +127,7 @@
         path: "/home/{{ local_user }}/ServeHub-2"
       register: local_repo_dir
 
-    - name: "Local | Клонирование репозитория, если он отсутствует"
+    - name: "Клонирование репозитория если репозиторий отсутствует"
       ansible.builtin.git:
         repo: "https://github.com/canntstand/ServeHub-2"
         dest: "/home/{{ local_user }}/ServeHub-2"
@@ -127,6 +135,14 @@
         update: yes
       become_user: "{{ local_user }}"
       when: not local_repo_dir.stat.exists
+        
+    - name: "Генерация файла .env из шаблона env.j2"
+      template:
+        src: env.j2
+        dest: "/home/{{ local_user }}/ServeHub-2/.env"
+        owner: "{{ local_user }}"
+        group: "{{ local_user }}"
+        mode: "0600"
 
     - name: "Запуск скрипта настройки локального сервера"
       shell: |

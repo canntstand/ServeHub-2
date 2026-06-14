@@ -121,7 +121,8 @@
         reboot_timeout: 300
         pre_reboot_delay: 5
         post_reboot_delay: 15
-        connect_user: root
+      vars:
+        ansible_user: "{{ deploy_user }}"
       when: kernel_check.stdout == "reboot_needed"
 
     - name: "Arch: Проверка и пересборка DKMS модулей после перезагрузки"
@@ -300,8 +301,10 @@
       - software-properties-common
       - python3-launchpadlib
       - gnupg2
-      - "linux-headers-{{ ansible_facts['kernel'] }}"
+      - git 
+      - linux-headers-generic
     state: present
+    update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
 
 - name: "Ubuntu: Добавление официального PPA AmneziaWG"
@@ -331,22 +334,34 @@
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
 
-# =========================================================================
-# ПУНКТ 7: КЛОНИРОВАНИЕ РЕПОЗИТОРИЯ И НАСТРОЙКА .ENV
-# =========================================================================
-- name: "Клонирование репозитория ServeHub-2"
-  git:
-    repo: "https://github.com/canntstand/ServeHub-2"
-    dest: "/home/{{ deploy_user }}/ServeHub-2"
-    clone: yes
-    update: yes
-  become: true
-  become_user: "{{ deploy_user }}"
+- name: "Ubuntu/Debian: Проверка расхождения версий запущенного и установленного ядра"
+  shell: |
+    running_kernel="$(uname -r)"
+    latest_installed_kernel="$(dpkg -l 'linux-image-[0-9]*' | awk '/^ii/ {print $2}' | grep -v 'extra' | sort -V | tail -n1 | sed 's/linux-image-//')"
+    if [ "$running_kernel" != "$latest_installed_kernel" ]; then
+      echo "reboot_needed"
+    else
+      echo "ok"
+    fi
+  register: ubuntu_kernel_check
+  changed_when: false
+  when: ansible_facts['os_family'] == "Debian"
 
-- name: "Генерация файла .env из шаблона env.j2"
-  template:
-    src: env.j2
-    dest: "/home/{{ deploy_user }}/ServeHub-2/.env"
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0600"
+- name: "Ubuntu/Debian: Перезагрузка сервера для применения нового ядра"
+  ansible.builtin.reboot:
+    msg: "Ansible: Перезагрузка для применения нового ядра Linux"
+    connect_timeout: 10
+    reboot_timeout: 300
+    pre_reboot_delay: 2
+    post_reboot_delay: 10
+  vars:
+    ansible_user: "{{ deploy_user }}"
+  when: ubuntu_kernel_check.stdout == "reboot_needed"
+
+- name: "Ubuntu/Debian: Принудительный контроль сборки DKMS и загрузка модуля"
+  shell: |
+    dkms autoinstall -k $(uname -r) || true
+    modprobe amneziawg
+  register: modprobe_result
+  changed_when: false
+  when: ansible_facts['os_family'] == "Debian"
