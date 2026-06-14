@@ -34,6 +34,14 @@ if ! docker compose version &> /dev/null; then
     exit 1
 fi
 
+if ! command -v vagrant &> /dev/null; then
+    print_warning "Vagrant не установлен на хосте! Пункты 8-10 (для тестирования) работать не будут."
+fi
+
+if ! command -v ansible &> /dev/null; then
+    print_warning "Ansible не установлен на хосте! Пункты 8-10 (для тестирования) работать не будут."
+fi
+
 DEBUG_ARGS=""
 
 run_ansible() {
@@ -84,7 +92,6 @@ case "$DEBUG_CHOICE" in
         ;;
 esac
 
-# Меню выбора
 echo -e "${BOLD}${WHITE}Выберите сценарий развертывания инфраструктуры:${NC}\n"
 
 echo -e "${BOLD}${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
@@ -112,7 +119,18 @@ echo -e " ${YELLOW}5)${NC} ${BOLD}Полная установка с нуля (V
 echo -e "    • Подготовит ОС на VPS (пароль root) и запустит сервисы.\n"
 echo -e " ${YELLOW}6)${NC} ${BOLD}Только разворачивание приложений (VPS), без bootstrap${NC}"
 echo -e "    • Только запуск сервисов на VPS (предполагается, что ОС уже настроена, SSH ключ есть).\n"
-echo -e " ${RED}7)${NC} ${BOLD}Выход из мастера деплоя${NC}\n"
+
+echo -e "${BOLD}${MAGENTA}╔════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BOLD}${MAGENTA}║                   VAGRANT (ТЕСТИРОВАНИЕ)                       ║${NC}"
+echo -e "${BOLD}${MAGENTA}╚════════════════════════════════════════════════════════════════╝${NC}"
+echo -e " ${MAGENTA}7)${NC} ${BOLD}Запуск инфраструктуры Vagrant${NC}"
+echo -e "    • Поднимет виртуалки (up) и сгенерирует файл SSH-конфига."
+echo -e " ${MAGENTA}8)${NC} ${BOLD}Деплой на Vagrant-узлы${NC}"
+echo -e "    • Запустит Ansible-плейбуки внутри ваших тестовых виртуалок."
+echo -e " ${MAGENTA}9)${NC} ${BOLD}Удаление среды Vagrant${NC}"
+echo -e "    • Уничтожит виртуалки (destroy) и очистит временные файлы.\n"
+
+echo -e " ${RED}10)${NC} ${BOLD}Выход из мастера деплоя${NC}\n"
 
 echo -e -n "${WHITE}Введите номер варианта [1-7]: ${NC}"
 read CHOICE
@@ -172,6 +190,31 @@ case $CHOICE in
         run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap"
         ;;
     7)
+        echo ""
+        print_header "Работа с Vagrant: Поднятие сред"
+        vagrant up
+        vagrant ssh-config > vagrant_ssh_config
+        print_success "Виртуалки запущены, конфиг SSH готов."
+        ;;
+    8)
+        echo ""
+        print_header "Деплой на Vagrant-узлы"
+        if [ ! -f "vagrant_ssh_config" ]; then
+            print_error "Конфиг SSH не найден! Сначала выполните пункт 8."
+        else
+            run_ansible_host "-i ansible/inventory.ini ansible/deploy.yml \
+                --limit vagrant \
+                --extra-vars \"ansible_ssh_common_args='-F ../vagrant_ssh_config'\""
+        fi
+        ;;
+    9)
+        echo ""
+        print_header "Удаление Vagrant-сред"
+        vagrant destroy -f
+        rm -f vagrant_ssh_config
+        print_success "Виртуальные машины удалены."
+        ;;
+    10)
         echo ""
         print_info "Выход из мастера деплоя."
         exit 0

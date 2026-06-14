@@ -1,6 +1,7 @@
 # Документация инфраструктуры: ServeHub-2
 
-[Гайд по настройке](https://github.com/canntstand/ServeHub-2/blob/main/SETUP_GUIDE.md)
+- [Гайд по настройке](https://github.com/canntstand/ServeHub-2/blob/main/SETUP_GUIDE.md)
+- [Гайд по настройке тестирования Ansible](https://github.com/canntstand/ServeHub-2/blob/main/SETUP_VAGRANT_GUIDE.md)
 
 ## Цель проекта
 Основная цель — развернуть серверную интернет-архитектуру, которая решает мои личные задачи без значительных финансовых вложений. В её основе лежат следующие сервисы:

@@ -1,5 +1,5 @@
 - name: "[Bootstrap] Проверка: доступен ли root?"
-  hosts: vps, local
+  hosts: vps, local, vagrant
   gather_facts: no
   vars_files:
     - vars/secrets.yml
@@ -17,19 +17,20 @@
       vars:
         ansible_user: root
       register: root_auth_check
+      when: not is_vagrant | default(false)
 
     - name: "[SSH] Логика: настройка подключения под root"
       set_fact:
         ansible_user: root
         ansible_become: no
-      when: root_auth_check.ping is defined
+      when: root_auth_check.ping is defined and not is_vagrant | default(false)
 
     - name: "[SSH] Логика: настройка sudo для обычного пользователя"
       set_fact:
         ansible_become: yes
         ansible_become_method: sudo
         ansible_become_password: "{{ user_pass }}"
-      when: root_auth_check.ping is not defined
+      when: root_auth_check.ping is not defined and not is_vagrant | default(false)
 
   tasks:
     - name: "[Python] Установка Python3 (необходим для работы Ansible)"
@@ -63,9 +64,10 @@
       ansible.builtin.systemd:
         name: "{{ 'ssh' if ansible_facts['os_family'] == 'Debian' else 'sshd' }}"
         state: restarted
+      when: not is_vagrant | default(false)
 
 - name: "[Git] Синхронизация репозитория ServeHub-2"
-  hosts: vps, local
+  hosts: vps, local, vagrant
   vars_files:
     - vars/secrets.yml
   become: yes
@@ -89,7 +91,7 @@
         mode: "0600"
 
 - name: "[WireGuard] Настройка удалённой инфраструктуры (setup_remote.sh)"
-  hosts: vps
+  hosts: vps, vagrant
   vars_files:
     - vars/secrets.yml
   become: yes
@@ -126,7 +128,7 @@
           Как только файл на месте, нажмите ENTER для продолжения деплоя...
 
 - name: "[WireGuard] Настройка локальной инфраструктуры (setup_local.sh)"
-  hosts: local
+  hosts: local, vagrant
   vars_files:
     - vars/secrets.yml
   become: yes

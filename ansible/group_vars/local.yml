@@ -2,6 +2,8 @@ ansible_host: "{{ local_private_ip }}"
 ansible_user: "{{ local_user }}"
 ansible_python_interpreter: /usr/bin/python3
 
-user_pass: "{{ local_user_password }}"
+user_pass: "{{ local_root_password }}"
 
 deploy_user: "{{ local_user }}"
+
+is_vagrant: false
