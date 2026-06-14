@@ -132,7 +132,7 @@ echo -e "    • Уничтожит виртуалки (destroy) и очисти
 
 echo -e " ${RED}10)${NC} ${BOLD}Выход из мастера деплоя${NC}\n"
 
-echo -e -n "${WHITE}Введите номер варианта [1-7]: ${NC}"
+echo -e -n "${WHITE}Введите номер варианта [1-10]: ${NC}"
 read CHOICE
 
 check_inventory

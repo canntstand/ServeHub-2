@@ -89,15 +89,17 @@
       shell: modprobe amneziawg || true
       changed_when: false
 
-    - name: "[Kernel] Arch: проверка расхождения версий ядра (требуется перезагрузка?)"
+    - name: "[Kernel] Arch: проверка расхождения версий ядра"
       shell: |
-        running=$(uname -r | sed 's/-arch.*//')
-        installed=$(pacman -Q linux | awk '{print $2}' | sed 's/\.arch.*//' | sed 's/-.*//')
-        if [ "$running" != "$installed" ]; then
+        running=$(uname -r)
+        installed_pkg=$(pacman -Q | grep -E '^linux(-lts|-zen)? ' | awk '{print $2}' | head -n1)
+        if [[ "$running" != *"$installed_pkg"* ]]; then
           echo "reboot_needed"
         else
           echo "ok"
         fi
+      args:
+        executable: /bin/bash
       register: kernel_check
       changed_when: false
 
@@ -105,7 +107,7 @@
       ansible.builtin.shell: "sleep 2 && shutdown -r now"
       async: 1
       poll: 0
-      when: kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Archlinux"
+      when: kernel_check.stdout == "reboot_needed"
 
     - name: "[Reboot] Arch: ожидание поднятия сервера после перезагрузки (пользователь {{ deploy_user }})"
       ansible.builtin.wait_for_connection:
@@ -114,7 +116,7 @@
         delay: 10
       vars:
         ansible_user: "{{ deploy_user }}"
-      when: kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Archlinux"
+      when: kernel_check.stdout == "reboot_needed"
 
     - name: "[DKMS] Arch: проверка и пересборка DKMS-модулей после перезагрузки"
       shell: |
@@ -188,13 +190,12 @@
     mode: "0644"
   register: fail2ban_config
 
-- name: "[Fail2ban] Включение автозагрузки и (пере)запуск службы"
+- name: "[Fail2ban] Включение автозагрузки и контроль состояния"
   systemd:
     name: fail2ban
-    state: restarted
+    state: "{{ 'restarted' if fail2ban_config.changed else 'started' }}"
     enabled: yes
     daemon_reload: yes
-  when: fail2ban_config.changed
 
 # =========================================================================
 # 4. УСТАНОВКА DOCKER (Debian/Ubuntu)
@@ -215,34 +216,34 @@
     purge: yes
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "[Docker] Debian/Ubuntu: установка базовых утилит (ca-certificates, curl, gnupg)"
+- name: "[Docker] Debian/Ubuntu: установка базовых утилит"
   apt:
     name: [ca-certificates, curl, gnupg]
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "[Docker] Debian/Ubuntu: создание директории /etc/apt/keyrings"
+- name: "[Docker] Debian/Ubuntu: создание /etc/apt/keyrings"
   file:
     path: /etc/apt/keyrings
     state: directory
     mode: "0755"
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "[Docker] Debian/Ubuntu: скачивание официального GPG-ключа Docker"
+- name: "[Docker] Debian/Ubuntu: скачивание GPG-ключа"
   get_url:
     url: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "[Docker] Debian/Ubuntu: добавление официального репозитория Docker (Signed-By)"
+- name: "[Docker] Debian/Ubuntu: добавление репозитория"
   apt_repository:
     repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }} {{ ansible_facts['distribution_release'] }} stable"
     filename: docker
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "[Docker] Debian/Ubuntu: установка Docker Engine, CLI, containerd и плагинов"
+- name: "[Docker] Debian/Ubuntu: установка Engine"
   apt:
     name:
       [
@@ -269,7 +270,7 @@
   delay: 10
   until: docker_start is success
 
-- name: "[Docker] Проверка работоспособности (docker info)"
+- name: "[Docker] Проверка работоспособности"
   shell: docker info
   register: docker_info
   changed_when: false
@@ -292,8 +293,8 @@
       - software-properties-common
       - python3-launchpadlib
       - gnupg2
-      - git 
-      - linux-headers-generic
+      - git
+      - "{{ 'linux-headers-generic' if ansible_facts['distribution'] == 'Ubuntu' else 'linux-headers-amd64' }}"
     state: present
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
@@ -306,15 +307,16 @@
 
 - name: "[AmneziaWG] Debian: добавление репозитория AmneziaWG (через Launchpad)"
   block:
-    - name: "[AmneziaWG] Debian: добавление GPG-ключа репозитория"
-      apt_key:
-        keyserver: keyserver.ubuntu.com
-        id: 57290828
-        state: present
+    - name: "[AmneziaWG] Debian: скачивание GPG-ключа (Modern Way)"
+      ansible.builtin.get_url:
+        url: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x57290828"
+        dest: /etc/apt/keyrings/amnezia-ppa.asc
+        mode: "0644"
 
     - name: "[AmneziaWG] Debian: добавление репозитория в sources.list"
       apt_repository:
-        repo: "deb https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
+        repo: "deb [signed-by=/etc/apt/keyrings/amnezia-ppa.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
+        filename: amnezia
         state: present
   when: ansible_facts['distribution'] == "Debian"
 
