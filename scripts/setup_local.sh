@@ -58,7 +58,19 @@ if ! systemctl is-enabled --quiet docker; then
     sudo systemctl enable docker
 fi
 sudo systemctl start docker
-log_success "Docker активен."
+
+log_info "Ожидание готовности Docker API..."
+for i in {1..10}; do
+    if docker info >/dev/null 2>&1; then
+        log_success "Docker активен и готов."
+        break
+    fi
+    sleep 2
+done
+if ! docker info >/dev/null 2>&1; then
+    log_error "Docker демон не запустился. Выход."
+    exit 1
+fi
 
 # ==========================================
 ENV_FILE=".env"
@@ -154,6 +166,7 @@ EOF
 
 sudo chown -R 991:991 apps-data/synapse/
 log_success "Конфигурация Synapse создана."
+
 # ==========================================
 log_info "Запуск сервиса настройки мониторинга..."
 docker compose -f docker-compose.local.yaml up -d monitoring_configure
@@ -217,7 +230,7 @@ log_info "Настройка брандмауэра iptables..."
 DEFAULT_IF=$(ip route show default 2>/dev/null | awk '/default/ {print $5; exit}')
 if [ -z "$DEFAULT_IF" ]; then
     log_error "Не удалось определить внешний интерфейс. Правила MASQUERADE не будут применены."
-    DEFAULT_IF="eth0"
+    exit 1
 else
     log_info "Внешний интерфейс: ${DEFAULT_IF}"
 fi
@@ -282,6 +295,7 @@ fi
 
 if [ "$saved" = false ]; then
     log_error "Не удалось сохранить правила iptables. После перезагрузки они пропадут."
+    exit 1
 fi
 
 log_success "Сетевые правила применены."
@@ -291,8 +305,22 @@ log_info "Запуск основных сервисов..."
 MAIN_SERVICES="synapse synapse_db nginx nextcloud_cron amnezia-client nginx_exporter navidrome audiobookshelf nextcloud nextcloud_db vaultwarden vaultwarden_db prometheus_init prometheus grafana node_exporter cadvisor portainer alertmanager matrix_alertmanager"
 docker compose -f docker-compose.local.yaml up -d $MAIN_SERVICES
 
-log_info "Ожидание стабилизации сервисов (15 секунд)..."
-sleep 15
+log_info "Ожидание запуска сервисов..."
+max_wait=30
+elapsed=0
+while [ $elapsed -lt $max_wait ]; do
+    running_count=$(sudo docker compose -f docker-compose.local.yaml ps --services --filter "status=running" | wc -l)
+    if [ "$running_count" -ge 3 ]; then
+        break
+    fi
+    sleep 3
+    elapsed=$((elapsed + 3))
+done
+
+if [ "$running_count" -lt 3 ]; then
+    log_error "Не все сервисы запустились за отведённое время ($max_wait сек)."
+    exit 1
+fi
 
 log_info "Создание административного пользователя..."
 chmod +x scripts/create_admin.sh

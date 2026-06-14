@@ -55,6 +55,10 @@ for tool in openssl curl git; do
     if ! command -v "$tool" &>/dev/null; then
         log_warn "$tool не найден. Устанавливаю..."
         install_pkg "$tool"
+        if ! command -v "$tool" &>/dev/null; then
+            log_error "Не удалось установить $tool."
+            exit 1
+        fi
     fi
 done
 log_success "Базовые зависимости проверены."
@@ -220,7 +224,7 @@ log_info "Настройка брандмауэра iptables..."
 DEFAULT_IF=$(ip route show default 2>/dev/null | awk '/default/ {print $5; exit}')
 if [ -z "$DEFAULT_IF" ]; then
     log_error "Не удалось определить внешний интерфейс. Правила MASQUERADE не будут применены."
-    DEFAULT_IF="eth0"
+    exit 1
 else
     log_info "Внешний интерфейс: ${DEFAULT_IF}"
 fi
@@ -285,6 +289,7 @@ fi
 
 if [ "$saved" = false ]; then
     log_error "Не удалось сохранить правила iptables. После перезагрузки они пропадут."
+    exit 1
 fi
 
 log_success "Сетевые правила применены."
@@ -306,6 +311,11 @@ while [ $elapsed -lt $max_wait ]; do
     sleep 3
     elapsed=$((elapsed + 3))
 done
+
+if [ "$running_count" -lt 3 ]; then
+    log_error "Не все сервисы запустились за отведённое время ($max_wait сек)."
+    exit 1
+fi
 
 print_separator
 echo -e "${CYAN}               📊 ТЕКУЩИЙ СТАТУС ЗАПУЩЕННЫХ СЕРВИСОВ 📊${NC}"
