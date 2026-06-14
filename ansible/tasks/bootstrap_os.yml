@@ -114,16 +114,20 @@
       register: kernel_check
       changed_when: false
 
-    - name: "Arch: Перезагрузка после обновления ядра"
-      ansible.builtin.reboot:
-        msg: "Перезагрузка для применения нового ядра"
+    - name: "Arch: Отправка команды на перезагрузку"
+      ansible.builtin.shell: "sleep 2 && shutdown -r now"
+      async: 1
+      poll: 0
+      when: ubuntu_kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Archlinux"
+
+    - name: "Ожидание поднятия сервера под пользователем {{ deploy_user }}"
+      ansible.builtin.wait_for_connection:
         connect_timeout: 10
-        reboot_timeout: 300
-        pre_reboot_delay: 5
-        post_reboot_delay: 15
+        timeout: 300
+        delay: 10
       vars:
         ansible_user: "{{ deploy_user }}"
-      when: kernel_check.stdout == "reboot_needed"
+      when: ubuntu_kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Archlinux"
 
     - name: "Arch: Проверка и пересборка DKMS модулей после перезагрузки"
       shell: |
@@ -347,16 +351,20 @@
   changed_when: false
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "Ubuntu/Debian: Перезагрузка сервера для применения нового ядра"
-  ansible.builtin.reboot:
-    msg: "Ansible: Перезагрузка для применения нового ядра Linux"
+- name: "Ubuntu/Debian: Отправка команды на перезагрузку"
+  ansible.builtin.shell: "sleep 2 && shutdown -r now"
+  async: 1
+  poll: 0
+  when: ubuntu_kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Debian"
+
+- name: "Ожидание поднятия сервера под пользователем {{ deploy_user }}"
+  ansible.builtin.wait_for_connection:
     connect_timeout: 10
-    reboot_timeout: 300
-    pre_reboot_delay: 2
-    post_reboot_delay: 10
+    timeout: 300
+    delay: 10
   vars:
     ansible_user: "{{ deploy_user }}"
-  when: ubuntu_kernel_check.stdout == "reboot_needed"
+  when: ubuntu_kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Debian"
 
 - name: "Ubuntu/Debian: Принудительный контроль сборки DKMS и загрузка модуля"
   shell: |

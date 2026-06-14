@@ -34,3 +34,12 @@ endpoints:
         failure-threshold: 3
         success-threshold: 2
         description: "Критический сбой: Веб-окружение VPS не отвечает!"
+  
+  - name: SSL Certificate
+    url: "https://${SYNAPSE_SERVER_NAME}"
+    interval: 1h
+    conditions:
+      - "[CERTIFICATE_EXPIRATION] > 720h"
+    alerts:
+      - type: matrix
+        description: "SSL сертификат скоро истекает"
