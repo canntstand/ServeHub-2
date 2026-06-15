@@ -49,6 +49,12 @@ run_ansible() {
     docker compose -f docker-compose.ansible.yaml run --rm ansible sh -c "ansible-playbook ${args} ${DEBUG_ARGS}"
 }
 
+run_ansible_host() {
+    local args="$@"
+    print_info "Запуск Ansible на хосте (напрямую)..."
+    ansible-playbook ${args} ${DEBUG_ARGS}
+}
+
 check_inventory() {
     if [ ! -f "ansible/inventory.ini" ]; then
         print_error "ansible/inventory.ini не найден!"
@@ -200,11 +206,11 @@ case $CHOICE in
         echo ""
         print_header "Деплой на Vagrant-узлы"
         if [ ! -f "vagrant_ssh_config" ]; then
-            print_error "Конфиг SSH не найден! Сначала выполните пункт 8."
+            print_error "Конфиг SSH не найден! Сначала выполните пункт 7."
         else
             run_ansible_host "-i ansible/inventory.ini ansible/deploy.yml \
                 --limit vagrant \
-                --extra-vars \"ansible_ssh_common_args='-F ../vagrant_ssh_config'\""
+                --extra-vars \"ansible_ssh_common_args='-F ./vagrant_ssh_config'\""
         fi
         ;;
     9)
