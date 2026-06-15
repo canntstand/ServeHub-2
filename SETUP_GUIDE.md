@@ -24,11 +24,11 @@
     - **WSL + Дистрибутив**
     - **Терминал с поддержкой Bash**
 2. Подготовить 2 Linux сервера с включенным ssh (Ubuntu/Debian/Arch)
-3. Клонировать репозиторий: `git clone https://github.com/canntstand/ServeHub-2 && cd ServeHub-2`
-4. Создать файл `ansible/vars/secrets.yml` на основе примера `ansible/vars/secrets.yml.example`.
-5. Создать ssh ключ `ssh-keygen -t ed25519 -C "your_email@example.com"`
-6. В WSL выполнить `mkdir -p ~/.ssh && cp /mnt/c/Users/ВАШЕ_ИМЯ_ПОЛЬЗОВАТЕЛЯ/.ssh/id_ed25519 ~/.ssh/ && chmod 600 ~/.ssh/id_ed25519` 
-7. В WSL запустить файл (нужно перейти к корню проекта на Windows через /mnt/): `./manage_deploy.sh` (при первой установке на пустые сервера лучше выбрать 1 пункт)
+3. Зайти в терминал дистрибутива в WSL (все остальные пункты будут выполняться строго в нем)
+4. Клонировать репозиторий (где угодно в /mnt/c/): `git clone https://github.com/canntstand/ServeHub-2 && cd ServeHub-2`
+5. Создать файл `ansible/vars/secrets.yml` на основе примера `ansible/vars/secrets.yml.example`.
+6. Сгенерировать SSH-ключ и выдать нужные права: `ssh-keygen -t ed25519 -C "your_email@example.com" && chmod 600 ~/.ssh/id_ed25519`
+7. Запустить скрипт развертывания: `chmod +x manage_deploy.sh && ./manage_deploy.sh` (при первой установке на пустые сервера лучше выбрать 1 пункт)
 8. Остальные шаги сообщит скрипт
 
 ## Пользование сервисами
