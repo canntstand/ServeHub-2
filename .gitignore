@@ -3,3 +3,4 @@
 ansible/vars/secrets.yml
 certbot
 .vagrant
+.vscode

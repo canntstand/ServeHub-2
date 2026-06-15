@@ -5,5 +5,3 @@ ansible_python_interpreter: /usr/bin/python3
 user_pass: "{{ vps_root_password }}"
 
 deploy_user: "{{ vps_user }}"
-
-is_vagrant: false
