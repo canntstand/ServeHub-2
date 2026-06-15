@@ -2,3 +2,4 @@
 .venv
 ansible/vars/secrets.yml
 certbot
+.vagrant
