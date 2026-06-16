@@ -34,11 +34,16 @@
   tasks:
     - name: "[Python] Установка Python3 (необходим для работы Ansible)"
       raw: |
+        if command -v python3 >/dev/null 2>&1; then
+            exit 0
+        fi
+
         if [ "$USER" != "root" ]; then SUDO="sudo"; else SUDO=""; fi
+        
         if command -v apt-get >/dev/null; then
             $SUDO apt-get update && $SUDO env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get install -y python3
         elif command -v pacman >/dev/null; then
-            $SUDO pacman -Sy --noconfirm python3
+            $SUDO pacman -Sy --noconfirm --overwrite "*" archlinux-keyring && $SUDO pacman -S --noconfirm --overwrite "*" python3
         else
             echo "Unsupported distribution" >&2
             exit 1

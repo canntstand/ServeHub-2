@@ -26,6 +26,13 @@
     upgrade: safe
   when: ansible_facts['os_family'] == "Debian"
 
+- name: Обновление ключей Arch Linux
+  community.general.pacman:
+    name: archlinux-keyring
+    state: latest
+    update_cache: yes
+  when: ansible_facts['os_family'] == "Archlinux"
+
 - name: "[Pacman] Arch: полное обновление системы"
   pacman:
     update_cache: yes
@@ -272,8 +279,8 @@
 - name: "[Yay] Arch: проверка наличия yay"
   stat:
     path: /usr/bin/yay
-  register: yay_installed
   when: ansible_facts['os_family'] == "Archlinux"
+  register: yay_installed
 
 - name: "[Yay] Arch: установка зависимостей для сборки"
   pacman:
@@ -323,10 +330,11 @@
   changed_when: "'Installing' in yay_output.stdout or 'upgraded' in yay_output.stdout"
   when: ansible_facts['os_family'] == "Archlinux"
 
-- name: "[AmneziaWG] Ubuntu: добавление официального PPA"
+- name: "[AmneziaWG] Ubuntu: добавление PPA"
   apt_repository:
     repo: "ppa:amnezia/ppa"
     state: present
+    update_cache: yes
   when: ansible_facts['distribution'] == "Ubuntu"
 
 - name: "[AmneziaWG] Debian: добавление репозитория AmneziaWG"
@@ -336,16 +344,25 @@
         url: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x57290828"
         dest: /etc/apt/keyrings/amnezia-ppa.asc
         mode: "0644"
-    - name: "[AmneziaWG] Debian: добавление репозитория в sources.list"
+
+    - name: "[AmneziaWG] Debian: добавление репозитория (deb)"
       apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/amnezia-ppa.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu noble main"
+        repo: "deb [signed-by=/etc/apt/keyrings/amnezia-ppa.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
+        filename: amnezia
+        state: present
+
+    - name: "[AmneziaWG] Debian: добавление репозитория (deb-src)"
+      apt_repository:
+        repo: "deb-src [signed-by=/etc/apt/keyrings/amnezia-ppa.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
         filename: amnezia
         state: present
   when: ansible_facts['distribution'] == "Debian"
 
-- name: "[AmneziaWG] Debian/Ubuntu: установка пакета amneziawg"
+- name: "[AmneziaWG] Debian/Ubuntu: установка пакетов amneziawg и утилит"
   apt:
-    name: amneziawg
+    name:
+      - amneziawg
+      - amneziawg-tools
     state: present
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"

@@ -11,23 +11,21 @@ Vagrant.configure("2") do |config|
       node.vm.network "public_network", use_dhcp_assigned_default_route: true
       
       node.vm.provision "shell", inline: <<-SHELL
-        if [ -f /etc/arch-release ]; then
-          echo "Подготовка Arch..."
-          pacman -Sy --noconfirm archlinux-keyring
-          pacman -Syu --noconfirm
-        elif [ -f /etc/debian_version ]; then
-          echo "Обновление Debian/Ubuntu и установка свежего ядра..."
-          apt-get update
+        echo "=== [Vagrant Fix] Настройка стабильного DNS для моста ==="
+        rm -f /etc/resolv.conf
+        echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" > /etc/resolv.conf
+
+        if [ -f /etc/debian_version ]; then
+          echo "=== [Vagrant Fix] Исправление привязки GRUB к диску ==="
+          PRIMARY_DISK=$(lsblk -ndrio NAME,TYPE | awk '$2=="disk" {print "/dev/"$1; exit}')
           
-          apt-get install -y linux-image-generic linux-headers-generic
-          
-          touch /var/run/reboot-required
+          echo "grub-pc grub-pc/install_devices string $PRIMARY_DISK" | debconf-set-selections
         fi
       SHELL
       
       node.vm.provider "virtualbox" do |vb|
-        vb.memory = "4096"
-        vb.cpus = 3
+        vb.memory = "8192"
+        vb.cpus = 4
         vb.name = "servehub-test-#{name}"
         vb.customize ["modifyvm", :id, "--graphicscontroller", "vmsvga"]
       end
