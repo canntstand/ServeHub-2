@@ -275,24 +275,45 @@
   register: yay_installed
   when: ansible_facts['os_family'] == "Archlinux"
 
-- name: "[Yay] Arch: установка yay"
+- name: "[Yay] Arch: установка зависимостей для сборки"
+  pacman:
+    name:
+      - base-devel
+      - git
+    state: present
   become: true
-  become_user: "{{ deploy_user }}"
+  when: ansible_facts['os_family'] == "Archlinux" and not yay_installed.stat.exists
+
+- name: "[Yay] Arch: установка готового yay-bin"
   when: ansible_facts['os_family'] == "Archlinux" and not yay_installed.stat.exists
   block:
-    - name: "[Yay] Arch: клонирование репозитория yay"
+    - name: "[Yay] Arch: клонирование репозитория yay-bin"
       git:
-        repo: https://aur.archlinux.org/yay.git
-        dest: "/home/{{ deploy_user }}/yay"
+        repo: https://aur.archlinux.org/yay-bin.git
+        dest: "/tmp/yay-bin"
         force: yes
-    - name: "[Yay] Arch: сборка и установка yay"
-      shell: makepkg -si --noconfirm
+      become: true
+      become_user: "{{ deploy_user }}"
+
+    - name: "[Yay] Arch: подготовка пакета yay-bin"
+      command: makepkg -s --noconfirm
       args:
-        chdir: "/home/{{ deploy_user }}/yay"
-    - name: "[Yay] Arch: очистка временных файлов"
+        chdir: "/tmp/yay-bin"
+      become: true
+      become_user: "{{ deploy_user }}"
+
+    - name: "[Yay] Arch: установка пакета через pacman"
+      shell: pacman -U --noconfirm yay-bin-*.pkg.tar.zst
+      args:
+        chdir: "/tmp/yay-bin"
+      become: true
+
+  always:
+    - name: "[Yay] Arch: очистка временных файлов сборки"
       file:
-        path: "/home/{{ deploy_user }}/yay"
+        path: "/tmp/yay-bin"
         state: absent
+      become: true
 
 - name: "[AmneziaWG] Arch: установка amneziawg из AUR"
   become: true

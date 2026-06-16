@@ -209,11 +209,15 @@ add_sysctl_param() {
     local value="$2"
     local line="${param}=${value}"
 
+    if [! -f /etc/sysctl.conf]; then
+        sudo touch /etc/sysctl.conf
+    fi
+
     if grep -qE "^[[:space:]]*${param}=" /etc/sysctl.conf; then
-        sed -i "s|^[[:space:]]*${param}=.*|${line}|" /etc/sysctl.conf
+        sudo sed -i "s|^[[:space:]]*${param}=.*|${line}|" /etc/sysctl.conf
         echo -e "  [Ядро] Обновлён параметр: ${YELLOW}${line}${NC}"
     else
-        echo "$line" >> /etc/sysctl.conf
+        echo "$line" | sudo tee -a /etc/sysctl.conf > /dev/null
         echo -e "  [Ядро] Добавлен параметр: ${GREEN}${line}${NC}"
     fi
 }
@@ -278,11 +282,10 @@ else
         saved=true
     elif [[ "$DISTRO" == "arch" ]]; then
         log_warn "Arch Linux: сохранение через iptables-save..."
-        mkdir -p /etc/iptables
-        iptables-save > /etc/iptables/iptables.rules
+        sudo mkdir -p /etc/iptables
+        sudo iptables-save | sudo tee /etc/iptables/iptables.rules > /dev/null
         sudo systemctl enable --now iptables
-        sudo systemctl enable iptables-restore.service
-        log_success "Создан systemd-сервис для восстановления iptables."
+        log_success "Правила сохранены, сервис iptables активирован."
         saved=true
     else
         log_warn "Неизвестный дистрибутив. Сохраняю через iptables-save в /etc/iptables/rules.v4"

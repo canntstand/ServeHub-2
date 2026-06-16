@@ -36,7 +36,7 @@
       raw: |
         if [ "$USER" != "root" ]; then SUDO="sudo"; else SUDO=""; fi
         if command -v apt-get >/dev/null; then
-            $SUDO apt-get update && $SUDO apt-get install -y python3
+            $SUDO apt-get update && $SUDO env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get install -y python3
         elif command -v pacman >/dev/null; then
             $SUDO pacman -Sy --noconfirm python3
         else
@@ -88,13 +88,13 @@
         group: "{{ deploy_user }}"
         mode: "0600"
 
-- name: "[WireGuard] Настройка удалённой инфраструктуры (setup_remote.sh)"
+- name: "Настройка удалённой инфраструктуры (setup_remote.sh)"
   hosts: vps
   vars_files:
     - vars/secrets.yml
   become: yes
   tasks:
-    - name: "[WireGuard] Запуск скрипта настройки удалённого сервера"
+    - name: "Запуск скрипта настройки удалённого сервера"
       shell: |
         chmod +x scripts/setup_remote.sh
         ./scripts/setup_remote.sh 2>&1 | tee /home/{{ deploy_user }}/setup_remote.log
@@ -116,7 +116,7 @@
           ======================================================================
           ⚙️ НАСТРОЙКА WIREGUARD И PROMETHEUS (РУЧНОЙ ШАГ):
           ======================================================================
-          1. Откройте туннель: ssh -L 51821:127.0.0.1:51821 {{ vps_user }}@{{ hostvars['vps-server']['ansible_host'] }}
+          1. Откройте туннель: ssh -L 51821:127.0.0.1:51821 {{ vps_user }}@{{ vps_public_ip }}
           2. Зайдите в браузер: http://127.0.0.1:51821
           3. Включите Prometheus в настройках wg-easy.
           4. Создайте клиента для локального сервера с ip 10.8.0.2 и скачайте файл конфигурации (либо просто скопируйте текст).
@@ -125,23 +125,23 @@
           ======================================================================
           Как только файл на месте, нажмите ENTER для продолжения деплоя...
 
-- name: "[WireGuard] Настройка локальной инфраструктуры (setup_local.sh)"
+- name: "Настройка локальной инфраструктуры (setup_local.sh)"
   hosts: local
   vars_files:
     - vars/secrets.yml
   become: yes
   tasks:
-    - name: "[WireGuard] Проверка наличия конфигурационного файла"
+    - name: "Проверка наличия конфигурационного файла"
       ansible.builtin.stat:
         path: "/home/{{ deploy_user }}/ServeHub-2/configs/amnezia/awg0.conf"
       register: wg_config
 
-    - name: "[WireGuard] Ошибка: отсутствует файл конфигурации WireGuard"
+    - name: "Ошибка: отсутствует файл конфигурации WireGuard"
       ansible.builtin.fail:
         msg: "WireGuard конфиг не найден! Пожалуйста, создайте его перед продолжением."
       when: not wg_config.stat.exists
 
-    - name: "[WireGuard] Запуск скрипта настройки локального сервера"
+    - name: "Запуск скрипта настройки локального сервера"
       shell: |
         chmod +x scripts/setup_local.sh
         ./scripts/setup_local.sh 2>&1 | tee /home/{{ deploy_user }}/setup_local.log

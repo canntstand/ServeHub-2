@@ -24,14 +24,6 @@ Vagrant.configure("2") do |config|
           touch /var/run/reboot-required
         fi
       SHELL
-
-      node.vm.provision "shell", id: "reboot", inline: <<-SHELL
-        if [ -f /var/run/reboot-required ]; then
-          echo "Ядро обновлено. Перезагрузка ВМ..."
-          setsid shutdown -r now &
-          exit 0
-        fi
-      SHELL
       
       node.vm.provider "virtualbox" do |vb|
         vb.memory = "4096"
