@@ -59,7 +59,7 @@
       include_tasks: tasks/bootstrap_os.yml
 
   handlers:
-    - name: "[SSH] Перезапуск SSH"
+    - name: Restart SSH
       ansible.builtin.systemd:
         name: "{{ 'ssh' if ansible_facts['os_family'] == 'Debian' else 'sshd' }}"
         state: restarted

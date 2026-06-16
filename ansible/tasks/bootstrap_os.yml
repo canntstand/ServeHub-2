@@ -13,122 +13,104 @@
   lineinfile:
     path: /etc/sudoers.d/90-ansible-users
     line: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL"
-    validate: "/usr/sbin/visudo -cf %s"
+    validate: "visudo -cf %s"
     create: yes
     mode: "0440"
 
 # =========================================================================
-# 2. ОБНОВЛЕНИЕ СИСТЕМЫ И УСТАНОВКА БАЗОВЫХ ПАКЕТОВ
+# 2. ПОЛНОЕ ОБНОВЛЕНИЕ ОС
 # =========================================================================
-- name: "[APT] Debian/Ubuntu: обновление кэша и пакетов"
+- name: "[APT] Debian/Ubuntu: обновление кэша и пакетов (включая ядро)"
   apt:
     update_cache: yes
     upgrade: safe
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "[Pacman] Arch: полное обновление системы и установка пакетов"
-  block:
-    - name: "[Pacman] Arch: полное обновление системы"
-      pacman:
-        update_cache: yes
-        upgrade: yes
-        extra_args: --noconfirm
-
-    - name: "[Pacman] Arch: установка базовых пакетов (docker, git, fail2ban и др.)"
-      pacman:
-        name:
-          - docker
-          - docker-compose
-          - linux-headers
-          - dkms
-          - git
-          - fail2ban
-          - fakeroot
-          - binutils
-          - make
-          - gcc
-          - patch
-          - sudo
-        state: present
-        extra_args: --noconfirm
-
-    - name: "[Yay] Arch: проверка наличия yay (AUR helper)"
-      stat:
-        path: /usr/bin/yay
-      register: yay_installed
-
-    - name: "[Yay] Arch: установка yay из AUR (если отсутствует)"
-      become: true
-      become_user: "{{ deploy_user }}"
-      when: not yay_installed.stat.exists
-      block:
-        - name: "[Yay] Arch: клонирование репозитория yay"
-          git:
-            repo: https://aur.archlinux.org/yay.git
-            dest: "/home/{{ deploy_user }}/yay"
-            force: yes
-
-        - name: "[Yay] Arch: сборка и установка yay (makepkg)"
-          shell: makepkg -si --noconfirm
-          args:
-            chdir: "/home/{{ deploy_user }}/yay"
-
-        - name: "[Yay] Arch: очистка временных файлов yay"
-          file:
-            path: "/home/{{ deploy_user }}/yay"
-            state: absent
-
-    - name: "[AmneziaWG] Arch: установка amneziawg из AUR"
-      become: true
-      become_user: "{{ deploy_user }}"
-      shell: "yay -S --needed --noconfirm amneziawg-dkms amneziawg-tools"
-      register: yay_output
-      changed_when: "'Installing' in yay_output.stdout or 'upgraded' in yay_output.stdout"
-
-    - name: "[AmneziaWG] Arch: загрузка модуля amneziawg"
-      shell: modprobe amneziawg || true
-      changed_when: false
-
-    - name: "[Kernel] Arch: проверка расхождения версий ядра"
-      shell: |
-        running=$(uname -r)
-        installed_pkg=$(pacman -Q | grep -E '^linux(-lts|-zen)? ' | awk '{print $2}' | head -n1)
-        if [[ "$running" != *"$installed_pkg"* ]]; then
-          echo "reboot_needed"
-        else
-          echo "ok"
-        fi
-      args:
-        executable: /bin/bash
-      register: kernel_check
-      changed_when: false
-
-    - name: "[Reboot] Arch: отправка команды на перезагрузку (при необходимости)"
-      ansible.builtin.shell: "sleep 2 && shutdown -r now"
-      async: 1
-      poll: 0
-      when: kernel_check.stdout == "reboot_needed"
-
-    - name: "[Reboot] Arch: ожидание поднятия сервера после перезагрузки (пользователь {{ deploy_user }})"
-      ansible.builtin.wait_for_connection:
-        connect_timeout: 10
-        timeout: 300
-        delay: 10
-      vars:
-        ansible_user: "{{ deploy_user }}"
-      when: kernel_check.stdout == "reboot_needed"
-
-    - name: "[DKMS] Arch: проверка и пересборка DKMS-модулей после перезагрузки"
-      shell: |
-        dkms status | grep -q amneziawg || dkms autoinstall
-        modprobe amneziawg || true
-      changed_when: false
-      when: kernel_check.stdout == "reboot_needed"
-
+- name: "[Pacman] Arch: полное обновление системы"
+  pacman:
+    update_cache: yes
+    upgrade: yes
+    extra_args: --noconfirm
   when: ansible_facts['os_family'] == "Archlinux"
 
 # =========================================================================
-# 3. НАСТРОЙКА SSH И БЕЗОПАСНОСТИ
+# 3. ПРОВЕРКА ЯДРА И ПЕРЕЗАГРУЗКА (ДЛЯ ВСЕХ ОС)
+# =========================================================================
+- name: "[Kernel] Debian/Ubuntu: проверка расхождения версий запущенного и установленного ядра"
+  shell: |
+    running_kernel="$(uname -r)"
+    latest_installed_kernel="$(dpkg -l 'linux-image-[0-9]*' | awk '/^ii/ {print $2}' | grep -v 'extra' | sort -V | tail -n1 | sed 's/linux-image-//')"
+    if [ "$running_kernel" != "$latest_installed_kernel" ]; then
+      echo "reboot_needed"
+    else
+      echo "ok"
+    fi
+  register: ubuntu_kernel_check
+  changed_when: false
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "[Kernel] Arch: проверка расхождения версий ядра"
+  shell: |
+    running=$(uname -r)
+    installed_pkg=$(pacman -Q | grep -E '^linux(-lts|-zen)? ' | awk '{print $2}' | head -n1)
+    if [[ "$running" != *"$installed_pkg"* ]]; then
+      echo "reboot_needed"
+    else
+      echo "ok"
+    fi
+  args:
+    executable: /bin/bash
+  register: arch_kernel_check
+  changed_when: false
+  when: ansible_facts['os_family'] == "Archlinux"
+
+- name: "[Reboot] Debian/Ubuntu: отправка команды на перезагрузку"
+  ansible.builtin.shell: "sleep 2 && shutdown -r now"
+  async: 1
+  poll: 0
+  when: ansible_facts['os_family'] == "Debian" and ubuntu_kernel_check.stdout == "reboot_needed"
+
+- name: "[Reboot] Arch: отправка команды на перезагрузку"
+  ansible.builtin.shell: "sleep 2 && shutdown -r now"
+  async: 1
+  poll: 0
+  when: ansible_facts['os_family'] == "Archlinux" and arch_kernel_check.stdout == "reboot_needed"
+
+- name: "[Reboot] Ожидание поднятия сервера после перезагрузки"
+  ansible.builtin.wait_for_connection:
+    connect_timeout: 10
+    timeout: 300
+    delay: 10
+  vars:
+    ansible_user: "{{ deploy_user }}"
+  when: >
+    (ansible_facts['os_family'] == "Debian" and ubuntu_kernel_check.stdout == "reboot_needed") or
+    (ansible_facts['os_family'] == "Archlinux" and arch_kernel_check.stdout == "reboot_needed")
+
+# =========================================================================
+# 4. УСТАНОВКА БАЗОВЫХ ПАКЕТОВ (ЯДРО УЖЕ НОВОЕ И АКТИВНОЕ)
+# =========================================================================
+- name: "[Pacman] Arch: установка базовых пакетов"
+  pacman:
+    name: [docker, docker-compose, linux-headers, dkms, git, fail2ban, fakeroot, binutils, make, gcc, patch, sudo, debugedit]
+    state: present
+    extra_args: --noconfirm
+  when: ansible_facts['os_family'] == "Archlinux"
+
+- name: "[AmneziaWG] Debian/Ubuntu: установка утилит сборки и заголовков актуального ядра"
+  apt:
+    name:
+      - software-properties-common
+      - python3-launchpadlib
+      - gnupg2
+      - git
+      - dkms
+      - "{{ 'linux-headers-generic' if ansible_facts['distribution'] == 'Ubuntu' else 'linux-headers-amd64' }}"
+    state: present
+  when: ansible_facts['os_family'] == "Debian"
+
+# =========================================================================
+# 5. НАСТРОЙКА SSH И БЕЗОПАСНОСТИ
 # =========================================================================
 - name: "[SSH] Добавление публичного ключа для пользователя {{ deploy_user }}"
   authorized_key:
@@ -198,7 +180,7 @@
     daemon_reload: yes
 
 # =========================================================================
-# 4. УСТАНОВКА DOCKER (Debian/Ubuntu)
+# 6. УСТАНОВКА DOCKER (Debian/Ubuntu)
 # =========================================================================
 - name: "[Docker] Debian/Ubuntu: удаление старых конфликтующих пакетов"
   apt:
@@ -258,7 +240,7 @@
   when: ansible_facts['os_family'] == "Debian"
 
 # =========================================================================
-# 5. ЗАПУСК DOCKER (общий для всех ОС)
+# 7. ЗАПУСК DOCKER (общий для всех ОС)
 # =========================================================================
 - name: "[Docker] Запуск демона и добавление в автозагрузку"
   systemd:
@@ -285,37 +267,57 @@
     append: yes
 
 # =========================================================================
-# 6. УСТАНОВКА AmneziaWG (Debian/Ubuntu)
+# 8. УСТАНОВКА AmneziaWG (Debian/Ubuntu)
 # =========================================================================
-- name: "[AmneziaWG] Debian/Ubuntu: установка утилит сборки и заголовков ядра"
-  apt:
-    name:
-      - software-properties-common
-      - python3-launchpadlib
-      - gnupg2
-      - git
-      - "{{ 'linux-headers-generic' if ansible_facts['distribution'] == 'Ubuntu' else 'linux-headers-amd64' }}"
-    state: present
-    update_cache: yes
-  when: ansible_facts['os_family'] == "Debian"
+- name: "[Yay] Arch: проверка наличия yay"
+  stat:
+    path: /usr/bin/yay
+  register: yay_installed
+  when: ansible_facts['os_family'] == "Archlinux"
 
-- name: "[AmneziaWG] Ubuntu: добавление официального PPA amnezia/ppa"
+- name: "[Yay] Arch: установка yay"
+  become: true
+  become_user: "{{ deploy_user }}"
+  when: ansible_facts['os_family'] == "Archlinux" and not yay_installed.stat.exists
+  block:
+    - name: "[Yay] Arch: клонирование репозитория yay"
+      git:
+        repo: https://aur.archlinux.org/yay.git
+        dest: "/home/{{ deploy_user }}/yay"
+        force: yes
+    - name: "[Yay] Arch: сборка и установка yay"
+      shell: makepkg -si --noconfirm
+      args:
+        chdir: "/home/{{ deploy_user }}/yay"
+    - name: "[Yay] Arch: очистка временных файлов"
+      file:
+        path: "/home/{{ deploy_user }}/yay"
+        state: absent
+
+- name: "[AmneziaWG] Arch: установка amneziawg из AUR"
+  become: true
+  become_user: "{{ deploy_user }}"
+  shell: "yay -S --needed --noconfirm amneziawg-dkms amneziawg-tools"
+  register: yay_output
+  changed_when: "'Installing' in yay_output.stdout or 'upgraded' in yay_output.stdout"
+  when: ansible_facts['os_family'] == "Archlinux"
+
+- name: "[AmneziaWG] Ubuntu: добавление официального PPA"
   apt_repository:
     repo: "ppa:amnezia/ppa"
     state: present
   when: ansible_facts['distribution'] == "Ubuntu"
 
-- name: "[AmneziaWG] Debian: добавление репозитория AmneziaWG (через Launchpad)"
+- name: "[AmneziaWG] Debian: добавление репозитория AmneziaWG"
   block:
-    - name: "[AmneziaWG] Debian: скачивание GPG-ключа (Modern Way)"
+    - name: "[AmneziaWG] Debian: скачивание GPG-ключа"
       ansible.builtin.get_url:
         url: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x57290828"
         dest: /etc/apt/keyrings/amnezia-ppa.asc
         mode: "0644"
-
     - name: "[AmneziaWG] Debian: добавление репозитория в sources.list"
       apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/amnezia-ppa.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
+        repo: "deb [signed-by=/etc/apt/keyrings/amnezia-ppa.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu noble main"
         filename: amnezia
         state: present
   when: ansible_facts['distribution'] == "Debian"
@@ -327,38 +329,8 @@
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
 
-- name: "[Kernel] Debian/Ubuntu: проверка расхождения версий запущенного и установленного ядра"
-  shell: |
-    running_kernel="$(uname -r)"
-    latest_installed_kernel="$(dpkg -l 'linux-image-[0-9]*' | awk '/^ii/ {print $2}' | grep -v 'extra' | sort -V | tail -n1 | sed 's/linux-image-//')"
-    if [ "$running_kernel" != "$latest_installed_kernel" ]; then
-      echo "reboot_needed"
-    else
-      echo "ok"
-    fi
-  register: ubuntu_kernel_check
-  changed_when: false
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: "[Reboot] Debian/Ubuntu: отправка команды на перезагрузку (при необходимости)"
-  ansible.builtin.shell: "sleep 2 && shutdown -r now"
-  async: 1
-  poll: 0
-  when: ubuntu_kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Debian"
-
-- name: "[Reboot] Debian/Ubuntu: ожидание поднятия сервера после перезагрузки (пользователь {{ deploy_user }})"
-  ansible.builtin.wait_for_connection:
-    connect_timeout: 10
-    timeout: 300
-    delay: 10
-  vars:
-    ansible_user: "{{ deploy_user }}"
-  when: ubuntu_kernel_check.stdout == "reboot_needed" and ansible_facts['os_family'] == "Debian"
-
-- name: "[DKMS] Debian/Ubuntu: принудительная сборка DKMS и загрузка модуля amneziawg"
+- name: "[DKMS] Принудительный запуск сборки модулей"
   shell: |
     dkms autoinstall -k $(uname -r) || true
     modprobe amneziawg
-  register: modprobe_result
   changed_when: false
-  when: ansible_facts['os_family'] == "Debian"
