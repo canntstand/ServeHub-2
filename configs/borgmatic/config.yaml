@@ -1,0 +1,33 @@
+location:
+    source_directories:
+        - /home/${LOCAL_USER}/ServeHub-2/apps-data/
+        - /home/${LOCAL_USER}/Music
+        - /home/${LOCAL_USER}/NextcloudData
+        - /home/${LOCAL_USER}/Books
+        - /home/${LOCAL_USER}/Podcasts
+        - /home/${LOCAL_USER}/Audiobooks
+        - /var/lib/docker/volumes/
+
+    repositories:
+        - /mnt/backup_storage/server_backup.borg
+
+retention:
+    keep_daily: 7
+    keep_weekly: 4
+    keep_monthly: 6
+
+storage:
+    encryption_passphrase: "${BORGMATIC_ENCRYPTION_PASSPHRASE}"
+
+hooks:
+    before_backup:
+        - echo "Starting backup pipeline..."
+        - cd /home/${LOCAL_USER}/ServeHub-2 && docker compose down
+
+    after_backup:
+        - cd /home/${LOCAL_USER}/ServeHub-2 && docker compose up -d
+        - echo "Backup completed successfully!"
+
+    on_error:
+        - cd /home/${LOCAL_USER}/ServeHub-2 && docker compose up -d
+        - echo "Backup failed! Containers restarted."

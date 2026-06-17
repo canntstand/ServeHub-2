@@ -92,14 +92,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     export "$var_name_clean"="$var_value"
 done < "$ENV_FILE"
 
-required_vars=("SECRET_VAULTWARDEN_PASSWORD" "SYNAPSE_SERVER_NAME" "WEBNAMES_APIKEY" "LOCAL_USER")
-for var in "${required_vars[@]}"; do
-    if [ -z "${!var:-}" ]; then
-        log_error "Не задана обязательная переменная $var в .env!"
-        exit 1
-    fi
-done
-log_success "Переменные окружения загружены и проверены."
+log_success "Переменные окружения загружены."
 
 # ==========================================
 log_info "Создание необходимых директорий..."
@@ -166,6 +159,44 @@ EOF
 
 sudo chown -R 991:991 apps-data/synapse/
 log_success "Конфигурация Synapse создана."
+
+# ==========================================
+log_info "Настройка Borgmatic и Borg Backup..."
+
+if [ -n "${BACKUP_DISK_UUID:-}" ] && ! mountpoint -q /mnt/backup_storage; then
+    log_info "Монтирование диска из .env (UUID: $BACKUP_DISK_UUID)..."
+    sudo mkdir -p /mnt/backup_storage
+
+    if ! grep -q "$BACKUP_DISK_UUID" /etc/fstab; then
+        echo "UUID=$BACKUP_DISK_UUID  /mnt/backup_storage  auto  defaults,nofail  0  2" | sudo tee -a /etc/fstab > /dev/null
+    fi
+
+    sudo mount -a
+fi
+
+if mountpoint -q /mnt/backup_storage; then
+    if ! command -v envsubst &> /dev/null; then
+        log_info "Установка envsubst (пакет gettext)..."
+        sudo apt-get update && sudo apt-get install -y gettext
+    fi
+
+    sudo mkdir -p /etc/borgmatic
+
+    log_info "Генерация статичного конфигурационного файла..."
+    envsubst < ./configs/borgmatic/config.yaml | sudo tee /etc/borgmatic/config.yaml > /dev/null
+
+    sudo chmod 600 /etc/borgmatic/config.yaml
+
+    log_info "Инициализация репозитория Borg..."
+    sudo -E borgmatic rcreate --encryption repokey-blake2 --make-parent
+
+    log_info "Активация таймера автоматических бэкапов..."
+    sudo systemctl enable --now borgmatic.timer
+
+    log_success "Настройка успешно завершена! Теперь бэкапы будут работать по расписанию автономно."
+else
+    log_warn "Настройка бэкапов не была произведена, так как диск не смонтирован в /mnt/backup_storage/. Если вы изначально не планировали настраивать бэкапы данных, то всё нормально."
+fi
 
 # ==========================================
 log_info "Запуск сервиса настройки мониторинга..."
@@ -312,7 +343,7 @@ log_info "Ожидание запуска сервисов..."
 max_wait=30
 elapsed=0
 while [ $elapsed -lt $max_wait ]; do
-    running_count=$(sudo docker compose -f docker-compose.local.yaml ps --services --filter "status=running" | wc -l)
+    running_count=$(docker compose -f docker-compose.local.yaml ps --services --filter "status=running" | wc -l)
     if [ "$running_count" -ge 3 ]; then
         break
     fi
@@ -332,7 +363,7 @@ chmod +x scripts/create_admin.sh
 print_separator
 echo -e "${CYAN}               📊 ТЕКУЩИЙ СТАТУС ЗАПУЩЕННЫХ СЕРВИСОВ 📊${NC}"
 print_separator
-sudo docker compose -f docker-compose.local.yaml ps
+docker compose -f docker-compose.local.yaml ps
 
 print_separator
 

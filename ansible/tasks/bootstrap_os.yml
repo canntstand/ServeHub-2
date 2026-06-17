@@ -99,12 +99,12 @@
 # =========================================================================
 - name: "[Pacman] Arch: установка базовых пакетов"
   pacman:
-    name: [docker, docker-compose, linux-headers, dkms, git, fail2ban, fakeroot, binutils, make, gcc, patch, sudo, debugedit]
+    name: [docker, docker-compose, linux-headers, dkms, git, fail2ban, fakeroot, binutils, make, gcc, patch, sudo, debugedit, borgbackup, borgmatic]
     state: present
     extra_args: --noconfirm
   when: ansible_facts['os_family'] == "Archlinux"
 
-- name: "[AmneziaWG] Debian/Ubuntu: установка утилит сборки и заголовков актуального ядра"
+- name: "[AmneziaWG] Debian/Ubuntu: установка утилит сборки и заголовков актуального ядра + некоторые доп. пакеты"
   apt:
     name:
       - software-properties-common
@@ -112,6 +112,8 @@
       - gnupg2
       - git
       - dkms
+      - borgbackup
+      - borgmatic
       - "{{ 'linux-headers-generic' if ansible_facts['distribution'] == 'Ubuntu' else 'linux-headers-amd64' }}"
     state: present
   when: ansible_facts['os_family'] == "Debian"

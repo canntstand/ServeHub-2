@@ -110,14 +110,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     export "$var_name_clean"="$var_value"
 done < "$ENV_FILE"
 
-required_vars=("ADMIN_USER" "ADMIN_PASSWORD" "SYNAPSE_SERVER_NAME" "WEBNAMES_APIKEY" "EMAIL")
-for var in "${required_vars[@]}"; do
-    if [ -z "${!var:-}" ]; then
-        log_error "Ошибка: Переменная $var не задана в файле .env!"
-        exit 1
-    fi
-done
-log_success "Файл окружения валидирован."
+log_success "Переменные окружения загружены."
 
 # ==========================================
 print_separator
@@ -169,12 +162,12 @@ fi
 
 if [ "$NEED_REAL_CERT" = true ]; then
     log_info "Запуск Certbot для получения сертификатов..."
-    sudo docker compose -f docker-compose.remote.yaml build certbot
+    docker compose -f docker-compose.remote.yaml build certbot
     
     if ! sudo test -f "${CERT_DIR}/fullchain.pem"; then
-        sudo docker compose -f docker-compose.remote.yaml run --rm certbot
+        docker compose -f docker-compose.remote.yaml run --rm certbot
     else
-        sudo docker compose -f docker-compose.remote.yaml run --rm certbot renew --non-interactive
+        docker compose -f docker-compose.remote.yaml run --rm certbot renew --non-interactive
     fi
     
     log_success "Сертификаты успешно получены/обновлены."
@@ -301,13 +294,13 @@ log_success "Сетевые правила применены."
 print_separator
 log_info "Запуск контейнеров (gatus, nginx, wg-easy)..."
 
-sudo docker compose -f docker-compose.remote.yaml up -d gatus nginx wg-easy nginx_exporter
+docker compose -f docker-compose.remote.yaml up -d gatus nginx wg-easy nginx_exporter
 
 log_info "Ожидание запуска сервисов..."
 max_wait=30
 elapsed=0
 while [ $elapsed -lt $max_wait ]; do
-    running_count=$(sudo docker compose -f docker-compose.remote.yaml ps --services --filter "status=running" | wc -l)
+    running_count=$(docker compose -f docker-compose.remote.yaml ps --services --filter "status=running" | wc -l)
     if [ "$running_count" -ge 3 ]; then
         break
     fi
@@ -323,7 +316,7 @@ fi
 print_separator
 echo -e "${CYAN}               📊 ТЕКУЩИЙ СТАТУС ЗАПУЩЕННЫХ СЕРВИСОВ 📊${NC}"
 print_separator
-sudo docker compose -f docker-compose.remote.yaml ps
+docker compose -f docker-compose.remote.yaml ps
 
 print_separator
 

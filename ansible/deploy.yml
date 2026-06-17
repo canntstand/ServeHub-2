@@ -34,16 +34,12 @@
   tasks:
     - name: "[Python] Установка Python3 (необходим для работы Ansible)"
       raw: |
-        if command -v python3 >/dev/null 2>&1; then
-            exit 0
-        fi
-
         if [ "$USER" != "root" ]; then SUDO="sudo"; else SUDO=""; fi
         
         if command -v apt-get >/dev/null; then
             $SUDO apt-get update && $SUDO env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get install -y python3
         elif command -v pacman >/dev/null; then
-            $SUDO pacman -Sy --noconfirm --overwrite "*" archlinux-keyring && $SUDO pacman -S --noconfirm --overwrite "*" python3
+            $SUDO pacman -Sy --noconfirm --overwrite "*" archlinux-keyring && $SUDO pacman -Syu --noconfirm --overwrite "*" python3
         else
             echo "Unsupported distribution" >&2
             exit 1
@@ -126,7 +122,7 @@
           3. Включите Prometheus в настройках wg-easy.
           4. Создайте клиента для локального сервера с ip 10.8.0.2 и скачайте файл конфигурации (либо просто скопируйте текст).
           5. Можно также сразу создать клиентов для остальных устройств (можно будет сделать потом)
-          6. Сохраните его на вашем локальном сервере по пути: ./configs/amnezia/awg0.conf
+          6. Сохраните его на вашем локальном сервере по пути: ./configs/amnezia/awg0.conf (можно подключиться по ssh {{ local_user }}@{{ local_private_ip }})
           ======================================================================
           Как только файл на месте, нажмите ENTER для продолжения деплоя...
 
