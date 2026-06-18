@@ -109,7 +109,6 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./configs/gatus:/config
-      - ./apps-data/gatus/data:/data
     environment:
       - TZ=Europe/Moscow
       - ADMIN_USER=${ADMIN_USER}

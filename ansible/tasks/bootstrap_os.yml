@@ -117,6 +117,7 @@
       - gettext
       - argon2
       - openssl
+      - fail2ban
       - curl
       - "{{ 'linux-headers-generic' if ansible_facts['distribution'] == 'Ubuntu' else 'linux-headers-amd64' }}"
     state: present
@@ -169,12 +170,6 @@
     sshd_d_dir.stat.isdir and 
     sshd_dropins.matched is defined and 
     sshd_dropins.matched > 0
-
-- name: "[Fail2ban] Debian/Ubuntu: установка пакета"
-  apt:
-    name: fail2ban
-    state: present
-  when: ansible_facts['os_family'] == "Debian"
 
 - name: "[Fail2ban] Копирование кастомного jail.local"
   copy:
