@@ -158,7 +158,7 @@ log_success "Конфигурация Synapse создана."
 # ==========================================
 log_info "Настройка Borgmatic и Borg Backup..."
 
-if [ -n "${BACKUP_DISK_UUID:-}" ] && ! mountpoint -q /mnt/backup_storage; then
+if [ -n "${BACKUP_DISK_UUID:-}" ] && ! sudo mountpoint -q /mnt/backup_storage; then
     log_info "Монтирование диска из .env (UUID: $BACKUP_DISK_UUID)..."
     sudo mkdir -p /mnt/backup_storage
 
