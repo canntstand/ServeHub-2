@@ -81,6 +81,8 @@ services:
         condition: service_started
       amnezia-client:
         condition: service_healthy
+      borg-ui:
+        condition: service_started
     deploy:
       resources:
         limits:
@@ -548,6 +550,29 @@ services:
     depends_on:
       monitoring_configure:
         condition: service_completed_successfully
+  
+  borg-ui:
+    image: ghcr.io/karanhudia/borg-ui:latest
+    container_name: borg-ui
+    restart: unless-stopped
+    logging: *default-logging
+    privileged: true 
+    expose:
+      - 8081
+    environment:
+      - INITIAL_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - BORG_CACHE_DIR=/home/borg/.cache/borg
+      - LOCAL_MOUNT_POINTS=/mnt/backup_storage
+      - BASE_PATH=/borg-ui
+      - REDIS_HOST=disabled
+    volumes:
+      - ./apps-data/borg-ui:/data
+      - /root/.cache/borg:/home/borg/.cache/borg:rw
+      - /mnt/backup_storage:/mnt/backup_storage:rw
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 volumes:
   synapse_db_data:

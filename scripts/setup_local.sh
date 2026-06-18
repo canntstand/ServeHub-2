@@ -98,6 +98,7 @@ DIRS=(
     "./apps-data/prometheus"
     "./apps-data/nextcloud" 
     "./apps-data/portainer"
+    "./apps-data/borg-ui"
 )
 for dir in "${DIRS[@]}"; do
     mkdir -p "$dir"
@@ -179,12 +180,14 @@ if mountpoint -q /mnt/backup_storage; then
     log_info "Инициализация репозитория Borg..."
     sudo -E borgmatic rcreate --encryption repokey-blake2 --make-parent
 
+    sudo chmod -R 777 /mnt/backup_storage
+
     log_info "Активация таймера автоматических бэкапов..."
     sudo systemctl enable --now borgmatic.timer
 
     log_success "Настройка успешно завершена! Теперь бэкапы будут работать по расписанию автономно."
 else
-    log_warn "Настройка бэкапов не была произведена, так как диск не смонтирован в /mnt/backup_storage/. Если вы изначально не планировали настраивать бэкапы данных, то всё нормально."
+    log_warn "Настройка бэкапов не была произведена, так как диск не смонтирован в /mnt/backup_storage/. Если изначально настройка бэкапов не планировалась, то все нормально."
 fi
 
 # ==========================================
@@ -270,8 +273,8 @@ add_iptables_rule() {
     fi
 }
 
-add_iptables_rule FORWARD -i wg0 -j ACCEPT
-add_iptables_rule FORWARD -o wg0 -j ACCEPT
+add_iptables_rule FORWARD -i awg0 -j ACCEPT
+add_iptables_rule FORWARD -o awg0 -j ACCEPT
 add_iptables_rule POSTROUTING -t nat -s 10.8.0.0/24 -o "$DEFAULT_IF" -j MASQUERADE
 
 # ==========================================
@@ -316,7 +319,7 @@ log_success "Сетевые правила применены."
 
 # ==========================================
 log_info "Запуск основных сервисов..."
-MAIN_SERVICES="synapse synapse_db nginx nextcloud_cron amnezia-client nginx_exporter navidrome audiobookshelf nextcloud nextcloud_db vaultwarden vaultwarden_db prometheus_init prometheus grafana node_exporter cadvisor portainer alertmanager matrix_alertmanager"
+MAIN_SERVICES="synapse synapse_db nginx nextcloud_cron amnezia-client nginx_exporter navidrome audiobookshelf nextcloud nextcloud_db vaultwarden vaultwarden_db prometheus_init prometheus grafana node_exporter cadvisor portainer alertmanager matrix_alertmanager borg-ui"
 docker compose -f docker-compose.local.yaml up -d $MAIN_SERVICES
 
 log_info "Ожидание запуска сервисов..."
@@ -336,9 +339,19 @@ if [ "$running_count" -lt 3 ]; then
     exit 1
 fi
 
-log_info "Создание административного пользователя..."
-chmod +x scripts/create_admin.sh
-./scripts/create_admin.sh
+# ==========================================
+log_info "Создание административного пользователя Synapse..."
+
+docker compose -f docker-compose.local.yaml exec -it synapse register_new_matrix_user \
+    -c /data/homeserver.yaml \
+    -u "$ADMIN_USER" \
+    -p "$ADMIN_PASSWORD" \
+    --admin \
+    http://127.0.0.1:8008
+
+log_success "Пользователь $ADMIN_USER зарегистрирован как администратор."
+
+# ==========================================
 
 print_separator
 echo -e "${CYAN}               📊 ТЕКУЩИЙ СТАТУС ЗАПУЩЕННЫХ СЕРВИСОВ 📊${NC}"
