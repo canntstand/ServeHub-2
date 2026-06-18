@@ -27,7 +27,7 @@ echo -e "${CYAN}         🚀 ИНИЦИАЛИЗАЦИЯ ЛОКАЛЬНОЙ ИН
 print_separator
 
 # ==========================================
-log_info "Определение дистрибутива и установка зависимостей..."
+log_info "Определение дистрибутива.."
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     DISTRO=$ID
@@ -35,22 +35,6 @@ else
     log_error "Не удалось определить дистрибутив (нет /etc/os-release)."
     exit 1
 fi
-
-if [[ "$DISTRO" == "arch" || "$DISTRO" == "endeavouros" ]]; then
-    sudo pacman -Sy --noconfirm argon2 openssl
-    log_warn "У вас Arch Linux, если в скрипте будут появляться ошибки, попробуйте перезагрузить систему!"
-elif [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" || "$DISTRO" == "pop" || "$DISTRO" == "mint" ]]; then
-    sudo apt update
-    sudo apt install -y argon2 openssl
-elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" || "$DISTRO" == "rocky" || "$DISTRO" == "almalinux" ]]; then
-    sudo dnf install -y epel-release
-    sudo dnf install -y argon2 openssl
-else
-    log_error "Дистрибутив '$DISTRO' не поддерживается."
-    exit 1
-fi
-log_success "Зависимости установлены."
-
 # ==========================================
 log_info "Проверка и запуск Docker..."
 if ! systemctl is-enabled --quiet docker; then
@@ -175,11 +159,6 @@ if [ -n "${BACKUP_DISK_UUID:-}" ] && ! mountpoint -q /mnt/backup_storage; then
 fi
 
 if mountpoint -q /mnt/backup_storage; then
-    if ! command -v envsubst &> /dev/null; then
-        log_info "Установка envsubst (пакет gettext)..."
-        sudo apt-get update && sudo apt-get install -y gettext
-    fi
-
     sudo mkdir -p /etc/borgmatic
 
     log_info "Генерация статичного конфигурационного файла..."
@@ -240,7 +219,7 @@ add_sysctl_param() {
     local value="$2"
     local line="${param}=${value}"
 
-    if [! -f /etc/sysctl.conf]; then
+    if [ ! -f /etc/sysctl.conf ]; then
         sudo touch /etc/sysctl.conf
     fi
 
@@ -302,16 +281,7 @@ else
             log_success "Правила сохранены (netfilter-persistent)."
             saved=true
         fi
-    elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" || "$DISTRO" == "rocky" || "$DISTRO" == "almalinux" ]]; then
-        log_warn "netfilter-persistent не найден. Пробую iptables-services..."
-        if ! rpm -q iptables-services &>/dev/null; then
-            sudo dnf install -y iptables-services
-        fi
-        sudo service iptables save
-        sudo systemctl enable iptables
-        log_success "Правила сохранены через iptables-services."
-        saved=true
-    elif [[ "$DISTRO" == "arch" ]]; then
+    elif [[ "$DISTRO" == "arch" || "$DISTRO" == "endeavouros" ]]; then
         log_warn "Arch Linux: сохранение через iptables-save..."
         sudo mkdir -p /etc/iptables
         sudo iptables-save | sudo tee /etc/iptables/iptables.rules > /dev/null

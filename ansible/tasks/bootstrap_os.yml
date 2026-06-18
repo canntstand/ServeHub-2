@@ -99,7 +99,7 @@
 # =========================================================================
 - name: "[Pacman] Arch: установка базовых пакетов"
   pacman:
-    name: [docker, docker-compose, linux-headers, dkms, git, fail2ban, fakeroot, binutils, make, gcc, patch, sudo, debugedit, borgbackup, borgmatic]
+    name: [docker, docker-compose, linux-headers, dkms, git, fail2ban, fakeroot, binutils, make, gcc, patch, sudo, debugedit, borg, borgmatic, gettext, argon2, openssl, curl]
     state: present
     extra_args: --noconfirm
   when: ansible_facts['os_family'] == "Archlinux"
@@ -114,6 +114,10 @@
       - dkms
       - borgbackup
       - borgmatic
+      - gettext
+      - argon2
+      - openssl
+      - curl
       - "{{ 'linux-headers-generic' if ansible_facts['distribution'] == 'Ubuntu' else 'linux-headers-amd64' }}"
     state: present
   when: ansible_facts['os_family'] == "Debian"

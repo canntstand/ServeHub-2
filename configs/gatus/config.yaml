@@ -22,6 +22,7 @@ endpoints:
       - type: email
         failure-threshold: 3
         success-threshold: 2
+        send-on-resolved: true
         description: "Локальный домашний сервер ServeHub недоступен!"
 
   - name: "Is VPS Server Alive?"
@@ -33,6 +34,7 @@ endpoints:
       - type: email
         failure-threshold: 3
         success-threshold: 2
+        send-on-resolved: true
         description: "Критический сбой: Веб-окружение VPS не отвечает!"
   
   - name: SSL Certificate
@@ -43,3 +45,5 @@ endpoints:
     alerts:
       - type: matrix
         description: "SSL сертификат скоро истекает"
+        failure-threshold: 3
+        send-on-resolved: true

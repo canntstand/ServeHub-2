@@ -36,33 +36,6 @@ else
     exit 1
 fi
 
-install_pkg() {
-    if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" || "$DISTRO" == "pop" || "$DISTRO" == "mint" ]]; then
-        sudo apt-get update -qq
-        sudo apt-get install -y "$@"
-    elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" || "$DISTRO" == "rocky" || "$DISTRO" == "almalinux" ]]; then
-        sudo dnf install -y epel-release
-        sudo dnf install -y "$@"
-    elif [[ "$DISTRO" == "arch" ]]; then
-        sudo pacman -Syu --noconfirm "$@"
-    else
-        log_error "Дистрибутив '$DISTRO' не поддерживается."
-        exit 1
-    fi
-}
-
-for tool in openssl curl git; do
-    if ! command -v "$tool" &>/dev/null; then
-        log_warn "$tool не найден. Устанавливаю..."
-        install_pkg "$tool"
-        if ! command -v "$tool" &>/dev/null; then
-            log_error "Не удалось установить $tool."
-            exit 1
-        fi
-    fi
-done
-log_success "Базовые зависимости проверены."
-
 # ==========================================
 log_info "Проверка статуса демона Docker..."
 
@@ -114,18 +87,13 @@ log_success "Переменные окружения загружены."
 
 # ==========================================
 print_separator
-GATUS_CONFIG_FILE="./configs/gatus/config.yaml"
-if [ ! -f "$GATUS_CONFIG_FILE" ]; then
-    log_error "КРИТИЧЕСКАЯ ОШИБКА: Конфигурация $GATUS_CONFIG_FILE отсутствует!"
-    exit 1
-fi
 
 CERT_DIR="./certbot/certs/live/${SYNAPSE_SERVER_NAME}"
 
-USER_CERT_DIR="/home/${LOCAL_USER}/certbot/certs/live/${SYNAPSE_SERVER_NAME}"
+USER_CERT_DIR="/home/${VPS_USER}/certbot/certs/live/${SYNAPSE_SERVER_NAME}"
 if [ -f "${USER_CERT_DIR}/fullchain.pem" ]; then
     log_info "Сертификаты найдены в домашней директории пользователя, копирую в проект..."
-    sudo cp -r "/home/${LOCAL_USER}/certbot/" "."
+    sudo cp -r "/home/${VPS_USER}/certbot/" "."
     sudo chown -R $(id -u):$(id -g) "./certbot/"
     log_success "Сертификаты скопированы."
 fi
@@ -174,6 +142,62 @@ if [ "$NEED_REAL_CERT" = true ]; then
 fi
 
 # ==========================================
+PROJECT_DIR="/home/${VPS_USER}/ServeHub-2" 
+
+log_info "Создание systemd-сервиса автообновления сертификатов..."
+
+sudo tee /etc/systemd/system/certbot-renew.service > /dev/null << EOF
+[Unit]
+Description=Автоматическое обновление сертификатов Certbot/Webnames в Docker
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=${PROJECT_DIR}
+ExecStart=/bin/bash ./scripts/renew_certs.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+if [ -f /etc/systemd/system/certbot-renew.service ]; then
+    log_success "Сервис certbot-renew.service успешно создан."
+else
+    log_error "Сервис certbot-renew.service не удалось создать."
+    exit 1
+fi
+
+sudo tee /etc/systemd/system/certbot-renew.timer > /dev/null << EOF
+[Unit]
+Description=Таймер для обновления сертификатов Certbot
+
+[Timer]
+OnCalendar=*-*-* 03,15:00:00
+RandomizedDelaySec=900
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+if [ -f /etc/systemd/system/certbot-renew.timer ]; then
+    log_success "Таймер certbot-renew.timer успешно создан."
+else
+    log_error "Таймер certbot-renew.timer не удалось создать."
+    exit 1
+fi
+
+sudo systemctl daemon-reload
+
+sudo systemctl enable --now certbot-renew.timer
+
+if systemctl is-active --quiet certbot-renew.timer; then
+    log_success "Таймер certbot-renew.timer успешно запущен."
+else
+    log_error "Таймер certbot-renew.timer не был запущен."
+fi
+
+# ==========================================
 print_separator
 log_info "Применение системных настроек ядра Linux..."
 modules=$(lsmod)
@@ -196,7 +220,7 @@ add_sysctl_param() {
     local value="$2"
     local line="${param}=${value}"
 
-    if [! -f /etc/sysctl.conf]; then
+    if [ ! -f /etc/sysctl.conf ]; then
         sudo touch /etc/sysctl.conf
     fi
 
@@ -258,16 +282,7 @@ else
             log_success "Правила сохранены (netfilter-persistent)."
             saved=true
         fi
-    elif [[ "$DISTRO" == "centos" || "$DISTRO" == "rhel" || "$DISTRO" == "rocky" || "$DISTRO" == "almalinux" ]]; then
-        log_warn "netfilter-persistent не найден. Пробую iptables-services..."
-        if ! rpm -q iptables-services &>/dev/null; then
-            sudo dnf install -y iptables-services
-        fi
-        sudo service iptables save
-        sudo systemctl enable iptables
-        log_success "Правила сохранены через iptables-services."
-        saved=true
-    elif [[ "$DISTRO" == "arch" ]]; then
+    elif [[ "$DISTRO" == "arch" || "$DISTRO" == "endeavouros" ]]; then
         log_warn "Arch Linux: сохранение через iptables-save..."
         sudo mkdir -p /etc/iptables
         sudo iptables-save | sudo tee /etc/iptables/iptables.rules > /dev/null
