@@ -17,14 +17,23 @@ keep_monthly: 6
 encryption_passphrase: "${BORGMATIC_ENCRYPTION_PASSPHRASE}"
 
 commands:
-  before_backup:
-    - echo "Starting backup pipeline..."
-    - cd /home/${LOCAL_USER}/ServeHub-2 && docker compose -f docker-compose.local.yaml down
+  - before: action
+    when:
+      - create
+    run:
+      - echo "Starting backup pipeline..."
+      - cd /home/${LOCAL_USER}/ServeHub-2 && docker compose -f docker-compose.local.yaml down
 
-  after_backup:
-    - cd /home/${LOCAL_USER}/ServeHub-2 && docker compose -f docker-compose.local.yaml up -d
-    - echo "Backup completed successfully!"
+  - after: action
+    when:
+      - create
+    states:
+      - finish
+    run:
+      - cd /home/${LOCAL_USER}/ServeHub-2 && docker compose -f docker-compose.local.yaml up -d
+      - echo "Backup completed successfully!"
 
-  on_error:
-    - cd /home/${LOCAL_USER}/ServeHub-2 && docker compose -f docker-compose.local.yaml up -d
-    - echo "Backup failed! Containers restarted."
+  - after: error
+    run:
+      - cd /home/${LOCAL_USER}/ServeHub-2 && docker compose -f docker-compose.local.yaml up -d
+      - echo "Backup failed! Containers restarted."
