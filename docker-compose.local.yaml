@@ -552,7 +552,7 @@ services:
         condition: service_completed_successfully
   
   borg-ui:
-    image: ghcr.io/karanhudia/borg-ui:latest
+    image: ainullcode/borg-ui:2.2.5
     container_name: borg-ui
     restart: unless-stopped
     logging: *default-logging
