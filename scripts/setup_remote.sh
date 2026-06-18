@@ -37,6 +37,15 @@ else
 fi
 
 # ==========================================
+if ip link show awg0 > /dev/null 2>&1; then
+    echo "Интерфейс awg0 найден. Удаляю..."
+    sudo ip link delete awg0
+    echo "Интерфейс awg0 успешно удален."
+else
+    echo "Интерфейс awg0 не найден. Ничего делать не нужно."
+fi
+
+# ==========================================
 log_info "Проверка статуса демона Docker..."
 
 if ! systemctl is-enabled --quiet docker; then
