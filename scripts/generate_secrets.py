@@ -64,6 +64,7 @@ secret_vaultwarden_password: "{secret_vaultwarden_password}"
 ssh_public_key: ""
 
 borgmatic_encryption_passphrase: ""
+backup_disk_uuid: ""
 '''
 
 rendered_yml = yml_to_generate.format(**generated_secrets)
