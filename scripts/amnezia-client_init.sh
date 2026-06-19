@@ -13,9 +13,6 @@ do
     cp ${s} /etc/amnezia/amneziawg/${name}.conf
     chmod 600 /etc/amnezia/amneziawg/${name}.conf
     awg-quick up ${name}
-    iptables -A FORWARD -i ${name} -j ACCEPT
-    iptables -A FORWARD -o ${name} -j ACCEPT
-    iptables -A FORWARD -i ${name} -o ${name} -j ACCEPT
   fi
 done
 

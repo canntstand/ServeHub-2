@@ -331,9 +331,21 @@
   changed_when: "'Installing' in yay_output.stdout or 'upgraded' in yay_output.stdout"
   when: ansible_facts['os_family'] == "Archlinux"
 
-- name: "[AmneziaWG] Ubuntu: добавление PPA"
+- name: "[AmneziaWG] Ubuntu: создаем папку для ключей"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: "[AmneziaWG] Ubuntu: скачиваем GPG-ключ напрямую"
+  ansible.builtin.get_url:
+    url: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x75C9DD72C799870E310542E24166F2C257290828"
+    dest: /etc/apt/keyrings/amnezia.asc
+    mode: '0644'
+
+- name: "[AmneziaWG] Ubuntu: добавляем репозиторий"
   apt_repository:
-    repo: "ppa:amnezia/ppa"
+    repo: "deb [signed-by=/etc/apt/keyrings/amnezia.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
     state: present
     update_cache: yes
   when: ansible_facts['distribution'] == "Ubuntu"

@@ -20,7 +20,7 @@
       ======================================================================
       📄 ВОЗОБНОВЛЕНИЕ СЕРТИФИКАТОВ (РУЧНОЙ ШАГ):
       ======================================================================
-      Если у вас остались старые сертификаты положите папку certbot в /home/user/ServeHub-2 на удаленном сервере.
+      Если у вас остались старые сертификаты положите папку certbot в /home/{{ deploy_user }}/ServeHub-2 на удаленном сервере.
       ВАЖНО: При пропуске этого шага сертификаты подтянутся самостоятельно, однако это займет около 20 мин.
       ======================================================================
       Нажмите ENTER для продолжения деплоя...
@@ -29,7 +29,7 @@
   ansible.builtin.git:
     repo: "https://github.com/regtime-ltd/certbot-dns-webnames.git"
     dest: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames"
-    version: main
+    version: master
     update: no
 
 - name: "[Certbot] Скачивание конфигурации Certbot через API Webnames"
@@ -65,14 +65,6 @@
   when: current_cert_stat.stat.exists
   failed_when: false
   changed_when: false
-
-- name: "[Certbot] Сборка Docker-образа Certbot при необходимости обновления/выпуска"
-  community.docker.docker_compose_v2:
-    project_src: "/home/{{ deploy_user }}/ServeHub-2"
-    files: [docker-compose.remote.yaml]
-    build: yes
-    services: [certbot]
-  when: (not current_cert_stat.stat.exists) or (cert_expiry_check.rc is defined and cert_expiry_check.rc != 0)
 
 - name: "[Certbot] Первичный запрос НОВОГО SSL-сертификата через Docker"
   ansible.builtin.command:
@@ -167,22 +159,32 @@
   when: ansible_facts['os_family'] == "Debian"
 
 - name: "[Firewall] Активация и запуск сервиса iptables (Arch Linux)"
-  ansible.builtin.systemctl:
+  ansible.builtin.systemd:
     name: iptables
     enabled: yes
     state: started
   when: ansible_facts['os_family'] == "Archlinux"
 
-- name: "[Firewall] Настройка правил FORWARD для интерфейса wg0"
+- name: "[Firewall] Настройка FORWARD для входящего трафика wg0"
   ansible.builtin.iptables:
     chain: FORWARD
-    action: append
-    rule: "{{ item }}"
+    in_interface: wg0
     jump: ACCEPT
-  loop:
-    - "-i wg0"
-    - "-o wg0"
-  register: iptables_forward_rules
+    state: present
+  register: iptables_forward_in
+
+- name: "[Firewall] Настройка FORWARD для исходящего трафика wg0"
+  ansible.builtin.iptables:
+    chain: FORWARD
+    out_interface: wg0
+    jump: ACCEPT
+    state: present
+  register: iptables_forward_out
+
+- name: "[Firewall] Статус изменений FORWARD"
+  ansible.builtin.set_fact:
+    iptables_forward_rules:
+      changed: "{{ iptables_forward_in.changed or iptables_forward_out.changed }}"
 
 - name: "[Firewall] Настройка NAT MASQUERADE для подсети VPN"
   ansible.builtin.iptables:
@@ -210,6 +212,11 @@
 # =========================================================================
 # 6. ЗАПУСК УДАЛЕННОГО СТЕКА КОНТЕЙНЕРОВ И ВАЛИДАЦИЯ
 # =========================================================================
+- name: "[Docker] Восстановление системных цепочек iptables для Docker"
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+
 - name: "[Docker Compose] Запуск целевых сервисов удаленной инфраструктуры"
   community.docker.docker_compose_v2:
     project_src: "/home/{{ deploy_user }}/ServeHub-2"
@@ -220,16 +227,6 @@
       - nginx
       - wg-easy
       - nginx_exporter
-
-- name: "[Docker Compose] Ожидание успешного запуска всех сервисов"
-  ansible.builtin.command:
-    cmd: "docker compose -f docker-compose.remote.yaml ps --services --filter 'status=running'"
-    chdir: "/home/{{ deploy_user }}/ServeHub-2"
-  register: remote_services_check
-  until: remote_services_check.stdout_lines | length >= 3
-  retries: 10
-  delay: 3
-  changed_when: false
 
 - name: "[Docker Compose] Получение финального статуса контейнеров"
   ansible.builtin.command:

@@ -107,7 +107,6 @@
 # =========================================================================
 # 4. НАСТРОЙКА РЕЗЕРВНОГО КОПИРОВАНИЯ (BORGMATIC & BORG BACKUP)
 # =========================================================================
-
 - name: "[Backup] Блок настройки бэкапов (выполняется, только если указан UUID диска)"
   block:
     - name: "[Backup] Монтирование резервного диска и запись в /etc/fstab"
@@ -134,15 +133,14 @@
         group: root
         mode: "0600"
 
-    - name: "[Backup] Проверка, инициализирован ли репозиторий Borg"
-      ansible.builtin.command: borgmatic info
-      register: borgmatic_status
-      failed_when: false
-      changed_when: false
+    - name: "[Backup] Проверка, существует ли файл config в репозитории (индикатор инициализации)"
+      ansible.builtin.stat:
+        path: /mnt/backup_storage/config
+      register: borg_repo_stat
 
-    - name: "[Backup] Инициализация репозитория Borg (только при первом запуске)"
+    - name: "[Backup] Инициализация репозитория Borg (только если файла config нет)"
       ansible.builtin.command: borgmatic rcreate --encryption repokey-blake2 --make-parent
-      when: borgmatic_status.rc != 0
+      when: not borg_repo_stat.stat.exists
 
     - name: "[Backup] Оптимизация прав безопасности на директорию бэкапов"
       ansible.builtin.file:
@@ -167,8 +165,8 @@
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/alertmanager"
     state: directory
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
+    owner: "65534"
+    group: "65534"
     mode: "0755"
 
 - name: "[Monitoring] Рендеринг конфигурации alertmanager.yml из шаблона"
@@ -177,7 +175,7 @@
     dest: "/home/{{ deploy_user }}/ServeHub-2/configs/monitoring/alertmanager.yml"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
-    mode: "0600"
+    mode: "0644"
   
 # =========================================================================
 # 6. СИСТЕМНЫЕ НАСТРОЙКИ ЯДРА И СЕТЕВОЙ БРАНДМАУЭР (IPTABLES)
@@ -211,22 +209,32 @@
   when: ansible_facts['os_family'] == "Debian"
 
 - name: "[Firewall] Активация и запуск сервиса iptables (Arch Linux)"
-  ansible.builtin.systemctl:
+  ansible.builtin.systemd:
     name: iptables
     enabled: yes
     state: started
   when: ansible_facts['os_family'] == "Archlinux"
 
-- name: "[Firewall] Настройка правил FORWARD для интерфейса wg0"
+- name: "[Firewall] Настройка FORWARD для входящего трафика awg0"
   ansible.builtin.iptables:
     chain: FORWARD
-    action: append
-    rule: "{{ item }}"
+    in_interface: awg0
     jump: ACCEPT
-  loop:
-    - "-i awg0"
-    - "-o awg0"
-  register: iptables_forward_rules
+    state: present
+  register: iptables_forward_in
+
+- name: "[Firewall] Настройка FORWARD для исходящего трафика awg0"
+  ansible.builtin.iptables:
+    chain: FORWARD
+    out_interface: awg0
+    jump: ACCEPT
+    state: present
+  register: iptables_forward_out
+
+- name: "[Firewall] Статус изменений FORWARD"
+  ansible.builtin.set_fact:
+    iptables_forward_rules:
+      changed: "{{ iptables_forward_in.changed or iptables_forward_out.changed }}"
 
 - name: "[Firewall] Настройка NAT MASQUERADE для подсети VPN"
   ansible.builtin.iptables:
@@ -254,6 +262,11 @@
 # =========================================================================
 # 7. ЗАПУСК СЕРВИСОВ СТЕКА SERVEHUB-2 И НАСТРОЙКА SYNAPSE
 # =========================================================================
+- name: "[Docker] Восстановление системных цепочек iptables для Docker"
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+
 - name: "[Docker] Запуск основного стека контейнеров ServeHub-2"
   community.docker.docker_compose_v2:
     project_src: "/home/{{ deploy_user }}/ServeHub-2"
@@ -269,7 +282,6 @@
   until: synapse_info.container.State.Health.Status == "healthy"
   retries: 30
   delay: 5
-  desc: "Ждем, пока Synapse поднимет Python API и ответит 'healthy'"
 
 - name: "[Matrix] Регистрация администратора Synapse (Идемпотентно)"
   community.docker.docker_container_exec:
