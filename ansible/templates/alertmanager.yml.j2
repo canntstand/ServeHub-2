@@ -1,0 +1,37 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: '{{ smtp_host }}:{{ smtp_port }}'
+  smtp_from: '{{ smtp_from }}'
+  smtp_auth_username: '{{ smtp_user }}'
+  smtp_auth_password: '{{ smtp_password }}'
+  smtp_require_tls: true
+
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'email-notifications'
+
+receivers:
+  - name: 'email-notifications'
+    email_configs:
+      - to: '{{ smtp_to }}'
+        send_resolved: true
+        headers:
+          Subject: '{% raw %}[ServeHub-2 ALERT] {{ .Status | toUpper }}: {{ .CommonLabels.alertname }}{% endraw %}'
+        html: |
+          {% raw %}
+          <h3>Уведомление от системы мониторинга ServeHub-2</h3>
+          <p><strong>Статус:</strong> {{ .Status | toUpper }}</p>
+          <p><strong>Описание алертов:</strong></p>
+          <ul>
+            {{ range .Alerts }}
+              <li>
+                <strong>Алерт:</strong> {{ .Labels.alertname }}<br>
+                <strong>Сервер:</strong> {{ .Labels.instance }}<br>
+                <strong>Инфо:</strong> {{ .Annotations.summary }} {{ .Annotations.description }}
+              </li>
+            {{ end }}
+          </ul>
+          {% endraw %}

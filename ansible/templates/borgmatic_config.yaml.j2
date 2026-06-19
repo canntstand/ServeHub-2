@@ -1,0 +1,39 @@
+source_directories:
+  - /home/{{ local_user }}/ServeHub-2/apps-data/
+  - /home/{{ local_user }}/PersonalData/Music
+  - /home/{{ local_user }}/PersonalData/NextcloudData
+  - /home/{{ local_user }}/PersonalData/Books
+  - /home/{{ local_user }}/PersonalData/Podcasts
+  - /home/{{ local_user }}/PersonalData/Audiobooks
+
+repositories:
+  - path: /mnt/backup_storage/server_backup.borg
+
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 6
+
+compression: lz4
+
+encryption_passphrase: {{ borgmatic_encryption_passphrase }}
+
+commands:
+  - before: action
+    when:
+      - create
+    run:
+      - echo "Starting backup pipeline..."
+      - cd /home/{{ local_user }}/ServeHub-2 && docker compose -f docker-compose.local.yaml down
+
+  - after: action
+    when:
+      - create
+    states:
+      - finish
+    run:
+      - cd /home/{{ local_user }}/ServeHub-2 && docker compose -f docker-compose.local.yaml up -d
+      - echo "Backup completed successfully!"
+
+  - after: error
+    run:
+      - cd /home/{{ local_user }}/ServeHub-2 && docker compose -f docker-compose.local.yaml up -d

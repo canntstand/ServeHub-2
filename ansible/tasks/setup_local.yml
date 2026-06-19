@@ -1,0 +1,302 @@
+# =========================================================================
+# 1. СЕТЕВАЯ ПОДГОТОВКА И ОЧИСТКА ИНТЕРФЕЙСОВ
+# =========================================================================
+- name: "[Network] Проверка наличия старого интерфейса awg0"
+  ansible.builtin.command: ip link show awg0
+  register: awg0_check
+  failed_when: false
+  changed_when: false
+
+- name: "[Network] Удаление старого интерфейса awg0, если он существует"
+  ansible.builtin.command: ip link delete awg0
+  when: awg0_check.rc == 0
+
+# =========================================================================
+# 2. СОЗДАНИЕ ДИРЕКТОРИЙ И НАСТРОЙКА ПРАВ (ПОЛНЫЙ АУДИТ ПО COMPOSE)
+# =========================================================================
+- name: "[FS] Создание структуры системных папок приложений (apps-data)"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0777"
+  loop:
+    - synapse
+    - vaultwarden/data
+    - navidrome/data
+    - audiobookshelf/config
+    - audiobookshelf/metadata
+    - nextcloud/html
+    - portainer/data
+    - borg-ui
+    - postgres/synapse
+    - postgres/nextcloud
+    - postgres/vaultwarden
+
+- name: "[FS] Создание пользовательских папок для медиафайлов"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/PersonalData/{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+  loop:
+    - Music
+    - Audiobooks
+    - Podcasts
+    - Books
+
+- name: "[FS] Точечная настройка прав для Prometheus (UID 65534)"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/prometheus/data"
+    state: directory
+    owner: "65534"
+    group: "65534"
+    mode: "0755"
+
+- name: "[FS] Точечная настройка прав для Grafana (UID 472)"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/grafana/data"
+    state: directory
+    owner: "472"
+    group: "472"
+    mode: "0755"
+
+- name: "[FS] Настройка папки NextcloudData внутри PersonalData"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/PersonalData/NextcloudData"
+    state: directory
+    owner: "33"
+    group: "33"
+    mode: "0750"
+
+# =========================================================================
+# 3. ИНИЦИАЛИЗАЦИЯ И КОНФИГУРАЦИЯ SYNAPSE (MATRIX)
+# =========================================================================
+- name: "[Synapse] Проверка наличия ключа подписи сервера"
+  ansible.builtin.stat:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse/{{ synapse_server_name }}.signing.key"
+  register: synapse_signing_key
+
+- name: "[Synapse] Генерация базовых ключей и логов (только при первом развертывании)"
+  ansible.builtin.command: >
+    docker run --rm
+    -v "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse:/data"
+    -e SYNAPSE_SERVER_NAME="{{ synapse_server_name }}"
+    -e SYNAPSE_REPORT_STATS=no
+    matrixdotorg/synapse:v1.154.0 generate
+  when: not synapse_signing_key.stat.exists
+
+- name: "[Synapse] Генерация homeserver.yaml из шаблона Jinja2"
+  ansible.builtin.template:
+    src: templates/homeserver.yaml.j2
+    dest: "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse/homeserver.yaml"
+    owner: "991"
+    group: "991"
+    mode: "0600"
+
+- name: "[Synapse] Установка прав владельца 991:991 на директорию данных"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse"
+    state: directory
+    recurse: yes
+    owner: "991"
+    group: "991"
+
+# =========================================================================
+# 4. НАСТРОЙКА РЕЗЕРВНОГО КОПИРОВАНИЯ (BORGMATIC & BORG BACKUP)
+# =========================================================================
+
+- name: "[Backup] Блок настройки бэкапов (выполняется, только если указан UUID диска)"
+  block:
+    - name: "[Backup] Монтирование резервного диска и запись в /etc/fstab"
+      ansible.posix.mount:
+        path: /mnt/backup_storage
+        src: "UUID={{ backup_disk_uuid }}"
+        fstype: auto
+        opts: "defaults,nofail"
+        state: mounted
+
+    - name: "[Backup] Создание директории конфигурации /etc/borgmatic"
+      ansible.builtin.file:
+        path: /etc/borgmatic
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: "[Backup] Генерация конфигурации config.yaml из шаблона Jinja2"
+      ansible.builtin.template:
+        src: templates/borgmatic_config.yaml.j2
+        dest: /etc/borgmatic/config.yaml
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: "[Backup] Проверка, инициализирован ли репозиторий Borg"
+      ansible.builtin.command: borgmatic info
+      register: borgmatic_status
+      failed_when: false
+      changed_when: false
+
+    - name: "[Backup] Инициализация репозитория Borg (только при первом запуске)"
+      ansible.builtin.command: borgmatic rcreate --encryption repokey-blake2 --make-parent
+      when: borgmatic_status.rc != 0
+
+    - name: "[Backup] Оптимизация прав безопасности на директорию бэкапов"
+      ansible.builtin.file:
+        path: /mnt/backup_storage
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: "[Backup] Включение и запуск системного таймера borgmatic.timer"
+      ansible.builtin.systemd:
+        name: borgmatic.timer
+        enabled: yes
+        state: started
+
+  when: backup_disk_uuid is defined and (backup_disk_uuid | length > 0)
+
+# =========================================================================
+# 5. НАСТРОЙКА СИСТЕМЫ ОПОВЕЩЕНИЙ (SMTP ALERTMANAGER)
+# =========================================================================
+- name: "[Monitoring] Создание директории для данных Alertmanager"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/alertmanager"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
+- name: "[Monitoring] Рендеринг конфигурации alertmanager.yml из шаблона"
+  ansible.builtin.template:
+    src: templates/alertmanager.yml.j2
+    dest: "/home/{{ deploy_user }}/ServeHub-2/configs/monitoring/alertmanager.yml"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+  
+# =========================================================================
+# 6. СИСТЕМНЫЕ НАСТРОЙКИ ЯДРА И СЕТЕВОЙ БРАНДМАУЭР (IPTABLES)
+# =========================================================================
+- name: "[Kernel] Загрузка модуля ядра AmneziaWG"
+  ansible.builtin.modprobe:
+    name: amneziawg
+    state: present
+
+- name: "[Kernel] Применение параметров sysctl для маршрутизации трафика"
+  ansible.builtin.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: yes
+    reload: yes
+  loop:
+    - { name: 'net.ipv4.ip_forward', value: '1' }
+    - { name: 'net.ipv4.conf.all.src_valid_mark', value: '1' }
+    - { name: 'net.ipv6.conf.all.disable_ipv6', value: '0' }
+    - { name: 'net.ipv6.conf.all.forwarding', value: '1' }
+    - { name: 'net.ipv6.conf.default.forwarding', value: '1' }
+
+- name: "[Firewall] Установка утилит сохранения iptables (Debian/Ubuntu)"
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: present
+    update_cache: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "[Firewall] Активация и запуск сервиса iptables (Arch Linux)"
+  ansible.builtin.systemctl:
+    name: iptables
+    enabled: yes
+    state: started
+  when: ansible_facts['os_family'] == "Archlinux"
+
+- name: "[Firewall] Настройка правил FORWARD для интерфейса wg0"
+  ansible.builtin.iptables:
+    chain: FORWARD
+    action: append
+    rule: "{{ item }}"
+    jump: ACCEPT
+  loop:
+    - "-i awg0"
+    - "-o awg0"
+  register: iptables_forward_rules
+
+- name: "[Firewall] Настройка NAT MASQUERADE для подсети VPN"
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    source: 10.8.0.0/24
+    out_interface: "{{ ansible_default_ipv4.interface }}"
+    jump: MASQUERADE
+  register: iptables_nat_rule
+
+- name: "[Firewall] Сохранение правил iptables (Debian/Ubuntu)"
+  ansible.builtin.command: netfilter-persistent save
+  when: >
+    ansible_facts['os_family'] == "Debian" and 
+    (iptables_forward_rules.changed or iptables_nat_rule.changed)
+  changed_when: false
+
+- name: "[Firewall] Сохранение правил iptables (Arch Linux)"
+  ansible.builtin.shell: iptables-save > /etc/iptables/iptables.rules
+  when: >
+    ansible_facts['os_family'] == "Archlinux" and 
+    (iptables_forward_rules.changed or iptables_nat_rule.changed)
+  changed_when: false
+
+# =========================================================================
+# 7. ЗАПУСК СЕРВИСОВ СТЕКА SERVEHUB-2 И НАСТРОЙКА SYNAPSE
+# =========================================================================
+- name: "[Docker] Запуск основного стека контейнеров ServeHub-2"
+  community.docker.docker_compose_v2:
+    project_src: "/home/{{ deploy_user }}/ServeHub-2"
+    files:
+      - docker-compose.local.yaml
+    state: present
+  register: compose_start
+
+- name: "[Matrix] Ожидание запуска и успешного прохождения Healthcheck для Synapse"
+  community.docker.docker_container_info:
+    name: synapse
+  register: synapse_info
+  until: synapse_info.container.State.Health.Status == "healthy"
+  retries: 30
+  delay: 5
+  desc: "Ждем, пока Synapse поднимет Python API и ответит 'healthy'"
+
+- name: "[Matrix] Регистрация администратора Synapse (Идемпотентно)"
+  community.docker.docker_container_exec:
+    container: synapse
+    argv:
+      - register_new_matrix_user
+      - -c
+      - /data/homeserver.yaml
+      - -u
+      - "{{ admin_user }}"
+      - -p
+      - "{{ admin_password }}"
+      - --admin
+      - http://127.0.0.1:8008
+  register: matrix_admin_register
+  failed_when: 
+    - matrix_admin_register.rc != 0
+    - "'already' not in matrix_admin_register.stderr"
+  changed_when: matrix_admin_register.rc == 0
+
+- name: "[Docker] Получение итогового статуса запущенных сервисов"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.local.yaml ps
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  register: compose_ps_output
+  changed_when: false
+
+- name: "[Docker] Вывод таблицы запущенных контейнеров"
+  ansible.builtin.debug:
+    var: compose_ps_output.stdout_lines

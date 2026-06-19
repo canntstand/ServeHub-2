@@ -26,10 +26,10 @@ services:
     healthcheck:
       test:
         ["CMD", "curl", "-f", "http://localhost:8008/_matrix/client/versions"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   synapse_db:
     container_name: synapse_db
@@ -42,7 +42,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_INITDB_ARGS=--encoding=UTF8 --lc-collate=C --lc-ctype=C
     volumes:
-      - synapse_db_data:/var/lib/postgresql
+      - ./apps-data/postgres/synapse:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -123,7 +123,7 @@ services:
       ND_BASEURL: "/navidrome"
     volumes:
       - ./apps-data/navidrome/data:/data
-      - /home/${LOCAL_USER}/Music:/music:ro
+      - /home/${LOCAL_USER}/PersonalData/Music:/music:ro
     deploy:
       resources:
         limits:
@@ -142,9 +142,9 @@ services:
     volumes:
       - ./apps-data/audiobookshelf/config:/config
       - ./apps-data/audiobookshelf/metadata:/metadata
-      - /home/${LOCAL_USER}/Audiobooks:/audiobooks
-      - /home/${LOCAL_USER}/Podcasts:/podcasts
-      - /home/${LOCAL_USER}/Books:/books
+      - /home/${LOCAL_USER}/PersonalData/Audiobooks:/audiobooks
+      - /home/${LOCAL_USER}/PersonalData/Podcasts:/podcasts
+      - /home/${LOCAL_USER}/PersonalData/Books:/books
     deploy:
       resources:
         limits:
@@ -156,7 +156,7 @@ services:
     logging: *default-logging
     restart: unless-stopped
     volumes:
-      - nextcloud_db_data:/var/lib/postgresql
+      - ./apps-data/postgres/nextcloud:/var/lib/postgresql
     environment:
       - POSTGRES_DB=${POSTGRES_DB_NEXTCLOUD}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -201,7 +201,7 @@ services:
       - 'NC_memcache.local=\OC\Memcache\APCu'
     volumes:
       - ./apps-data/nextcloud/html:/var/www/html
-      - /home/${LOCAL_USER}/NextcloudData:/var/www/html/data
+      - /home/${LOCAL_USER}/PersonalData/NextcloudData:/var/www/html/data
     deploy:
       resources:
         limits:
@@ -223,7 +223,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./apps-data/nextcloud/html:/var/www/html
-      - /home/${LOCAL_USER}/NextcloudData:/var/www/html/data
+      - /home/${LOCAL_USER}/PersonalData/NextcloudData:/var/www/html/data
     entrypoint: /cron.sh
     logging: *default-logging
     depends_on:
@@ -240,7 +240,7 @@ services:
     logging: *default-logging
     restart: unless-stopped
     volumes:
-      - vaultwarden_db_data:/var/lib/postgresql
+      - ./apps-data/postgres/vaultwarden:/var/lib/postgresql
     environment:
       - POSTGRES_DB=${POSTGRES_DB_VAULTWARDEN}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -417,108 +417,22 @@ services:
         limits:
           memory: 512M
 
-  monitoring_configure:
-    image: alpine:3.22.4
-    container_name: monitoring_configure
-    logging: *default-logging
-    volumes:
-      - ./configs/monitoring:/mnt/monitoring
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - MATRIX_BOT_USERNAME=${MATRIX_BOT_USERNAME}
-      - MATRIX_BOT_PASSWORD=${MATRIX_BOT_PASSWORD}
-      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
-      - ADMIN_USER=${ADMIN_USER}
-      - MONITORING_SECRET=${MONITORING_SECRET}
-    command: >
-      sh -c "
-        apk add --no-cache curl jq gettext docker-cli;
-
-        echo '1. Регистрация пользователя бота в Matrix...';
-        docker exec synapse register_new_matrix_user -c /data/homeserver.yaml -u \"$$MATRIX_BOT_USERNAME\" -p \"$$MATRIX_BOT_PASSWORD\" --no-admin || echo 'Пользователь уже существует, пропускаем';
-
-        echo '2. Получение Access Token для бота...';
-        BOT_TOKEN=$$(curl -s -X POST -H 'Content-Type: application/json' -d \"{\\\"type\\\":\\\"m.login.password\\\",\\\"identifier\\\":{\\\"type\\\":\\\"m.id.user\\\",\\\"user\\\":\\\"$$MATRIX_BOT_USERNAME\\\"},\\\"password\\\":\\\"$$MATRIX_BOT_PASSWORD\\\"}\" http://synapse:8008/_matrix/client/v3/login | jq -r '.access_token');
-
-        if [ \"$$BOT_TOKEN\" = \"null\" ] || [ -z \"$$BOT_TOKEN\" ]; then
-          echo 'ОШИБКА: Не удалось получить токен бота!'; exit 1;
-        fi;
-
-        echo '3. Создание комнаты и получение её внутреннего ID (!)...';
-        CREATE_ROOM_RESP=$$(curl -s -X POST -H \"Authorization: Bearer $$BOT_TOKEN\" -H 'Content-Type: application/json' -d \"{\\\"visibility\\\":\\\"private\\\",\\\"room_alias_name\\\":\\\"server-alerts\\\",\\\"name\\\":\\\"Server Alerts\\\",\\\"preset\\\":\\\"private_chat\\\",\\\"invite\\\":[\\\"@$$ADMIN_USER:$$SYNAPSE_SERVER_NAME\\\"]}\" http://synapse:8008/_matrix/client/v3/createRoom);
-        
-        ERRCODE=$$(echo \"$$CREATE_ROOM_RESP\" | jq -r '.errcode');
-        
-        if [ \"$$ERRCODE\" = \"M_ROOM_IN_USE\" ]; then
-          echo '-> Комната уже существует, получаем её ID...';
-          ROOM_ID=$$(curl -s http://synapse:8008/_matrix/client/v3/directory/room/%23server-alerts%3A${SYNAPSE_SERVER_NAME} | jq -r '.room_id');
-        else
-          ROOM_ID=$$(echo \"$$CREATE_ROOM_RESP\" | jq -r '.room_id');
-          echo '-> Комната успешно создана, инвайт отправлен!';
-        fi;
-
-        echo '4. Передача динамических данных для matrix_alertmanager...';
-        echo \"export MATRIX_TOKEN=$$BOT_TOKEN\" > /mnt/monitoring/bot_env.sh;
-        echo \"export MATRIX_INTERNAL_ROOM_ID=$$ROOM_ID\" >> /mnt/monitoring/bot_env.sh;
-
-        echo '5. Генерация alertmanager.yml на основе шаблона...';
-        envsubst < /mnt/monitoring/alertmanager.template.yml > /mnt/monitoring/alertmanager.yml;
-
-        echo 'Мониторинг успешно сконфигурирован!';
-      "
-    depends_on:
-      synapse:
-        condition: service_healthy
-      prometheus_init:
-        condition: service_completed_successfully
-
-  matrix_alertmanager:
-    image: jaywink/matrix-alertmanager:v0.9.0
-    container_name: matrix_alertmanager
-    logging: *default-logging
-    restart: unless-stopped
-    volumes:
-      - ./configs/monitoring:/mnt/monitoring:ro
-    environment:
-      - MATRIX_HOMESERVER_URL=http://synapse:8008
-      - MATRIX_USER=@${MATRIX_BOT_USERNAME}:${SYNAPSE_SERVER_NAME}
-      - APP_ALERTMANAGER_SECRET=${MONITORING_SECRET}
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        echo "Ожидание файла окружения от конфигуратора...";
-        until [ -f /mnt/monitoring/bot_env.sh ]; do sleep 1; done;
-
-        echo "Чтение токена и ID комнаты...";
-        . /mnt/monitoring/bot_env.sh
-
-        echo "Настройка маршрутизации (Ресивер -> Внутренний ID)..."
-        export MATRIX_ROOMS="matrix-room-alerts/$${MATRIX_INTERNAL_ROOM_ID}"
-
-        echo "Запуск matrix-alertmanager...";
-        exec node src/app.js
-    depends_on:
-      synapse:
-        condition: service_healthy
-      monitoring_configure:
-        condition: service_completed_successfully
-
   alertmanager:
     image: prom/alertmanager:v0.32.2
     container_name: alertmanager
     logging: *default-logging
     restart: unless-stopped
     volumes:
-      - ./configs/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ./configs/monitoring:/etc/alertmanager
+      - ./apps-data/alertmanager:/alertmanager
     command:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
     expose:
       - 9093
     depends_on:
       prometheus:
         condition: service_started
-      monitoring_configure:
-        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -547,16 +461,13 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    depends_on:
-      monitoring_configure:
-        condition: service_completed_successfully
-  
+
   borg-ui:
     image: ainullcode/borg-ui:2.2.5
     container_name: borg-ui
     restart: unless-stopped
     logging: *default-logging
-    privileged: true 
+    privileged: true
     expose:
       - 8081
     environment:
@@ -573,8 +484,3 @@ services:
       resources:
         limits:
           memory: 512M
-
-volumes:
-  synapse_db_data:
-  nextcloud_db_data:
-  vaultwarden_db_data:
