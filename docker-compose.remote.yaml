@@ -21,7 +21,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
     depends_on:
       wg-easy:
         condition: service_healthy
@@ -60,7 +60,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   wg-easy:
     image: ghcr.io/wg-easy/wg-easy:15.3
@@ -123,7 +123,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
     depends_on:
       nginx:
         condition: service_healthy
@@ -144,4 +144,4 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G

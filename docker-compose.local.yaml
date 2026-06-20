@@ -22,7 +22,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1.5G
+          memory: 3G
     healthcheck:
       test:
         ["CMD", "curl", "-f", "http://localhost:8008/_matrix/client/versions"]
@@ -51,7 +51,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   nginx:
     image: nginx:stable
@@ -86,7 +86,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/health-check"]
       interval: 30s
@@ -108,7 +108,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   navidrome:
     container_name: navidrome
@@ -127,7 +127,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   audiobookshelf:
     container_name: audiobookshelf
@@ -148,7 +148,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   nextcloud_db:
     image: postgres:18
@@ -171,7 +171,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   nextcloud:
     image: nextcloud:34.0.0-apache
@@ -205,7 +205,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1.5G
+          memory: 3G
     healthcheck:
       test:
         [
@@ -232,7 +232,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
 
   vaultwarden_db:
     image: postgres:18
@@ -255,7 +255,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   vaultwarden:
     image: vaultwarden/server:1.36.0
@@ -278,7 +278,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   prometheus:
     image: prom/prometheus:v3
@@ -301,7 +301,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   grafana:
     image: grafana/grafana:13.0-slim
@@ -325,7 +325,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   node_exporter:
     image: prom/node-exporter:v1.11.1
@@ -348,7 +348,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   cadvisor:
     image: ghcr.io/google/cadvisor:0.57
@@ -374,7 +374,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   portainer:
     image: portainer/portainer-ce:2.39.3
@@ -390,7 +390,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   alertmanager:
     image: prom/alertmanager:v0.32.2
@@ -411,7 +411,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   amnezia-client:
     build:
@@ -458,4 +458,4 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
