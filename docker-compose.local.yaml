@@ -280,27 +280,6 @@ services:
         limits:
           memory: 512M
 
-  prometheus_init:
-    image: alpine:3.22.4
-    container_name: prometheus_init
-    restart: "no"
-    logging: *default-logging
-    user: "root"
-    volumes:
-      - ./apps-data/prometheus:/mnt/prometheus
-      - ./apps-data/grafana:/mnt/grafana
-    command: >
-      sh -c "
-      mkdir -p /mnt/prometheus/data && 
-      chown -R 65534:65534 /mnt/prometheus/data &&
-      mkdir -p /mnt/grafana/data &&
-      chown -R 472:472 /mnt/grafana/data
-      "
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
   prometheus:
     image: prom/prometheus:v3
     container_name: prometheus
@@ -315,8 +294,6 @@ services:
       - ./configs/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - ./apps-data/prometheus/data:/prometheus
     depends_on:
-      prometheus_init:
-        condition: service_completed_successfully
       node_exporter:
         condition: service_started
       cadvisor:
@@ -343,8 +320,6 @@ services:
       - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./configs/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
-      prometheus_init:
-        condition: service_completed_successfully
       prometheus:
         condition: service_started
     deploy:

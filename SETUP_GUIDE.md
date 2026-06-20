@@ -4,6 +4,7 @@
 2. **Настройка DNS:** В DNS-панели регистратора (например, на Webnames) необходимо направить A-запись основного домена и wildcard-запись (`*`) на внутренний IP-адрес VPN — **`10.8.0.1`**. Это критически важно: весь трафик к вашим сервисам должен идти внутри защищенного туннеля AmneziaWG. Если направить домен на публичный IP сервера VPS, Nginx заблокирует внешние запросы из-за правила `deny all`.
 3. **VPN для Vagrant:** HashiCorp в данный момент не работает в России, поэтому для запуска тестирования понадобится VPN. (после установки машин VPN следует выключить, либо можно включить split-tunneling на игнорирование 192.168.0.0/24, так как иначе к тестовым виртуалкам не получится подключиться по ssh)
 4. **Сохранность бэкапов:** После настройки локального сервера стоит сохранить ключ borg (если настраивалась система бэкапов): `borg key export /mnt/backup_storage/server_backup.borg /home/USER/borg_key_backup.txt`. (лучше перенести в другое место, не стоит хранить на том же сервере)
+5. **Настройка wg-easy:** Если нет подключения к VPN, значит вероятно нужно зайти в веб интерфейс и настроить S3-S4 и I1-I5 параметры. (подробнее можно прочитать в [AmneziaWG documentation](https://docs.amnezia.org/documentation/amnezia-wg))
 
 ## Установка
 ### Linux
@@ -11,7 +12,7 @@
     - **Docker** + **Docker Compose** 
     - **Git**
     - **SSH**
-2. Подготовить 2 желательно чистых Linux сервера с включенным ssh (Ubuntu/Debian/Arch)
+2. Подготовить 2 Linux сервера с включенным ssh (Ubuntu/Debian/Arch)
 3. Клонировать репозиторий: `git clone https://github.com/canntstand/ServeHub-2 && cd ServeHub-2`
 4. Создать файл `ansible/vars/secrets.yml` на основе примера `ansible/vars/secrets.yml.example`. (для генерации паролей можно использовать `./scripts/generate_secrets.py`)
 5. Сгенерировать SSH-ключ: `ssh-keygen -t ed25519 -C "your_email@example.com"`
@@ -25,7 +26,7 @@
     - **SSH** 
     - **WSL + Дистрибутив**
     - **Терминал с поддержкой Bash**
-2. Подготовить 2 желательно чистых Linux сервера с включенным ssh (Ubuntu/Debian/Arch)
+2. Подготовить 2 Linux сервера с включенным ssh (Ubuntu/Debian/Arch)
 3. Зайти в терминал дистрибутива в WSL (все остальные пункты будут выполняться строго в нем)
 4. Клонировать репозиторий (где угодно в /mnt/c/): `git clone https://github.com/canntstand/ServeHub-2 && cd ServeHub-2`
 5. Создать файл `ansible/vars/secrets.yml` на основе примера `ansible/vars/secrets.yml.example`. (для генерации паролей можно использовать `./scripts/generate_secrets.py`)

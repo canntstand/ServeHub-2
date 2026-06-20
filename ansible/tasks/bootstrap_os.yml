@@ -113,7 +113,7 @@
       - git
       - dkms
       - borgbackup
-      - borgmatic
+      - pipx
       - gettext
       - argon2
       - openssl
@@ -121,6 +121,15 @@
       - curl
       - "{{ 'linux-headers-generic' if ansible_facts['distribution'] == 'Ubuntu' else 'linux-headers-amd64' }}"
     state: present
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "[Backup] Debian/Ubuntu: Установка актуальной версии borgmatic через pipx"
+  environment:
+    PIPX_HOME: /opt/pipx
+    PIPX_BIN_DIR: /usr/local/bin
+  ansible.builtin.command: pipx install borgmatic
+  args:
+    creates: /usr/local/bin/borgmatic
   when: ansible_facts['os_family'] == "Debian"
 
 # =========================================================================

@@ -107,7 +107,15 @@
 # =========================================================================
 # 4. НАСТРОЙКА РЕЗЕРВНОГО КОПИРОВАНИЯ (BORGMATIC & BORG BACKUP)
 # =========================================================================
-- name: "[Backup] Блок настройки бэкапов (выполняется, только если указан UUID диска)"
+- name: "[Backup] Проверка физического присутствия диска с указанным UUID"
+  ansible.builtin.command: "blkid -U {{ backup_disk_uuid }}"
+  register: disk_check
+  changed_when: false
+  become: true
+  failed_when: false
+  when: backup_disk_uuid is defined and (backup_disk_uuid | length > 0)
+
+- name: "[Backup] Блок настройки бэкапов (выполняется, только если UUID корректен и диск найден)"
   block:
     - name: "[Backup] Монтирование резервного диска и запись в /etc/fstab"
       ansible.posix.mount:
@@ -155,8 +163,10 @@
         name: borgmatic.timer
         enabled: yes
         state: started
-
-  when: backup_disk_uuid is defined and (backup_disk_uuid | length > 0)
+  when: 
+    - backup_disk_uuid is defined 
+    - backup_disk_uuid | length > 0
+    - disk_check.rc == 0
 
 # =========================================================================
 # 5. НАСТРОЙКА СИСТЕМЫ ОПОВЕЩЕНИЙ (SMTP ALERTMANAGER)
@@ -241,7 +251,7 @@
     table: nat
     chain: POSTROUTING
     source: 10.8.0.0/24
-    out_interface: "{{ ansible_default_ipv4.interface }}"
+    out_interface: "{{ ansible_facts['default_ipv4']['interface'] }}"
     jump: MASQUERADE
   register: iptables_nat_rule
 
