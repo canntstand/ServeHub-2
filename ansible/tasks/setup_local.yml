@@ -150,6 +150,15 @@
       ansible.builtin.command: borgmatic rcreate --encryption repokey-blake2 --make-parent
       when: not borg_repo_stat.stat.exists
 
+    - name: "[Backup] Подготовка директории кэша Borg для Docker-контейнера"
+      ansible.builtin.file:
+        path: /root/.cache/borg
+        state: directory
+        owner: root
+        group: root
+        mode: "0777"
+      become: true
+
     - name: "[Backup] Оптимизация прав безопасности на директорию бэкапов"
       ansible.builtin.file:
         path: /mnt/backup_storage
