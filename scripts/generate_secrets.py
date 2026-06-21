@@ -9,8 +9,6 @@ def generate_secure_password(length=24):
 
 vars_to_generate = {
     "admin_password",
-    "matrix_bot_password",
-    "monitoring_secret",
     "postgres_password",
     "synapse_registration_shared_secret",
     "synapse_macaroon_secret_key",
@@ -42,10 +40,6 @@ smtp_user: ""
 smtp_password: ""
 smtp_from: ""
 smtp_to: ""
-
-matrix_bot_username: "alertbot"
-matrix_bot_password: "{matrix_bot_password}"
-monitoring_secret: "{monitoring_secret}"
 
 webnames_apikey: ""
 
