@@ -35,7 +35,6 @@
     - audiobookshelf/config
     - audiobookshelf/metadata
     - portainer/data
-    - postgres/synapse
     - postgres/nextcloud
     - postgres/vaultwarden
 
@@ -98,40 +97,7 @@
     mode: "u=rwX,g=rX,o="
 
 # =========================================================================
-# 3. ИНИЦИАЛИЗАЦИЯ И КОНФИГУРАЦИЯ SYNAPSE (MATRIX)
-# =========================================================================
-- name: "[Synapse] Проверка наличия ключа подписи сервера"
-  ansible.builtin.stat:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse/{{ server_name }}.signing.key"
-  register: synapse_signing_key
-
-- name: "[Synapse] Генерация базовых ключей и логов (только при первом развертывании)"
-  ansible.builtin.command: >
-    docker run --rm
-    -v "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse:/data"
-    -e SERVER_NAME="{{ server_name }}"
-    -e SYNAPSE_REPORT_STATS=no
-    matrixdotorg/synapse:v1.154.0 generate
-  when: not synapse_signing_key.stat.exists
-
-- name: "[Synapse] Генерация homeserver.yaml из шаблона Jinja2"
-  ansible.builtin.template:
-    src: templates/homeserver.yaml.j2
-    dest: "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse/homeserver.yaml"
-    owner: "991"
-    group: "991"
-    mode: "0600"
-
-- name: "[Synapse] Установка прав владельца 991:991 на директорию данных"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse"
-    state: directory
-    recurse: yes
-    owner: "991"
-    group: "991"
-
-# =========================================================================
-# 4. НАСТРОЙКА РЕЗЕРВНОГО КОПИРОВАНИЯ (BORGMATIC & BORG BACKUP)
+# 3. НАСТРОЙКА РЕЗЕРВНОГО КОПИРОВАНИЯ (BORGMATIC & BORG BACKUP)
 # =========================================================================
 - name: "[Backup] Проверка физического присутствия диска с указанным UUID"
   ansible.builtin.command: "blkid -U {{ backup_disk_uuid }}"
@@ -228,7 +194,7 @@
     - disk_check.rc == 0
 
 # =========================================================================
-# 5. НАСТРОЙКА ALERTMANAGER
+# 4. НАСТРОЙКА ALERTMANAGER
 # =========================================================================
 - name: "[Monitoring] Создание директории для данных Alertmanager"
   ansible.builtin.file:
@@ -247,7 +213,7 @@
     mode: "0644"
 
 # =========================================================================
-# 6. СИСТЕМНЫЕ НАСТРОЙКИ ЯДРА И СЕТЕВОЙ БРАНДМАУЭР (IPTABLES)
+# 5. СИСТЕМНЫЕ НАСТРОЙКИ ЯДРА И СЕТЕВОЙ БРАНДМАУЭР (IPTABLES)
 # =========================================================================
 - name: "[Kernel] Загрузка модуля ядра AmneziaWG"
   ansible.builtin.modprobe:
@@ -329,7 +295,7 @@
   changed_when: false
 
 # =========================================================================
-# 7. ЗАПУСК СЕРВИСОВ СТЕКА SERVEHUB-2 И НАСТРОЙКА SYNAPSE
+# 6. ЗАПУСК СЕРВИСОВ СТЕКА SERVEHUB-2
 # =========================================================================
 - name: "[Docker] Восстановление системных цепочек iptables для Docker"
   ansible.builtin.systemd:
@@ -344,41 +310,13 @@
     state: present
   register: compose_start
 
-- name: "[Matrix] Ожидание запуска и успешного прохождения Healthcheck для Synapse"
-  community.docker.docker_container_info:
-    name: synapse
-  register: synapse_info
-  until: synapse_info.container.State.Health.Status == "healthy"
-  retries: 30
-  delay: 5
-
-- name: "[Matrix] Регистрация администратора Synapse (Идемпотентно)"
-  community.docker.docker_container_exec:
-    container: synapse
-    argv:
-      - register_new_matrix_user
-      - -c
-      - /data/homeserver.yaml
-      - -u
-      - "{{ admin_user }}"
-      - -p
-      - "{{ admin_password }}"
-      - --admin
-      - http://127.0.0.1:8008
-  register: matrix_admin_register
-  failed_when:
-    - matrix_admin_register.rc != 0
-    - "'already' not in matrix_admin_register.stderr"
-    - "'already' not in matrix_admin_register.stdout"
-  changed_when: matrix_admin_register.rc == 0
-
 - name: "[Docker] Получение итогового статуса запущенных сервисов"
   ansible.builtin.command:
-    cmd: docker compose -f docker-compose.local.yaml ps
+    cmd: "docker compose -f docker-compose.local.yaml ps"
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   register: compose_ps_output
   changed_when: false
 
-- name: "[Docker] Вывод таблицы запущенных контейнеров"
+- name: "[Status] 📊 ТЕКУЩИЙ СТАТУС ЗАПУЩЕННЫХ СЕРВИСОВ 📊"
   ansible.builtin.debug:
     var: compose_ps_output.stdout_lines

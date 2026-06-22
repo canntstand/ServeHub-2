@@ -72,7 +72,7 @@ services:
       - WG_PORT=51820
       - WEBROOT_BIND_ADDRESS=127.0.0.1
       - WG_DEFAULT_ADDRESS=10.8.0.x
-      - WG_DEFAULT_DNS=1.1.1.1
+      - WG_DEFAULT_DNS=10.8.0.1
       - WG_PERSISTENT_KEEPALIVE=25
       - WG_ALLOWED_IPS=0.0.0.0/0
       - EXPERIMENTAL_AWG=true
@@ -85,7 +85,7 @@ services:
       - INIT_HOST=${VPS_PUBLIC_IP}
       - INIT_PORT=51820
     volumes:
-      - ./configs/wg-easy:/etc/wireguard
+      - ./apps-data/wg-easy:/etc/wireguard
       - /lib/modules:/lib/modules:ro
     network_mode: "host"
     restart: unless-stopped
@@ -134,7 +134,7 @@ services:
       - "host.docker.internal:host-gateway"
     command: --nginx.scrape-uri=http://host.docker.internal:8080/stub_status
     ports:
-      - "9113:9113"
+      - "10.8.0.1:9113:9113"
     depends_on:
       nginx:
         condition: service_healthy
@@ -142,3 +142,28 @@ services:
       resources:
         limits:
           memory: 1G
+
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguardhome
+    logging: *default-logging
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - ./apps-data/adguard/work:/opt/adguardhome/work
+      - ./configs/adguard/conf:/opt/adguardhome/conf
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+  
+  adguard-exporter:
+    image: ghcr.io/henrywhitaker3/adguard-exporter:latest
+    container_name: adguard-exporter
+    restart: unless-stopped
+    network_mode: "host"
+    environment:
+      - ADGUARD_SERVERS=http://127.0.0.1:8082
+      - ADGUARD_USERNAMES=${ADMIN_USER}
+      - ADGUARD_PASSWORDS=${ADMIN_PASSWORD}
+      - INTERVAL=15s

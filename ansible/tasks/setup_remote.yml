@@ -210,23 +210,39 @@
   changed_when: false
 
 # =========================================================================
-# 6. ЗАПУСК УДАЛЕННОГО СТЕКА КОНТЕЙНЕРОВ И ВАЛИДАЦИЯ
+# 6. НАСТРОЙКА ADGUARD HOME
+# =========================================================================
+- name: "[AdGuard] Гарантия существования директории для конфигурации"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/configs/adguard/conf"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
+- name: "[AdGuard] Создание конфигурации AdGuardHome на основе шаблона"
+  ansible.builtin.template:
+    src: templates/AdGuardHome.yaml.j2
+    dest: "/home/{{ deploy_user }}/ServeHub-2/configs/adguard/conf/AdGuardHome.yaml"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
+
+# =========================================================================
+# 7. ЗАПУСК УДАЛЕННОГО СТЕКА КОНТЕЙНЕРОВ И ВАЛИДАЦИЯ
 # =========================================================================
 - name: "[Docker] Восстановление системных цепочек iptables для Docker"
   ansible.builtin.systemd:
     name: docker
     state: restarted
 
-- name: "[Docker Compose] Запуск целевых сервисов удаленной инфраструктуры"
+- name: "[Docker] Запуск основного стека контейнеров ServeHub-2"
   community.docker.docker_compose_v2:
     project_src: "/home/{{ deploy_user }}/ServeHub-2"
-    files: [docker-compose.remote.yaml]
+    files:
+      - docker-compose.remote.yaml
     state: present
-    services:
-      - gatus
-      - nginx
-      - wg-easy
-      - nginx_exporter
+  register: compose_start
 
 - name: "[Docker Compose] Получение финального статуса контейнеров"
   ansible.builtin.command:

@@ -45,6 +45,37 @@ server {
 
 server {
     listen 443 ssl;
+    server_name adguard.${SERVER_NAME};
+
+    ssl_certificate /etc/letsencrypt/live/${SERVER_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SERVER_NAME}/privkey.pem;
+
+    client_max_body_size 2G;
+    add_header Strict-Transport-Security "max-age=15552000; includeSubDomains; preload" always;
+    set_real_ip_from 172.16.0.0/12;
+    set_real_ip_from 10.0.0.0/8;
+    set_real_ip_from 127.0.0.1;
+    real_ip_recursive on;
+
+    allow 127.0.0.1;
+    allow 172.16.0.0/12;
+    allow 10.8.0.0/24;
+    deny all;
+
+    location / {
+        proxy_pass http://127.0.0.1:8082;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+server {
+    listen 443 ssl;
     server_name gatus.${SERVER_NAME};
 
     ssl_certificate /etc/letsencrypt/live/${SERVER_NAME}/fullchain.pem;
@@ -138,26 +169,6 @@ server {
 
     location /.well-known/nodeinfo { 
         return 301 https://$host/nextcloud/index.php/.well-known/nodeinfo; 
-    }
-
-    location /.well-known/matrix/client {
-        default_type application/json;
-        add_header Access-Control-Allow-Origin *; 
-        return 200 '{"m.homeserver": {"base_url": "https://${SERVER_NAME}"}}';
-    }
-
-    location /.well-known/matrix/server {
-        default_type application/json;
-        add_header Access-Control-Allow-Origin *;
-        return 200 '{"m.server": "${SERVER_NAME}:443"}';
-    }
-
-    location ~ ^(/_matrix|/_synapse/client) {
-        proxy_pass http://10.8.0.2:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_http_version 1.1;
     }
     
     location /navidrome {
@@ -281,6 +292,14 @@ server {
     }
     
     location /wg-easy/ {
+        return 301 https://wireguard.$host/;
+    }
+
+    location = /adguard-home {
+        return 301 https://wireguard.$host/;
+    }
+    
+    location /adguard-home/ {
         return 301 https://wireguard.$host/;
     }
 }

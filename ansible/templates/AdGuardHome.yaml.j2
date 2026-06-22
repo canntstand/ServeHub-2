@@ -1,0 +1,17 @@
+http:
+  address: 127.0.0.1:8082
+  session_ttl: 72h
+
+dns:
+  bind_hosts:
+    - 10.8.0.1
+  port: 53
+  upstream_dns:
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.google/dns-query
+
+users:
+  - name: {{ admin_user }}
+    password: "{{ admin_password | password_hash('bcrypt') }}"
+
+schema_version: 27
