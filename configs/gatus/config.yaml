@@ -1,3 +1,7 @@
+web:
+  address: "127.0.0.1"
+  port: 51822
+
 alerting:
   telegram:
     token: "${TELEGRAM_TOKEN}"
@@ -27,3 +31,15 @@ endpoints:
         success-threshold: 2
         send-on-resolved: true
         description: "Веб-окружение VPS не отвечает!"
+  
+  - name: SSL Certificate
+    url: "https://${SYNAPSE_SERVER_NAME}"
+    interval: 1h
+    conditions:
+      - "[CERTIFICATE_EXPIRATION] > 720h"
+    alerts:
+      - type: telegram
+        description: "SSL сертификат скоро истекает"
+        failure-threshold: 3
+        success-threshold: 2
+        send-on-resolved: true
