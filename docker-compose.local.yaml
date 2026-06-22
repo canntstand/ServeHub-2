@@ -7,7 +7,7 @@ x-logging: &default-logging
 services:
   synapse:
     container_name: synapse
-    image: matrixdotorg/synapse:v1.154.0
+    image: matrixdotorg/synapse:v1.155.0
     restart: unless-stopped
     logging: *default-logging
     expose:

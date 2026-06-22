@@ -1,37 +1,31 @@
 global:
   resolve_timeout: 5m
-  smtp_smarthost: '{{ smtp_host }}:{{ smtp_port }}'
-  smtp_from: '{{ smtp_from }}'
-  smtp_auth_username: '{{ smtp_user }}'
-  smtp_auth_password: '{{ smtp_password }}'
-  smtp_require_tls: true
 
 route:
   group_by: ['alertname', 'cluster', 'service']
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
-  receiver: 'email-notifications'
+  receiver: 'telegram-notifications'
 
 receivers:
-  - name: 'email-notifications'
-    email_configs:
-      - to: '{{ smtp_to }}'
+  - name: 'telegram-notifications'
+    telegram_configs:
+      - bot_token: '{{ telegram_token }}'
+        chat_id: {{ telegram_chat_id }}
         send_resolved: true
-        headers:
-          Subject: '{% raw %}[ServeHub-2 ALERT] {{ .Status | toUpper }}: {{ .CommonLabels.alertname }}{% endraw %}'
-        html: |
+        parse_mode: 'HTML'
+        message: |
           {% raw %}
-          <h3>Уведомление от системы мониторинга ServeHub-2</h3>
-          <p><strong>Статус:</strong> {{ .Status | toUpper }}</p>
-          <p><strong>Описание алертов:</strong></p>
-          <ul>
-            {{ range .Alerts }}
-              <li>
-                <strong>Алерт:</strong> {{ .Labels.alertname }}<br>
-                <strong>Сервер:</strong> {{ .Labels.instance }}<br>
-                <strong>Инфо:</strong> {{ .Annotations.summary }} {{ .Annotations.description }}
-              </li>
-            {{ end }}
-          </ul>
+          <b>[ServeHub-2 ALERT] {{ .Status | toUpper }}</b>
+
+          <b>Уведомление от системы мониторинга ServeHub-2</b>
+          <b>Статус:</b> {{ .Status | toUpper }}
+
+          <b>Описание алертов:</b>
+          {{ range .Alerts }}
+          • <b>Алерт:</b> {{ .Labels.alertname }}
+            <b>Сервер:</b> {{ .Labels.instance }}
+            <b>Инфо:</b> {{ .Annotations.summary }} {{ .Annotations.description }}
+          {{ end }}
           {% endraw %}

@@ -1,16 +1,7 @@
-web:
-  address: "127.0.0.1"
-  port: 51822
-
 alerting:
-  email:
-    host: "${SMTP_HOST}"
-    port: ${SMTP_PORT}
-    username: "${SMTP_USER}"
-    password: "${SMTP_PASSWORD}"
-    from: "${SMTP_FROM}"
-    to: "${SMTP_TO}"
-    ssl: true
+  telegram:
+    token: "${TELEGRAM_TOKEN}"
+    id: "${TELEGRAM_CHAT_ID}"
 
 endpoints:
   - name: "Is Local Server Alive?"
@@ -19,11 +10,11 @@ endpoints:
     conditions:
       - "[STATUS] == 200"
     alerts:
-      - type: email
+      - type: telegram
         failure-threshold: 3
         success-threshold: 2
         send-on-resolved: true
-        description: "Локальный домашний сервер ServeHub недоступен!"
+        description: "Локальный домашний сервер недоступен!"
 
   - name: "Is VPS Server Alive?"
     url: "http://host.docker.internal:8080/vps-health-check"
@@ -31,19 +22,8 @@ endpoints:
     conditions:
       - "[STATUS] == 200"
     alerts:
-      - type: email
+      - type: telegram
         failure-threshold: 3
         success-threshold: 2
         send-on-resolved: true
-        description: "Критический сбой: Веб-окружение VPS не отвечает!"
-  
-  - name: SSL Certificate
-    url: "https://${SYNAPSE_SERVER_NAME}"
-    interval: 1h
-    conditions:
-      - "[CERTIFICATE_EXPIRATION] > 720h"
-    alerts:
-      - type: matrix
-        description: "SSL сертификат скоро истекает"
-        failure-threshold: 3
-        send-on-resolved: true
+        description: "Веб-окружение VPS не отвечает!"

@@ -34,12 +34,8 @@ admin_password: "{admin_password}"
 
 email: ""
 
-smtp_host: "smtp.gmail.com"
-smtp_port: "465"
-smtp_user: ""
-smtp_password: ""
-smtp_from: ""
-smtp_to: ""
+telegram_token: ""
+telegram_chat_id: ""
 
 webnames_apikey: ""
 

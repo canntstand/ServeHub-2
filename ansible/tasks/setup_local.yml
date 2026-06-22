@@ -143,7 +143,7 @@
 
     - name: "[Backup] Проверка, существует ли файл config в репозитории (индикатор инициализации)"
       ansible.builtin.stat:
-        path: /mnt/backup_storage/config
+        path: /mnt/backup_storage/server_backup.borg/config
       register: borg_repo_stat
 
     - name: "[Backup] Инициализация репозитория Borg (только если файла config нет)"
@@ -166,6 +166,30 @@
         owner: root
         group: root
         mode: "0700"
+    
+    - name: "[Backup] Создание директории для systemd override borgmatic.service"
+      ansible.builtin.file:
+        path: /etc/systemd/system/borgmatic.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: "[Backup] Расширение CapabilityBoundingSet для работы с кэшем"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/borgmatic.service.d/override.conf
+        content: |
+          [Service]
+          CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_NET_RAW CAP_DAC_OVERRIDE
+        owner: root
+        group: root
+        mode: "0644"
+      register: systemd_override
+
+    - name: "[Backup] Перезапуск демона systemd при изменении оверрайда"
+      ansible.builtin.systemd:
+        daemon_reload: yes
+      when: systemd_override.changed
 
     - name: "[Backup] Включение и запуск системного таймера borgmatic.timer"
       ansible.builtin.systemd:
@@ -178,7 +202,7 @@
     - disk_check.rc == 0
 
 # =========================================================================
-# 5. НАСТРОЙКА СИСТЕМЫ ОПОВЕЩЕНИЙ (SMTP ALERTMANAGER)
+# 5. НАСТРОЙКА ALERTMANAGER
 # =========================================================================
 - name: "[Monitoring] Создание директории для данных Alertmanager"
   ansible.builtin.file:
