@@ -62,7 +62,7 @@ services:
       - "8080:8080"
     restart: unless-stopped
     environment:
-      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+      - SERVER_NAME=${SERVER_NAME}
     volumes:
       - ./configs/nginx/templates/nginx.local.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./configs/nginx/www:/usr/share/nginx/html:ro
@@ -193,7 +193,7 @@ services:
       - OVERWRITEWEBROOT=/nextcloud
       - OVERWRITEPROTOCOL=https
       - HTACCESS_OVERRIDE_CURRENT=1
-      - NEXTCLOUD_TRUSTED_DOMAINS=${SYNAPSE_SERVER_NAME}
+      - NEXTCLOUD_TRUSTED_DOMAINS=${SERVER_NAME}
       - TRUSTED_PROXIES=172.16.0.0/12 10.8.0.0/24
       - NC_maintenance_window_start=2
       - NC_default_phone_region=RU
@@ -269,7 +269,7 @@ services:
         condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@vaultwarden_db:5432/${POSTGRES_DB_VAULTWARDEN}
-      - DOMAIN=https://${SYNAPSE_SERVER_NAME}/vaultwarden
+      - DOMAIN=https://${SERVER_NAME}/vaultwarden
       - SIGNUPS_ALLOWED=true
       - WEBSOCKET_ENABLED=true
       - ADMIN_TOKEN=${SECRET_VAULTWARDEN_PASSWORD}
@@ -311,7 +311,7 @@ services:
     expose:
       - 3000
     environment:
-      - GF_SERVER_ROOT_URL=https://${SYNAPSE_SERVER_NAME}/grafana/
+      - GF_SERVER_ROOT_URL=https://${SERVER_NAME}/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_SECURITY_ADMIN_USER=${ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD}

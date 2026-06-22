@@ -43,7 +43,7 @@ done < "$ENV_FILE"
 log_success "Переменные окружения загружены."
 
 # ==========================================
-CERT_DIR="./certbot/certs/live/${SYNAPSE_SERVER_NAME}"
+CERT_DIR="./certbot/certs/live/${SERVER_NAME}"
 
 if ! sudo openssl x509 -checkend 2592000 -noout -in "${CERT_DIR}/fullchain.pem" 2>/dev/null; then
     log_warn "Сертификат истекает или не найден. Запуск обновления..."

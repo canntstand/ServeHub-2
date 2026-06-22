@@ -4,8 +4,10 @@ import secrets
 TARGET_FILE = "./ansible/vars/secrets.yml"
 CHARS = string.ascii_letters + string.digits + "!@#$%^&*()-_=+"
 
+
 def generate_secure_password(length=24):
     return "".join(secrets.choice(CHARS) for _ in range(length))
+
 
 vars_to_generate = {
     "admin_password",
@@ -14,12 +16,14 @@ vars_to_generate = {
     "synapse_macaroon_secret_key",
     "synapse_form_secret",
     "secret_vaultwarden_password",
-    "borgmatic_encryption_passphrase"
+    "borgmatic_encryption_passphrase",
 }
 
-generated_secrets = {var_name: generate_secure_password() for var_name in vars_to_generate}
+generated_secrets = {
+    var_name: generate_secure_password() for var_name in vars_to_generate
+}
 
-yml_to_generate = '''
+yml_to_generate = """
 vps_public_ip: ""
 vps_user: ""
 vps_root_password: ""
@@ -28,7 +32,7 @@ local_private_ip: ""
 local_user: ""
 local_root_password: ""
 
-synapse_server_name: ""
+server_name: ""
 admin_user: ""
 admin_password: "{admin_password}"
 
@@ -55,7 +59,7 @@ ssh_public_key: ""
 
 borgmatic_encryption_passphrase: ""
 backup_disk_uuid: ""
-'''
+"""
 
 rendered_yml = yml_to_generate.format(**generated_secrets)
 

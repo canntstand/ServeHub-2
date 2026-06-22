@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
     network_mode: "host"
     environment:
-      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+      - SERVER_NAME=${SERVER_NAME}
     volumes:
       - ./configs/nginx/templates/nginx.remote.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./configs/nginx/www:/usr/share/nginx/html:ro
@@ -43,7 +43,7 @@ services:
       - ./certbot/certs-data:/var/lib/letsencrypt
       - ./certbot/certbot-dns-webnames:/opt/certbot-dns-webnames
     environment:
-      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+      - SERVER_NAME=${SERVER_NAME}
     command: >
       certonly
       --manual
@@ -54,8 +54,8 @@ services:
       --no-eff-email
       --non-interactive
       --force-renewal
-      -d "${SYNAPSE_SERVER_NAME}"
-      -d "*.${SYNAPSE_SERVER_NAME}"
+      -d "${SERVER_NAME}"
+      -d "*.${SERVER_NAME}"
       --email "${EMAIL}"
     deploy:
       resources:
@@ -113,7 +113,7 @@ services:
       - TZ=Europe/Moscow
       - ADMIN_USER=${ADMIN_USER}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+      - SERVER_NAME=${SERVER_NAME}
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
 

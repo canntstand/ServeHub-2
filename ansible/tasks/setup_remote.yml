@@ -34,7 +34,7 @@
 
 - name: "[Certbot] Скачивание конфигурации Certbot через API Webnames"
   ansible.builtin.get_url:
-    url: "https://www.webnames.ru/scripts/json_domain_zone_manager.pl?action=get_config_certbot&domain={{ synapse_server_name }}&apikey={{ webnames_apikey }}"
+    url: "https://www.webnames.ru/scripts/json_domain_zone_manager.pl?action=get_config_certbot&domain={{ server_name }}&apikey={{ webnames_apikey }}"
     dest: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
     mode: "0755"
 
@@ -55,12 +55,12 @@
 # =========================================================================
 - name: "[Certbot] Проверка наличия текущего SSL-сертификата проекта"
   ansible.builtin.stat:
-    path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ synapse_server_name }}/fullchain.pem"
+    path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ server_name }}/fullchain.pem"
   register: current_cert_stat
 
 - name: "[Certbot] Проверка срока действия сертификата (истекает ли в ближайшие 30 дней)"
   ansible.builtin.command:
-    cmd: "openssl x509 -checkend 2592000 -noout -in /home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ synapse_server_name }}/fullchain.pem"
+    cmd: "openssl x509 -checkend 2592000 -noout -in /home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ server_name }}/fullchain.pem"
   register: cert_expiry_check
   when: current_cert_stat.stat.exists
   failed_when: false
@@ -143,11 +143,11 @@
     sysctl_set: yes
     reload: yes
   loop:
-    - { name: 'net.ipv4.ip_forward', value: '1' }
-    - { name: 'net.ipv4.conf.all.src_valid_mark', value: '1' }
-    - { name: 'net.ipv6.conf.all.disable_ipv6', value: '0' }
-    - { name: 'net.ipv6.conf.all.forwarding', value: '1' }
-    - { name: 'net.ipv6.conf.default.forwarding', value: '1' }
+    - { name: "net.ipv4.ip_forward", value: "1" }
+    - { name: "net.ipv4.conf.all.src_valid_mark", value: "1" }
+    - { name: "net.ipv6.conf.all.disable_ipv6", value: "0" }
+    - { name: "net.ipv6.conf.all.forwarding", value: "1" }
+    - { name: "net.ipv6.conf.default.forwarding", value: "1" }
 
 - name: "[Firewall] Установка утилит сохранения iptables (Debian/Ubuntu)"
   ansible.builtin.apt:

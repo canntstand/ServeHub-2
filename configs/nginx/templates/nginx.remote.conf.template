@@ -31,7 +31,7 @@ server {
 
 server {
     listen 80;
-    server_name ${SYNAPSE_SERVER_NAME};
+    server_name ${SERVER_NAME};
 
     allow 127.0.0.1;
     allow 172.16.0.0/12;
@@ -39,16 +39,16 @@ server {
     deny all;
 
     location / {
-        return 301 https://${SYNAPSE_SERVER_NAME}$request_uri;
+        return 301 https://${SERVER_NAME}$request_uri;
     }
 }
 
 server {
     listen 443 ssl;
-    server_name gatus.${SYNAPSE_SERVER_NAME};
+    server_name gatus.${SERVER_NAME};
 
-    ssl_certificate /etc/letsencrypt/live/${SYNAPSE_SERVER_NAME}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${SYNAPSE_SERVER_NAME}/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/${SERVER_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SERVER_NAME}/privkey.pem;
 
     client_max_body_size 2G;
     add_header Strict-Transport-Security "max-age=15552000; includeSubDomains; preload" always;
@@ -76,10 +76,10 @@ server {
 
 server {
     listen 443 ssl;
-    server_name wireguard.${SYNAPSE_SERVER_NAME};
+    server_name wireguard.${SERVER_NAME};
 
-    ssl_certificate /etc/letsencrypt/live/${SYNAPSE_SERVER_NAME}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${SYNAPSE_SERVER_NAME}/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/${SERVER_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SERVER_NAME}/privkey.pem;
 
     client_max_body_size 2G;
     add_header Strict-Transport-Security "max-age=15552000; includeSubDomains; preload" always;
@@ -107,10 +107,10 @@ server {
 
 server {
     listen 443 ssl;
-    server_name ${SYNAPSE_SERVER_NAME};
+    server_name ${SERVER_NAME};
 
-    ssl_certificate /etc/letsencrypt/live/${SYNAPSE_SERVER_NAME}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${SYNAPSE_SERVER_NAME}/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/${SERVER_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SERVER_NAME}/privkey.pem;
 
     client_max_body_size 2G;
     add_header Strict-Transport-Security "max-age=15552000; includeSubDomains; preload" always;
@@ -143,13 +143,13 @@ server {
     location /.well-known/matrix/client {
         default_type application/json;
         add_header Access-Control-Allow-Origin *; 
-        return 200 '{"m.homeserver": {"base_url": "https://${SYNAPSE_SERVER_NAME}"}}';
+        return 200 '{"m.homeserver": {"base_url": "https://${SERVER_NAME}"}}';
     }
 
     location /.well-known/matrix/server {
         default_type application/json;
         add_header Access-Control-Allow-Origin *;
-        return 200 '{"m.server": "${SYNAPSE_SERVER_NAME}:443"}';
+        return 200 '{"m.server": "${SERVER_NAME}:443"}';
     }
 
     location ~ ^(/_matrix|/_synapse/client) {

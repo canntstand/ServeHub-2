@@ -31,9 +31,9 @@ endpoints:
         success-threshold: 2
         send-on-resolved: true
         description: "Веб-окружение VPS не отвечает!"
-  
+
   - name: SSL Certificate
-    url: "https://${SYNAPSE_SERVER_NAME}"
+    url: "https://${SERVER_NAME}"
     interval: 1h
     conditions:
       - "[CERTIFICATE_EXPIRATION] > 720h"

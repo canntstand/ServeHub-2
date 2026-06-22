@@ -102,14 +102,14 @@
 # =========================================================================
 - name: "[Synapse] Проверка наличия ключа подписи сервера"
   ansible.builtin.stat:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse/{{ synapse_server_name }}.signing.key"
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse/{{ server_name }}.signing.key"
   register: synapse_signing_key
 
 - name: "[Synapse] Генерация базовых ключей и логов (только при первом развертывании)"
   ansible.builtin.command: >
     docker run --rm
     -v "/home/{{ deploy_user }}/ServeHub-2/apps-data/synapse:/data"
-    -e SYNAPSE_SERVER_NAME="{{ synapse_server_name }}"
+    -e SERVER_NAME="{{ server_name }}"
     -e SYNAPSE_REPORT_STATS=no
     matrixdotorg/synapse:v1.154.0 generate
   when: not synapse_signing_key.stat.exists
@@ -192,7 +192,7 @@
         owner: root
         group: root
         mode: "0700"
-    
+
     - name: "[Backup] Создание директории для systemd override borgmatic.service"
       ansible.builtin.file:
         path: /etc/systemd/system/borgmatic.service.d
@@ -222,8 +222,8 @@
         name: borgmatic.timer
         enabled: yes
         state: started
-  when: 
-    - backup_disk_uuid is defined 
+  when:
+    - backup_disk_uuid is defined
     - backup_disk_uuid | length > 0
     - disk_check.rc == 0
 
@@ -245,7 +245,7 @@
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: "0644"
-  
+
 # =========================================================================
 # 6. СИСТЕМНЫЕ НАСТРОЙКИ ЯДРА И СЕТЕВОЙ БРАНДМАУЭР (IPTABLES)
 # =========================================================================
@@ -262,11 +262,11 @@
     sysctl_set: yes
     reload: yes
   loop:
-    - { name: 'net.ipv4.ip_forward', value: '1' }
-    - { name: 'net.ipv4.conf.all.src_valid_mark', value: '1' }
-    - { name: 'net.ipv6.conf.all.disable_ipv6', value: '0' }
-    - { name: 'net.ipv6.conf.all.forwarding', value: '1' }
-    - { name: 'net.ipv6.conf.default.forwarding', value: '1' }
+    - { name: "net.ipv4.ip_forward", value: "1" }
+    - { name: "net.ipv4.conf.all.src_valid_mark", value: "1" }
+    - { name: "net.ipv6.conf.all.disable_ipv6", value: "0" }
+    - { name: "net.ipv6.conf.all.forwarding", value: "1" }
+    - { name: "net.ipv6.conf.default.forwarding", value: "1" }
 
 - name: "[Firewall] Установка утилит сохранения iptables (Debian/Ubuntu)"
   ansible.builtin.apt:
@@ -366,7 +366,7 @@
       - --admin
       - http://127.0.0.1:8008
   register: matrix_admin_register
-  failed_when: 
+  failed_when:
     - matrix_admin_register.rc != 0
     - "'already' not in matrix_admin_register.stderr"
     - "'already' not in matrix_admin_register.stdout"
