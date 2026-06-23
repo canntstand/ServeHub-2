@@ -25,6 +25,8 @@ services:
     depends_on:
       wg-easy:
         condition: service_healthy
+      adguardhome:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/vps-health-check"]
       interval: 30s
@@ -72,7 +74,7 @@ services:
       - WG_PORT=51820
       - WEBROOT_BIND_ADDRESS=127.0.0.1
       - WG_DEFAULT_ADDRESS=10.8.0.x
-      - WG_DEFAULT_DNS=10.8.0.1
+      - INIT_DNS=10.8.0.1
       - WG_PERSISTENT_KEEPALIVE=25
       - WG_ALLOWED_IPS=0.0.0.0/0
       - EXPERIMENTAL_AWG=true
@@ -144,7 +146,7 @@ services:
           memory: 1G
 
   adguardhome:
-    image: adguard/adguardhome:latest
+    image: adguard/adguardhome:v0.107.77
     container_name: adguardhome
     logging: *default-logging
     restart: unless-stopped
@@ -156,7 +158,10 @@ services:
       resources:
         limits:
           memory: 512M
-  
+    depends_on:
+      wg-easy:
+        condition: service_healthy
+
   adguard-exporter:
     image: ghcr.io/henrywhitaker3/adguard-exporter:latest
     container_name: adguard-exporter
@@ -167,3 +172,5 @@ services:
       - ADGUARD_USERNAMES=${ADMIN_USER}
       - ADGUARD_PASSWORDS=${ADMIN_PASSWORD}
       - INTERVAL=15s
+    depends_on:
+      - adguardhome

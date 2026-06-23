@@ -296,10 +296,10 @@ server {
     }
 
     location = /adguard-home {
-        return 301 https://wireguard.$host/;
+        return 301 https://adguard.$host/;
     }
     
     location /adguard-home/ {
-        return 301 https://wireguard.$host/;
+        return 301 https://adguard.$host/;
     }
 }
