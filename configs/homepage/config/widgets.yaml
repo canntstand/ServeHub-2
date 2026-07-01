@@ -1,0 +1,20 @@
+- greeting:
+    text_size: 2xl
+    text: "Home Server Dashboard"
+
+- resources:
+    cpu: true
+    memory: true
+    disk: /
+
+- search:
+    provider: google
+    target: _blank
+    showSearchSuggestions: false
+
+- datetime:
+    text_size: 2xl
+    locale: ru-RU
+    format:
+      timeStyle: short
+      dateStyle: long

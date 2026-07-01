@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;700&display=swap');
+
+* {
+    font-family: 'Comfortaa', cursive, sans-serif !important;
+}
+
+.layout-group {
+    background: rgba(255, 255, 255, 0.12) !important;
+    backdrop-filter: blur(35px) !important;
+    -webkit-backdrop-filter: blur(35px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    border-radius: 40px !important;
+    padding: 30px 40px !important;
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+    margin-bottom: 32px !important;
+}
+
+h2, div[class*="group-header"] {
+    border-bottom: none !important;
+    padding-bottom: 0px !important;
+    margin-bottom: 20px !important;
+}
+
+.card,
+div[class*="services_service"],
+div[class*="calendar-day"] {
+    position: relative !important;
+    background: rgba(35, 35, 45, 0.48) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 24px !important;
+    backdrop-filter: blur(15px) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.card:hover,
+div[class*="services_service"]:hover {
+    background: rgba(30, 30, 40, 0.75) !important;
+    transform: translateY(-5px) scale(1.01) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 20px 40px rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.4) !important;
+}
+
+div[class*="calendar-container"] {
+    background: transparent !important;
+    border: none !important;
+}
+
+a[href*="/adguard-home"]::after,
+a[href*="/wg-easy"]::after,
+a[href*="/gatus"]::after {
+    content: "• VPS" !important;
+    position: absolute !important;
+    top: 14px !important;
+    right: 16px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.8px !important;
+    padding: 3px 8px !important;
+    border-radius: 20px !important;
+    text-transform: uppercase !important;
+    line-height: 1 !important;
+    pointer-events: none !important;
+}
+
+.card:hover::after {
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+div[class*="iconStyle"], .icon-box, svg {
+    filter: none !important;
+}

@@ -1,4 +1,4 @@
-- ✨ Локальные сервисы:
+- ✨ Сервисы:
     - Vaultwarden:
         icon: si-bitwarden
         href: /vaultwarden/
@@ -15,20 +15,10 @@
         icon: si-audiobookshelf
         href: /audiobookshelf
         description: Сервер для аудиокниг
-
-- 🌍 Сервисы на VPS:
-    - WireGuard:
-        icon: si-wireguard
-        href: /wg-easy/
-        description: Управление VPN (VPS)
-    - Gatus:
-        icon: mdi-check-network
-        href: /gatus/
-        description: Аптайм и статус сервисов (VPS)
     - AdGuard Home:
         icon: si-adguard
         href: /adguard-home
-        description: DNS и блокировка рекламы (VPS)
+        description: DNS и блокировка рекламы
 
 - 🛠️ Другие инструменты:
     - Borg UI:
@@ -43,3 +33,11 @@
         icon: si-grafana
         href: /grafana
         description: Системные метрики
+    - WireGuard:
+        icon: si-wireguard
+        href: /wg-easy/
+        description: Управление VPN
+    - Gatus:
+        icon: mdi-check-network
+        href: /gatus/
+        description: Аптайм и статус сервисов

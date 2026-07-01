@@ -1,0 +1,27 @@
+title: Homepage
+headerStyle: clean
+theme: dark
+color: slate
+fullWidth: true
+useEqualHeights: true
+
+favicon: public/images/favicon.ico
+background:
+  image: public/images/wallpaper.jpg
+  blur: sm
+  brightness: 40
+  opacity: 100
+
+cardBlur: none
+
+iconStyle: theme
+showStats: true
+statusStyle: dot
+
+layout:
+  ✨ Сервисы:
+    header: true
+    style: column
+  🛠️  Иструменты:
+    header: true
+    style: column
