@@ -133,7 +133,7 @@ services:
       nextcloud-db:
         condition: service_healthy
     environment:
-      - POSTGRES_HOST=nextcloud_db
+      - POSTGRES_HOST=nextcloud-db
       - POSTGRES_DB=${POSTGRES_DB_NEXTCLOUD}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
