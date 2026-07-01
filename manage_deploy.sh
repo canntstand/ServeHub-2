@@ -127,7 +127,7 @@ case $CHOICE in
     2)
         echo ""
         print_header "1/2 Разворачивание сервисов на VPS (без bootstrap)"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps,localhost --skip-tags bootstrap"
 
         echo ""
         print_header "2/2 Пауза WireGuard и разворачивание сервисов на локальном сервере (без bootstrap)"

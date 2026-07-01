@@ -26,8 +26,6 @@ services:
         condition: service_healthy
       adguardhome:
         condition: service_started
-      homepage:
-        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/vps-health-check"]
       interval: 30s
@@ -192,6 +190,9 @@ services:
       resources:
         limits:
           memory: 1G
+    depends_on:
+      wg-easy:
+        condition: service_healthy
   
   node-exporter:
     image: prom/node-exporter:v1.11.1
