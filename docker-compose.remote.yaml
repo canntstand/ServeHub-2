@@ -185,7 +185,7 @@ services:
       - HOMEPAGE_ALLOWED_HOSTS=${SERVER_NAME},localhost,127.0.0.1
     volumes:
       - ./configs/homepage/config:/app/config
-      - ./configs/homepage/public:/app/public
+      - ./configs/homepage/public/images:/app/public/images
       - /var/run/docker.sock:/var/run/docker.sock:ro
     deploy:
       resources:

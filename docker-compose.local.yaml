@@ -130,7 +130,7 @@ services:
     expose:
       - 80
     depends_on:
-      nextcloud_db:
+      nextcloud-db:
         condition: service_healthy
     environment:
       - POSTGRES_HOST=nextcloud_db
@@ -176,7 +176,7 @@ services:
     entrypoint: /cron.sh
     logging: *default-logging
     depends_on:
-      nextcloud_db:
+      nextcloud-db:
         condition: service_healthy
       nextcloud:
         condition: service_healthy
@@ -216,10 +216,10 @@ services:
     expose:
       - 80
     depends_on:
-      vaultwarden_db:
+      vaultwarden-db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@vaultwarden_db:5432/${POSTGRES_DB_VAULTWARDEN}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@vaultwarden-db:5432/${POSTGRES_DB_VAULTWARDEN}
       - DOMAIN=https://${SERVER_NAME}/vaultwarden
       - SIGNUPS_ALLOWED=true
       - WEBSOCKET_ENABLED=true
@@ -245,7 +245,7 @@ services:
       - ./configs/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - ./apps-data/prometheus/data:/prometheus
     depends_on:
-      node_exporter:
+      node-exporter:
         condition: service_started
       cadvisor:
         condition: service_started

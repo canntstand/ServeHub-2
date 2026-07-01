@@ -5,9 +5,9 @@ color: slate
 fullWidth: true
 useEqualHeights: true
 
-favicon: public/images/favicon.ico
+favicon: /images/favicon.ico
 background:
-  image: public/images/wallpaper.jpg
+  image: /images/wallpaper.jpg
   blur: sm
   brightness: 40
   opacity: 100
