@@ -17,7 +17,6 @@ services:
       - SERVER_NAME=${SERVER_NAME}
     volumes:
       - ./configs/nginx/templates/nginx.local.conf.template:/etc/nginx/templates/default.conf.template:ro
-      - ./configs/nginx/www:/usr/share/nginx/html:ro
     depends_on:
       navidrome:
         condition: service_started
@@ -44,9 +43,9 @@ services:
       retries: 3
       start_period: 10s
 
-  nginx_exporter:
+  nginx-exporter:
     image: nginx/nginx-prometheus-exporter:latest
-    container_name: nginx_exporter
+    container_name: nginx-exporter
     restart: unless-stopped
     logging: *default-logging
     ports:
@@ -100,9 +99,9 @@ services:
         limits:
           memory: 1G
 
-  nextcloud_db:
+  nextcloud-db:
     image: postgres:18
-    container_name: nextcloud_db
+    container_name: nextcloud-db
     logging: *default-logging
     restart: unless-stopped
     volumes:
@@ -167,9 +166,9 @@ services:
       retries: 5
       start_period: 30s
 
-  nextcloud_cron:
+  nextcloud-cron:
     image: nextcloud:34.0.0-apache
-    container_name: nextcloud_cron
+    container_name: nextcloud-cron
     restart: unless-stopped
     volumes:
       - ./apps-data/nextcloud/html:/var/www/html
@@ -186,9 +185,9 @@ services:
         limits:
           memory: 512M
 
-  vaultwarden_db:
+  vaultwarden-db:
     image: postgres:18
-    container_name: vaultwarden_db
+    container_name: vaultwarden-db
     logging: *default-logging
     restart: unless-stopped
     volumes:
@@ -279,9 +278,9 @@ services:
         limits:
           memory: 1G
 
-  node_exporter:
+  node-exporter:
     image: prom/node-exporter:v1.11.1
-    container_name: node_exporter
+    container_name: node-exporter
     logging: *default-logging
     restart: unless-stopped
     network_mode: "host"
@@ -308,8 +307,8 @@ services:
     logging: *default-logging
     restart: unless-stopped
     privileged: true
-    ports:
-      - "8090:8090"
+    expose:
+      - 8080
     command:
       - "--allow_dynamic_housekeeping=true"
       - "--housekeeping_interval=10s"

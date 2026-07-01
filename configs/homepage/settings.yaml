@@ -1,0 +1,15 @@
+title: Домашний Сервер
+headerStyle: clean
+theme: dark
+color: slate
+layout:
+  ✨ Сервисы:
+    style: row
+    columns: 5
+  🛠️ Инструменты:
+    style: row
+    columns: 5
+
+favicon: /images/favicon.ico
+background: /images/wallpaper.jpg
+backgroundBlur: sm

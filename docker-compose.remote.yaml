@@ -7,7 +7,7 @@ x-logging: &default-logging
 services:
   nginx:
     image: nginx:stable
-    container_name: nginx_vps
+    container_name: nginx
     logging: *default-logging
     restart: unless-stopped
     network_mode: "host"
@@ -15,7 +15,6 @@ services:
       - SERVER_NAME=${SERVER_NAME}
     volumes:
       - ./configs/nginx/templates/nginx.remote.conf.template:/etc/nginx/templates/default.conf.template:ro
-      - ./configs/nginx/www:/usr/share/nginx/html:ro
       - ./certbot/certs:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
     deploy:
@@ -26,6 +25,8 @@ services:
       wg-easy:
         condition: service_healthy
       adguardhome:
+        condition: service_started
+      homepage:
         condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/vps-health-check"]
@@ -118,7 +119,6 @@ services:
       - SERVER_NAME=${SERVER_NAME}
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-
     deploy:
       resources:
         limits:
@@ -127,9 +127,9 @@ services:
       nginx:
         condition: service_healthy
 
-  nginx_exporter:
+  nginx-exporter:
     image: nginx/nginx-prometheus-exporter:latest
-    container_name: nginx_exporter
+    container_name: nginx-exporter
     restart: unless-stopped
     logging: *default-logging
     extra_hosts:
@@ -157,7 +157,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
     depends_on:
       wg-easy:
         condition: service_healthy
@@ -174,3 +174,70 @@ services:
       - INTERVAL=15s
     depends_on:
       - adguardhome
+  
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    logging: *default-logging
+    network_mode: "host"
+    environment:
+      - PORT=3000
+      - TZ=Europe/Moscow
+      - HOMEPAGE_ALLOWED_HOSTS=${SERVER_NAME},localhost,127.0.0.1
+    volumes:
+      - ./configs/homepage:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+  
+  node-exporter:
+    image: prom/node-exporter:v1.11.1
+    container_name: node-exporter
+    logging: *default-logging
+    restart: unless-stopped
+    network_mode: "host"
+    pid: "host"
+    privileged: true
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /run/udev:/run/udev:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/rootfs/(sys|proc|dev|host|etc|var/lib/docker)($$|/)"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+  
+  cadvisor:
+    image: ghcr.io/google/cadvisor:0.57
+    container_name: cadvisor
+    logging: *default-logging
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "10.8.0.1:8090:8080"
+    command:
+      - "--allow_dynamic_housekeeping=true"
+      - "--housekeeping_interval=10s"
+      - "--disable_metrics=disk,referenced_memory"
+      - "--raw_cgroup_prefix_whitelist=/system.slice,/user.slice"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev:/dev:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /sys/fs/cgroup:/cgroup:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
