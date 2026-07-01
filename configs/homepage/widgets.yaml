@@ -2,7 +2,7 @@
     provider: google
     target: _blank
 
-- datetime:
-    text_size: xl
-    format:
-      timeStyle: short
+- resources:
+    cpu: true
+    memory: true
+    disk: /

@@ -90,10 +90,10 @@ echo -e "    • Развернет сервисы на VPS, сделает па
 echo -e "${BOLD}${YELLOW}╔════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BOLD}${YELLOW}║                      ЛОКАЛЬНЫЙ СЕРВЕР                          ║${NC}"
 echo -e "${BOLD}${YELLOW}╚════════════════════════════════════════════════════════════════╝${NC}"
-echo -e " ${YELLOW}3)${NC} ${BOLD}Полная установка с нуля (локальный) + ожидание WireGuard${NC}"
+echo -e " ${YELLOW}3)${NC} ${BOLD}Полная установка с нуля (локальный)${NC}"
 echo -e "    • Подготовит ОС на локальном сервере (пароль root)."
 echo -e "    • Затем пауза для настройки WireGuard и запуск сервисов на локальном сервере.\n"
-echo -e " ${YELLOW}4)${NC} ${BOLD}Только разворачивание приложений (локальный) + ожидание WireGuard, без bootstrap${NC}"
+echo -e " ${YELLOW}4)${NC} ${BOLD}Только разворачивание приложений (локальный), без bootstrap${NC}"
 echo -e "    • Пауза для WireGuard и запуск сервисов на локальном сервере (ОС уже настроена).\n"
 
 echo -e "${BOLD}${CYAN}╔════════════════════════════════════════════════════════════════╗${NC}"
@@ -118,7 +118,7 @@ case $CHOICE in
 
         echo ""
         print_header "2/3 Разворачивание сервисов на VPS"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps,localhost --skip-tags bootstrap"
 
         echo ""
         print_header "3/3 Пауза WireGuard и настройка локального сервера"
@@ -154,12 +154,12 @@ case $CHOICE in
 
         echo ""
         print_header "2/2 Разворачивание сервисов на VPS"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps,localhost --skip-tags bootstrap"
         ;;
     6)
         echo ""
         print_header "Разворачивание сервисов на VPS (без bootstrap, по SSH-ключу)"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps,localhost --skip-tags bootstrap"
         ;;
     7)
         echo ""

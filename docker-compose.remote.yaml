@@ -193,6 +193,8 @@ services:
     depends_on:
       wg-easy:
         condition: service_healthy
+      nginx:
+        condition: service_healthy
   
   node-exporter:
     image: prom/node-exporter:v1.11.1
@@ -224,7 +226,7 @@ services:
     restart: unless-stopped
     privileged: true
     ports:
-      - "10.8.0.1:8090:8080"
+      - "8090:8080"
     command:
       - "--allow_dynamic_housekeeping=true"
       - "--housekeeping_interval=10s"
