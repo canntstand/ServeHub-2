@@ -1,6 +1,8 @@
 - search:
     provider: google
     target: _blank
+    focus: true
+    showSearchSuggestions: true
 
 - resources:
     cpu: true

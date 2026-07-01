@@ -1,12 +1,12 @@
-title: Домашний Сервер
+title: Homepage
 headerStyle: clean
 theme: dark
 color: slate
 fullWidth: true
 useEqualHeights: true
-favicon: /app/config/images/favicon.ico
+favicon: /images/favicon.ico
 background:
-  image: /app/config/images/wallpaper.jpg
+  image: /images/wallpaper.jpg
   blur: xl
   brightness: 50
   opacity: 50
@@ -14,3 +14,17 @@ cardBlur: md
 iconStyle: theme
 showStats: true
 statusStyle: dot
+
+layout:
+  ✨ Локальные сервисы:
+    header: true
+    style: row
+    columns: 4
+  🌍 Сервисы на VPS:
+    header: true
+    style: row
+    columns: 3
+  🛠️ Другие инструменты:
+    header: true
+    style: row
+    columns: 3

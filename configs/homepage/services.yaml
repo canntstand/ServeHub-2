@@ -28,7 +28,7 @@
     - AdGuard Home:
         icon: si-adguard
         href: /adguard-home
-        description: DNS и блокировка рекламы (Локальный)
+        description: DNS и блокировка рекламы (VPS)
 
 - 🛠️ Другие инструменты:
     - Borg UI:
