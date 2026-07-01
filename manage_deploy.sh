@@ -118,20 +118,20 @@ case $CHOICE in
 
         echo ""
         print_header "2/3 Разворачивание сервисов на VPS"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps,localhost --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap"
 
         echo ""
         print_header "3/3 Пауза WireGuard и настройка локального сервера"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit local,localhost --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap"
         ;;
     2)
         echo ""
         print_header "1/2 Разворачивание сервисов на VPS (без bootstrap)"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps,localhost --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap"
 
         echo ""
         print_header "2/2 Пауза WireGuard и разворачивание сервисов на локальном сервере (без bootstrap)"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit local,localhost --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap"
         ;;
     3)
         echo ""
@@ -140,12 +140,12 @@ case $CHOICE in
 
         echo ""
         print_header "2/2 Пауза WireGuard и настройка локального сервера"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit local,localhost --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap"
         ;;
     4)
         echo ""
         print_header "Пауза WireGuard и разворачивание сервисов на локальном сервере (без bootstrap)"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit local,localhost --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap"
         ;;
     5)
         echo ""
@@ -154,12 +154,12 @@ case $CHOICE in
 
         echo ""
         print_header "2/2 Разворачивание сервисов на VPS"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps,localhost --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap"
         ;;
     6)
         echo ""
         print_header "Разворачивание сервисов на VPS (без bootstrap, по SSH-ключу)"
-        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps,localhost --skip-tags bootstrap"
+        run_ansible "-i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap"
         ;;
     7)
         echo ""

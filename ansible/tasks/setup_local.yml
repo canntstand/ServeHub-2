@@ -1,3 +1,38 @@
+- name: "[Pause] Пауза для ручной конфигурации WireGuard и данных на Local"
+  ansible.builtin.pause:
+    prompt: |
+      ======================================================================
+      ⚙️ НАСТРОЙКА WIREGUARD И ДАННЫХ НА LOCAL SERVER (РУЧНОЙ ШАГ):
+      ======================================================================
+      Выполните шаги для связывания локального сервера с удаленной VPS:
+      
+      1. 🌐 ГЕНЕРАЦИЯ КОНФИГА WIREGUARD:
+          - Откройте SSH-туннель до панели: ssh -L 8000:127.0.0.1:51821 {{ local_user }}@{{ vps_public_ip }}
+          - Зайдите в веб-интерфейс: http://127.0.0.1:8000
+          - Включите Prometheus в настройках wg-easy (если требуется).
+          - Создайте клиента для локального сервера с фиксированным IP 10.8.0.2.
+          - Сохраните конфиг на локальном сервере по пути:
+            /home/{{ local_user }}/ServeHub-2/configs/amnezia/awg0.conf
+      
+      2. 📁 ДАННЫЕ ПРИЛОЖЕНИЙ (ПРИ ПЕРЕЕЗДЕ):
+          - Положите старую папку 'apps-data' в /home/{{ local_user }}/ServeHub-2/
+          - Положите папку 'PersonalData' в /home/{{ local_user }}/
+      
+      Для проверки или переноса данных вы можете подключиться по SSH:
+      ssh {{ local_user }}@{{ local_private_ip }}
+      ======================================================================
+      Как только конфигурация awg0.conf на месте, нажмите ENTER для продолжения...
+
+- name: "Проверка наличия конфигурационного файла"
+  ansible.builtin.stat:
+    path: "/home/{{ deploy_user }}/ServeHub-2/configs/amnezia/awg0.conf"
+  register: wg_config
+
+- name: "Ошибка: отсутствует файл конфигурации WireGuard"
+  ansible.builtin.fail:
+    msg: "WireGuard конфиг не найден! Пожалуйста, создайте его перед продолжением."
+  when: not wg_config.stat.exists
+
 # =========================================================================
 # 1. СЕТЕВАЯ ПОДГОТОВКА И ОЧИСТКА ИНТЕРФЕЙСОВ
 # =========================================================================
@@ -58,7 +93,7 @@
 
 - name: "[FS] Точечная настройка прав для Prometheus (UID 65534)"
   ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/prometheus"
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/prometheus/data"
     state: directory
     recurse: yes
     owner: "65534"
@@ -67,12 +102,12 @@
 
 - name: "[FS] Точечная настройка прав для Grafana (UID 472)"
   ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/grafana"
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/grafana/data"
     state: directory
     recurse: yes
     owner: "472"
     group: "472"
-    mode: "u=rwX,g=rX,o=rX"
+    mode: "0755"
 
 - name: "[FS] Создание пользовательских папок для медиафайлов"
   ansible.builtin.file:
