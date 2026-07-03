@@ -1,7 +1,5 @@
 ![ServeHub-2-logo.svg](ServeHub-2-logo.svg)
 
-# Документация инфраструктуры: ServeHub-2
-
 - [Гайд по настройке](https://github.com/canntstand/ServeHub-2/blob/main/SETUP_GUIDE.md)
 
 ## Цель проекта
