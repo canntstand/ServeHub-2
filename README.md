@@ -1,4 +1,4 @@
-![ServeHub-2-logo.svg]
+![ServeHub-2-logo.svg](ServeHub-2-logo.svg)
 
 # Документация инфраструктуры: ServeHub-2
 
