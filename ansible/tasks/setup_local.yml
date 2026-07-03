@@ -109,6 +109,15 @@
     group: "472"
     mode: "0755"
 
+- name: "[FS] Точечная настройка прав для Grafana Loki (UID 10001)"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/loki"
+    state: directory
+    recurse: yes
+    owner: "10001"
+    group: "10001"
+    mode: "0755"
+
 - name: "[FS] Создание пользовательских папок для медиафайлов"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/PersonalData/{{ item }}"

@@ -391,7 +391,6 @@ services:
   borg-ui:
     image: ainullcode/borg-ui:2.2.5
     container_name: borg-ui
-    user: "0:0"
     restart: unless-stopped
     logging: *default-logging
     privileged: true
