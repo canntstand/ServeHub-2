@@ -411,3 +411,35 @@ services:
       resources:
         limits:
           memory: 1G
+
+  loki:
+    image: grafana/loki:3.7
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./configs/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - ./apps-data/loki:/loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    restart: unless-stopped
+    command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    volumes:
+      - ./configs/alloy/local.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G

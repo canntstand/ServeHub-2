@@ -9,3 +9,12 @@ datasources:
       httpMethod: POST
       version: 1
       scrapeInterval: 15s
+  
+  - name: Loki
+    type: loki
+    access: proxy
+    uid: loki
+    url: http://loki:3100
+    isDefault: false
+    jsonData:
+      maxLines: 1000

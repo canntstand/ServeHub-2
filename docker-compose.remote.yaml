@@ -253,7 +253,7 @@ services:
       resources:
         limits:
           memory: 1G
-  
+
   portainer-agent:
     image: portainer/agent:2.39.3-alpine
     container_name: portainer-agent
@@ -263,6 +263,20 @@ services:
       - "10.8.0.1:9001:9001"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    restart: unless-stopped
+    command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    volumes:
+      - ./configs/alloy/remote.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    logging: *default-logging
     deploy:
       resources:
         limits:

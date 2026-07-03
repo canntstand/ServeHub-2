@@ -1,0 +1,14 @@
+discovery.docker "local_containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "docker_logs" {
+  targets    = discovery.docker.local_containers.targets
+  forward_to = [loki.write.loki_storage.receiver]
+}
+
+loki.write "loki_storage" {
+  endpoint {
+    url = "http://10.8.0.2:3100/loki/api/v1/push" 
+  }
+}
