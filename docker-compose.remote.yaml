@@ -211,7 +211,7 @@ services:
       - /:/rootfs:ro
       - /run/udev:/run/udev:ro
     command:
-      - "--web.listen-address=10.8.0.1:9100"
+      - "--web.listen-address=0.0.0.0:9100"
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/rootfs"

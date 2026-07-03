@@ -10,6 +10,11 @@ discovery.relabel "docker_logs_relabel" {
     regex         = "/(.*)"
     target_label  = "container_name"
   }
+
+  rule {
+    target_label = "server"
+    replacement  = "local-minipc"
+  }
 }
 
 loki.source.docker "docker_logs" {
