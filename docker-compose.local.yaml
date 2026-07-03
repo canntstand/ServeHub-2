@@ -391,6 +391,7 @@ services:
   borg-ui:
     image: ainullcode/borg-ui:2.2.5
     container_name: borg-ui
+    user: "0:0"
     restart: unless-stopped
     logging: *default-logging
     privileged: true
@@ -404,7 +405,7 @@ services:
       - REDIS_HOST=disabled
     volumes:
       - ./apps-data/borg-ui:/data
-      - /root/.cache/borg:/home/borg/.cache/borg:rw
+      - ./apps-data/borg-ui-cache:/home/borg/.cache/borg:rw
       - /mnt/backup_storage:/mnt/backup_storage:rw
     deploy:
       resources:
