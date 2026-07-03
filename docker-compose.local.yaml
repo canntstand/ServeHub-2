@@ -20,6 +20,8 @@ services:
     depends_on:
       navidrome:
         condition: service_started
+      grafana:
+        condition: service_started
       audiobookshelf:
         condition: service_started
       nextcloud:
@@ -249,6 +251,8 @@ services:
         condition: service_started
       cadvisor:
         condition: service_started
+      alertmanager:
+        condition: service_started
     deploy:
       resources:
         limits:
@@ -356,9 +360,6 @@ services:
       - "--storage.path=/alertmanager"
     expose:
       - 9093
-    depends_on:
-      prometheus:
-        condition: service_started
     deploy:
       resources:
         limits:
