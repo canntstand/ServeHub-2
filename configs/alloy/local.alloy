@@ -2,9 +2,19 @@ discovery.docker "local_containers" {
   host = "unix:///var/run/docker.sock"
 }
 
+discovery.relabel "docker_logs_relabel" {
+  targets = discovery.docker.local_containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container_name"
+  }
+}
+
 loki.source.docker "docker_logs" {
   host       = "unix:///var/run/docker.sock"
-  targets    = discovery.docker.local_containers.targets
+  targets    = discovery.relabel.docker_logs_relabel.output
   forward_to = [loki.write.loki_storage.receiver]
 }
 
