@@ -267,6 +267,9 @@ services:
       resources:
         limits:
           memory: 1G
+    depends_on:
+      wg-easy:
+        condition: service_healthy
 
   alloy:
     image: grafana/alloy:latest

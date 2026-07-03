@@ -3,6 +3,7 @@ discovery.docker "local_containers" {
 }
 
 loki.source.docker "docker_logs" {
+  host       = "unix:///var/run/docker.sock"
   targets    = discovery.docker.local_containers.targets
   forward_to = [loki.write.loki_storage.receiver]
 }
