@@ -172,7 +172,7 @@ services:
       - INTERVAL=15s
     depends_on:
       - adguardhome
-  
+
   homepage:
     image: ghcr.io/gethomepage/homepage:latest
     container_name: homepage
@@ -196,7 +196,7 @@ services:
         condition: service_healthy
       nginx:
         condition: service_healthy
-  
+
   node-exporter:
     image: prom/node-exporter:v1.11.1
     container_name: node-exporter
@@ -211,6 +211,7 @@ services:
       - /:/rootfs:ro
       - /run/udev:/run/udev:ro
     command:
+      - "--web.listen-address=10.8.0.1:9100"
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/rootfs"
@@ -219,20 +220,21 @@ services:
       resources:
         limits:
           memory: 1G
-  
+
   cadvisor:
     image: ghcr.io/google/cadvisor:0.57
     container_name: cadvisor
     logging: *default-logging
     restart: unless-stopped
     privileged: true
-    ports:
-      - "8090:8080"
+    network_mode: "host"
     command:
       - "--allow_dynamic_housekeeping=true"
       - "--housekeeping_interval=10s"
       - "--disable_metrics=disk,referenced_memory"
       - "--raw_cgroup_prefix_whitelist=/system.slice,/user.slice"
+      - "--listen_ip=10.8.0.1"
+      - "--port=8090"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -241,6 +243,26 @@ services:
       - /dev:/dev:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /sys/fs/cgroup:/cgroup:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://10.8.0.1:8090/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+  
+  portainer-agent:
+    image: portainer/agent:2.39.3-alpine
+    container_name: portainer-agent
+    logging: *default-logging
+    restart: unless-stopped
+    ports:
+      - "10.8.0.1:9001:9001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     deploy:
       resources:
         limits:
