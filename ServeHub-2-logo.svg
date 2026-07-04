@@ -4,17 +4,10 @@
   <defs>
     <style>
       .logo-path { 
-        fill: #000000; 
-        stroke: #000000; 
-        transition: fill 0.3s, stroke 0.3s;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .logo-path { 
-          fill: #FFFFFF; 
-          stroke: #FFFFFF; 
+          fill: var(--color-fg-default, #000000); 
+          stroke: var(--color-fg-default, #000000); 
+          transition: fill 0.3s, stroke 0.3s;
         }
-      }
 
       .st0, .st1, .st2 { 
         fill: none; 
