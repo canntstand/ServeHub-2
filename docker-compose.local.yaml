@@ -406,6 +406,8 @@ services:
     volumes:
       - ./apps-data/borg-ui:/data
       - ./apps-data/borg-ui-cache:/home/borg/.cache/borg:rw
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
       - /mnt/backup_storage:/mnt/backup_storage:rw
     deploy:
       resources:
