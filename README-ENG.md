@@ -1,12 +1,12 @@
 ![ServeHub-2-logo.svg](ServeHub-2-logo.svg)
 
-- [README Russian version](README.md)
+- [README Russian version](https://github.com/canntstand/ServeHub-2/blob/main/README.md)
 
 This project provides a fast way to deploy a two-server architecture (local + remote) pre-configured with specific services to handle specialized tasks. It was primarily created for my personal use, as well as for anyone looking for a ready-to-use, out-of-the-box self-hosted server complete with a full maintenance system.
 
 While hosting everything on a single high-performance VPS would be simpler, it would also incur significant recurring costs. To balance performance and budget, this project adopts a hybrid approach: resource-heavy services run on a local machine, while a lightweight remote VPS provides secure internet access to them. Alternatively, if your budget permits, you can easily lease cloud servers instead of running hardware at home.
 
-* [Setup Guide](https://www.google.com/search?q=SETUP_GUIDE-ENG.md)
+* [Setup Guide](https://github.com/canntstand/ServeHub-2/blob/main/SETUP_GUIDE-ENG.md)
 
 ## Core Services
 * **Nextcloud:** Cloud storage for files, contacts, and photos.

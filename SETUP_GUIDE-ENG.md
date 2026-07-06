@@ -1,5 +1,4 @@
 # Infrastructure Setup Guide
-
 ## ⚠️ Important
 1. **Supported OS:** The project is designed to run on Ubuntu, Debian, and Arch Linux.
 2. **DNS Configuration:** In your registrar's DNS panel (e.g., Webnames), you must point the main domain's A-record and the wildcard record (`*`) to the internal VPN IP address — **`10.8.0.1`**. This is critical: all traffic to your services must route through the secure AmneziaWG tunnel. If you point the domain to the public IP of the VPS, Nginx will block external requests due to the `deny all` rule.

@@ -1,6 +1,6 @@
 ![ServeHub-2-logo.svg](ServeHub-2-logo.svg)
 
-- [README English version](README-ENG.md)
+- [README English version](https://github.com/canntstand/ServeHub-2/blob/main/README-ENG.md)
 
 Проект представляет из себя быстрый способ воссоздать архитектуру состоящую из 2 серверов (локальный + удаленный) с определенными сервисами, которые решают специфические задачи. Проект сделан прежде всего для меня, а также для людей которые хотят свой готовый self-hosted сервер из коробки с полной системой обслуживания (см. ниже).
 
