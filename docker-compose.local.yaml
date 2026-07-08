@@ -397,7 +397,7 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     volumes:
-      - ./configs/amnezia:/config
+      - ./apps-data/amnezia:/config
       - /lib/modules:/lib/modules:ro
     logging: *default-logging
     network_mode: "host"

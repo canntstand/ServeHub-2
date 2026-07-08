@@ -69,7 +69,7 @@
 
 ## Using the Services
 1. **Accessing the Portal:** Once successfully launched, turn on the AmneziaWG VPN client on your device and navigate to your domain to view the main dashboard (web portal).
-2. **Initial App Configuration:** For Navidrome, Audiobookshelf, Vaultwarden, and Portainer, you will need to complete a quick admin account creation wizard upon your first login. To access the system administration panel for Vaultwarden, use the token defined in the `secret_vaultwarden_password` variable.
+2. **Initial App Configuration:** For Navidrome, Audiobookshelf, Vaultwarden, Portainer and Gitea you will need to complete a quick admin account creation wizard upon your first login. To access the system administration panel for Vaultwarden, use the token defined in the `secret_vaultwarden_password` variable.
 3. **Automatic Deployment:** Nextcloud, Grafana, and other core services are provisioned automatically. Your credentials for the first login correspond to the global `admin_user` and `admin_password` variables set in your `secrets.yml`.
 4. **Recommended Apps for Daily Use:**
     - Cloud Storage — *Nextcloud*

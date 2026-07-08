@@ -5,19 +5,21 @@
       ⚙️ НАСТРОЙКА WIREGUARD И ДАННЫХ НА LOCAL SERVER (РУЧНОЙ ШАГ):
       ======================================================================
       Выполните шаги для связывания локального сервера с удаленной VPS:
+
+      1. 📁 ДАННЫЕ ПРИЛОЖЕНИЙ (ПРИ ПЕРЕЕЗДЕ):
+          - Положите старую папку 'apps-data' в /home/{{ local_user }}/ServeHub-2/
+          - Положите папку 'PersonalData' в /home/{{ local_user }}/
+        
+      Если была использована старая папка apps-data, то генерацию конфига WireGuard можно не делать.
       
-      1. 🌐 ГЕНЕРАЦИЯ КОНФИГА WIREGUARD:
+      2. 🌐 ГЕНЕРАЦИЯ КОНФИГА WIREGUARD:
           - Откройте SSH-туннель до панели: ssh -L 8000:127.0.0.1:51821 {{ local_user }}@{{ vps_public_ip }}
           - Зайдите в веб-интерфейс: http://127.0.0.1:8000
           - Включите Prometheus в настройках wg-easy (если требуется).
           - Создайте клиента для локального сервера с фиксированным IP 10.8.0.2.
           - Сохраните конфиг на локальном сервере по пути:
-            /home/{{ local_user }}/ServeHub-2/configs/amnezia/awg0.conf
-      
-      2. 📁 ДАННЫЕ ПРИЛОЖЕНИЙ (ПРИ ПЕРЕЕЗДЕ):
-          - Положите старую папку 'apps-data' в /home/{{ local_user }}/ServeHub-2/
-          - Положите папку 'PersonalData' в /home/{{ local_user }}/
-      
+            /home/{{ local_user }}/ServeHub-2/apps-data/amnezia/awg0.conf
+        
       Для проверки или переноса данных вы можете подключиться по SSH:
       ssh {{ local_user }}@{{ local_private_ip }}
       ======================================================================
@@ -126,6 +128,14 @@
     owner: "1000"
     group: "1000"
     mode: "0755"
+
+- name: "[FS] Точечная настройка прав для Amnezia VPN (Владелец deploy_user)"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/amnezia"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0700"
 
 - name: "[FS] Создание пользовательских папок для медиафайлов"
   ansible.builtin.file:
