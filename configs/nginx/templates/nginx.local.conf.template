@@ -27,100 +27,58 @@ server {
     set_real_ip_from 10.0.0.0/8;
     set_real_ip_from 127.0.0.1;
     real_ip_recursive on;
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
     
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+
     location /navidrome {
         proxy_pass http://navidrome:4533;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_buffering off;
-        proxy_http_version 1.1;
-        proxy_set_header X-Forwarded-Proto https;
     }
 
     location /audiobookshelf {
         proxy_pass http://audiobookshelf:80; 
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header X-Forwarded-Proto https;
     }
 
-    location /gitea {
+    location ~* ^/(gitea|v2) {
         proxy_pass http://gitea:3000; 
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-
-    location /nextcloud/ {
-        proxy_pass http://nextcloud:80/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Host $host;
         proxy_buffering off;
         proxy_request_buffering off;
-        keepalive_timeout 3600;
-        proxy_set_header X-Forwarded-Proto https;
         proxy_read_timeout 3600;
     }
 
     location /vaultwarden {
         proxy_pass http://vaultwarden:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-
-    location /vaultwarden/notifications/hub {
-        proxy_pass http://vaultwarden:80;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
     }
 
     location /grafana/ {
         proxy_pass http://grafana:3000;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
     }
     
     location /portainer/ {
         proxy_pass http://portainer:9000/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
     location /borg-ui/ {
         proxy_pass http://borg-ui:8081;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /nextcloud/ {
+        proxy_pass http://nextcloud:80/;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 3600;
+        keepalive_timeout 3600;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
     }
 }
