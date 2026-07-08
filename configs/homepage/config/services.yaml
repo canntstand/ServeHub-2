@@ -15,10 +15,10 @@
         icon: si-audiobookshelf
         href: /audiobookshelf
         description: Сервер для аудиокниг
-    - AdGuard Home:
-        icon: si-adguard
-        href: /adguard-home
-        description: DNS и блокировка рекламы
+    - Gitea:
+        icon: si-gitea
+        href: /gitea
+        description: "Self-hosted Git & Obsidian Backups"
 
 - 🛠️ Другие инструменты:
     - Borg UI:
@@ -37,6 +37,10 @@
         icon: si-wireguard
         href: /wg-easy/
         description: Управление VPN
+    - AdGuard Home:
+        icon: si-adguard
+        href: /adguard-home
+        description: DNS и блокировка рекламы
     - Gatus:
         icon: mdi-check-network
         href: /gatus/

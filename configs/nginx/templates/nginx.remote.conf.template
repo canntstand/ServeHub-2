@@ -171,7 +171,7 @@ server {
         proxy_set_header Connection $connection_upgrade;
     }
 
-    location ~* ^/(nextcloud|grafana|portainer|borg-ui)$ {
+    location ~* ^/(nextcloud|grafana|portainer|borg-ui|gitea)$ {
         return 301 https://$host$uri/;
     }
 
@@ -179,7 +179,7 @@ server {
     location ~* ^/wg-easy(/|$)      { return 301 https://wireguard.$host/; }
     location ~* ^/adguard-home(/|$) { return 301 https://adguard.$host/; }
 
-    location ~* ^/(navidrome|audiobookshelf|nextcloud|vaultwarden|grafana|portainer|borg-ui) {
+    location ~* ^/(navidrome|audiobookshelf|nextcloud|gitea|vaultwarden|grafana|portainer|borg-ui) {
         proxy_pass http://10.8.0.2:80;
         
         proxy_http_version 1.1;

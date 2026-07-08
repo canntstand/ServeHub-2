@@ -118,6 +118,15 @@
     group: "10001"
     mode: "0755"
 
+- name: "[FS] Точечная настройка прав для Gitea (UID 1000)"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/gitea"
+    state: directory
+    recurse: yes
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+
 - name: "[FS] Создание пользовательских папок для медиафайлов"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/PersonalData/{{ item }}"

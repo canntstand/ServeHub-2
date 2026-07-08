@@ -34,6 +34,8 @@ services:
         condition: service_healthy
       borg-ui:
         condition: service_started
+      gitea:
+        condition: service_started
     deploy:
       resources:
         limits:
@@ -129,6 +131,7 @@ services:
     container_name: nextcloud-redis
     restart: unless-stopped
     command: redis-server --requirepass ${NEXTCLOUD_REDIS_PASS}
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -464,3 +467,23 @@ services:
       resources:
         limits:
           memory: 1G
+  
+  gitea:
+    image: gitea/gitea:1.26
+    container_name: gitea
+    logging: *default-logging
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__server__ROOT_URL=https://${SERVER_NAME}/gitea/
+      - GITEA__server__DISABLE_SSH=true
+      - GITEA__database__DB_TYPE=sqlite3
+      - GITEA__database__PATH=/data/gitea/gitea.db
+      - GITEA__security__INSTALL_LOCK=true
+    volumes:
+      - ./apps-data/gitea:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    expose:
+      - 3000
+    restart: unless-stopped
