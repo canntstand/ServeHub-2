@@ -27,7 +27,7 @@
 
 - name: "Проверка наличия конфигурационного файла"
   ansible.builtin.stat:
-    path: "/home/{{ deploy_user }}/ServeHub-2/configs/amnezia/awg0.conf"
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/amnezia/awg0.conf"
   register: wg_config
 
 - name: "Ошибка: отсутствует файл конфигурации WireGuard"
