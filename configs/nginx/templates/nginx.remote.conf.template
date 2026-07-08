@@ -154,56 +154,11 @@ server {
     allow 172.16.0.0/12;
     allow 10.8.0.0/24;
     deny all;
-    
-    location /.well-known/carddav { 
-        return 301 https://$host/nextcloud/remote.php/dav; 
-    }
 
-    location /.well-known/caldav { 
-        return 301 https://$host/nextcloud/remote.php/dav; 
-    }
-
-    location /.well-known/webfinger { 
-        return 301 https://$host/nextcloud/index.php/.well-known/webfinger; 
-    }
-
-    location /.well-known/nodeinfo { 
-        return 301 https://$host/nextcloud/index.php/.well-known/nodeinfo; 
-    }
-    
-    location /navidrome {
-        proxy_pass http://10.8.0.2:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_buffering off;
-        proxy_http_version 1.1;
-    }
-
-    location /audiobookshelf {
-        proxy_pass http://10.8.0.2:80; 
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-    }
-
-    location /nextcloud/ {
-        proxy_pass http://10.8.0.2:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_buffering off;
-        proxy_request_buffering off;
-        keepalive_timeout 3600;
-        proxy_read_timeout 3600;
-    }
+    location /.well-known/carddav   { return 301 https://$host/nextcloud/remote.php/dav; }
+    location /.well-known/caldav    { return 301 https://$host/nextcloud/remote.php/dav; }
+    location /.well-known/webfinger { return 301 https://$host/nextcloud/index.php/.well-known/webfinger; }
+    location /.well-known/nodeinfo  { return 301 https://$host/nextcloud/index.php/.well-known/nodeinfo; }
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -216,94 +171,30 @@ server {
         proxy_set_header Connection $connection_upgrade;
     }
 
-    location /vaultwarden {
-        proxy_pass http://10.8.0.2:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
+    location ~* ^/(nextcloud|grafana|portainer|borg-ui)$ {
+        return 301 https://$host$uri/;
     }
 
-    location /vaultwarden/notifications/hub {
-        proxy_pass http://10.8.0.2:80;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-    }
+    location ~* ^/gatus(/|$)        { return 301 https://gatus.$host/; }
+    location ~* ^/wg-easy(/|$)      { return 301 https://wireguard.$host/; }
+    location ~* ^/adguard-home(/|$) { return 301 https://adguard.$host/; }
 
-    location /grafana/ {
+    location ~* ^/(navidrome|audiobookshelf|nextcloud|vaultwarden|grafana|portainer|borg-ui) {
         proxy_pass http://10.8.0.2:80;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
+        
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
-    }
-    
-    location /portainer/ {
-        proxy_pass http://10.8.0.2:80;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
+        
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-    }
+        proxy_set_header X-Forwarded-Host $host;
 
-    location /borg-ui/ {
-        proxy_pass http://10.8.0.2:80;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-    
-    location = /nextcloud {
-        return 301 https://$host/nextcloud/;
-    }
-    
-    location = /grafana {
-        return 301 https://$host/grafana/;
-    }
-    
-    location = /portainer {
-        return 301 https://$host/portainer/;
-    }
-
-    location = /borg-ui {
-        return 301 https://$host/borg-ui/;
-    }
-
-    location = /gatus {
-        return 301 https://gatus.$host/;
-    }
-
-    location /gatus/ {
-        return 301 https://gatus.$host/;
-    }
-
-    location = /wg-easy {
-        return 301 https://wireguard.$host/;
-    }
-    
-    location /wg-easy/ {
-        return 301 https://wireguard.$host/;
-    }
-
-    location = /adguard-home {
-        return 301 https://adguard.$host/;
-    }
-    
-    location /adguard-home/ {
-        return 301 https://adguard.$host/;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 3600;
+        keepalive_timeout 3600;
     }
 }
