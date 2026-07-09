@@ -7,32 +7,15 @@
 5. **Настройка wg-easy:** Если нет подключения к VPN, то можно попробовать зайти в интерфейс wg-easy и настроить параметры. (подробнее можно прочитать в [AmneziaWG documentation](https://docs.amnezia.org/documentation/amnezia-wg))
 
 ## Установка
-### Linux
 1. Установить:
     - **Docker** + **Docker Compose** 
     - **Git**
-    - **SSH**
+    - **Терминал с поддержкой Bash**
 2. Подготовить 2 Linux сервера с включенным ssh (Ubuntu/Debian/Arch)
 3. Клонировать репозиторий: `git clone https://github.com/canntstand/ServeHub-2 && cd ServeHub-2`
 4. Создать файл `ansible/vars/secrets.yml` на основе примера `ansible/vars/secrets.yml.example`.
-5. Сгенерировать SSH-ключ: `ssh-keygen -t ed25519 -C "your_email@example.com"`
 6. Запустить скрипт развертывания: `chmod +x manage_deploy.sh && ./manage_deploy.sh` (при первой установке на пустые сервера лучше выбрать 1 пункт)
 7. Остальные шаги сообщит скрипт
-
-### Windows
-1. Установить:
-    - **Docker** + **Docker Compose** 
-    - **Git**
-    - **SSH** 
-    - **WSL + Дистрибутив**
-    - **Терминал с поддержкой Bash**
-2. Подготовить 2 Linux сервера с включенным ssh (Ubuntu/Debian/Arch)
-3. Зайти в терминал дистрибутива в WSL (все остальные пункты будут выполняться строго в нем)
-4. Клонировать репозиторий (где угодно в /mnt/c/): `git clone https://github.com/canntstand/ServeHub-2 && cd ServeHub-2`
-5. Создать файл `ansible/vars/secrets.yml` на основе примера `ansible/vars/secrets.yml.example`.
-6. Сгенерировать SSH-ключ и выдать нужные права: `ssh-keygen -t ed25519 -C "your_email@example.com" && chmod 600 ~/.ssh/id_ed25519`
-7. Запустить скрипт развертывания: `chmod +x manage_deploy.sh && ./manage_deploy.sh` (при первой установке на пустые сервера лучше выбрать 1 пункт)
-8. Остальные шаги сообщит скрипт.
 
 ### Настройка бэкапов (доп. к стандартной установке)
 1. Убедиться, что диск для бэкапов подключен к серверу.

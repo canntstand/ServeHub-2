@@ -7,9 +7,11 @@ services:
       - ANSIBLE_CONFIG=/ansible/ansible.cfg
     volumes:
       - .:/ansible:ro
-      - ~/.ssh/id_ed25519:/root/.ssh/id_ed25519:ro
-      - ~/.ssh/id_ed25519.pub:/root/.ssh/id_ed25519.pub:ro
-      - ~/.ssh/known_hosts:/root/.ssh/known_hosts:ro
+      - ssh-data:/root/.ssh:rw
+    entrypoint: ["/bin/sh", "/ansible/scripts/entrypoint.sh"]
     working_dir: /ansible
     stdin_open: true
     tty: true
+
+volumes:
+  ssh-data:
