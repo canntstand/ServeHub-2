@@ -11,30 +11,14 @@
 1. Install:
     - **Docker** + **Docker Compose**
     - **Git**
-    - **SSH**
+    - **A terminal with Bash support**
 2. Prepare 2 Linux servers with SSH enabled (Ubuntu/Debian/Arch).
 3. Clone the repository: `git clone https://github.com/canntstand/ServeHub-2 && cd ServeHub-2`
 4. Create the `ansible/vars/secrets.yml` file based on the template `ansible/vars/secrets.yml.example`.
-5. Generate an SSH key: `ssh-keygen -t ed25519 -C "your_email@example.com"`
-6. Run the deployment script: `chmod +x manage_deploy.sh && ./manage_deploy.sh` (for a clean install on fresh servers, select option 1).
-7. The script will guide you through the remaining steps.
+5. Run the deployment script: `chmod +x manage_deploy.sh && ./manage_deploy.sh` (for a clean install on fresh servers, select option 1).
+6. The script will guide you through the remaining steps.
 
-### Windows
-1. Install:
-    - **Docker** + **Docker Compose**
-    - **Git**
-    - **SSH**
-    - **WSL + a Distribution**
-    - **A terminal with Bash support**
-2. Prepare 2 Linux servers with SSH enabled (Ubuntu/Debian/Arch).
-3. Open your WSL distribution terminal (all subsequent steps must be executed strictly inside it).
-4. Clone the repository (anywhere inside `/mnt/c/`): `git clone https://github.com/canntstand/ServeHub-2 && cd ServeHub-2`
-5. Create the `ansible/vars/secrets.yml` file based on the template `ansible/vars/secrets.yml.example`.
-6. Generate an SSH key and set the correct permissions: `ssh-keygen -t ed25519 -C "your_email@example.com" && chmod 600 ~/.ssh/id_ed25519`
-7. Run the deployment script: `chmod +x manage_deploy.sh && ./manage_deploy.sh` (for a clean install on fresh servers, select option 1).
-8. The script will guide you through the remaining steps.
-
-### Backup Configuration (Optional Add-on to Standard Installation)
+### Backup Easy View Configuration (Optional Add-on to Standard Installation)
 1. Ensure the backup drive is connected to the server.
 2. Specify the drive's UUID in `secrets.yml`. (You can find it using `sudo blkid`).
 3. Once the local architecture is deployed, log into Borg UI (the username is always `admin`) and follow these steps:

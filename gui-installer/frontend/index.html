@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="src/style.css">
+    <title>ServeHub-2 Installer</title>
+</head>
+<body>
+    <div id="app">
+        <div id="step-1" class="step active">
+            <div class="welcome-container">
+                <div class="brand-title">ServeHub-2</div>
+                
+                <h1 class="title">Мастер установки</h1>
+                <p class="subtitle">Добро пожаловать! Эта программа поможет вам установить и настроить проект ServeHub-2 на вашем компьютере.</p>
+                
+                <button class="btn-primary" onclick="goToStep(2)">Продолжить</button>
+            </div>
+        </div>
+
+        <div id="step-2" class="step">
+            <div class="welcome-container">
+                <div class="brand-title">ServeHub-2</div>
+                <h1 class="title">Проверка требований</h1>
+                
+                <div class="status-box">
+                    <div id="status-loading" class="spinner"></div>
+                    <div id="status-text">Проверяем Docker и Docker Compose...</div>
+                </div>
+
+                <div class="button-group" style="margin-top: 20px; display: flex; gap: 15px;">
+                    <button class="btn-secondary" onclick="goToStep(1)">Назад</button>
+                    <button id="btn-retry" class="btn-secondary" onclick="runDockerCheck()" style="display: none;">Повторить</button>
+                    <button id="btn-step2-next" class="btn-primary" onclick="goToStep(3)" disabled>Продолжить</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="step-3" class="step">
+            <div class="welcome-container">
+                <div class="brand-title">ServeHub-2</div>
+                <h1 class="title">Установка компонентов</h1>
+                
+                <div class="status-box">
+                    <div id="install-loading" class="spinner"></div>
+                    <div id="install-text">Подготовка к скачиванию...</div>
+                </div>
+
+                <div class="button-group" style="margin-top: 20px; display: flex; gap: 15px;">
+                    <button id="btn-finish" class="btn-primary" onclick="closeInstaller()" disabled>Завершить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/main.js" type="module"></script>
+</body>
+</html>
