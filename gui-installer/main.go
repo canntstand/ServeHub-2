@@ -17,13 +17,13 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "ServeHub-2 Installer",
-		Width:  1024,
+		Title: "ServeHub-2 Installer",
+		Width: 1024,
 		Height: 768,
+		Frameless: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 30, G: 30, B: 30, A: 1},
 		OnStartup:        app.startup,
 		Bind: []interface{}{
 			app,

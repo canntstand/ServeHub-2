@@ -7,6 +7,27 @@
     <title>ServeHub-2 Installer</title>
 </head>
 <body>
+    <div class="window-drag-zone">
+        <span class="window-title">ServeHub-2 Installer</span>
+        
+        <div class="window-controls">
+            <button onclick="minimizeWindow()" class="btn-control btn-minimize" title="Свернуть">
+                <svg width="10" height="1" viewBox="0 0 10 1">
+                    <line x1="0" y1="0.5" x2="10" y2="0.5" stroke="currentColor" stroke-width="1"/>
+                </svg>
+            </button>
+            <button onclick="maximizeWindow()" class="btn-control btn-maximize" title="Развернуть/Восстановить">
+                <svg width="10" height="10" viewBox="0 0 10 10">
+                    <rect x="1" y="1" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1.2"/>
+                </svg>
+            </button>
+            <button onclick="closeWindow()" class="btn-control btn-close" title="Закрыть">
+                <svg width="10" height="10" viewBox="0 0 10 10">
+                    <path d="M0,0 L10,10 M10,0 L0,10" stroke="currentColor" stroke-width="1.2"/>
+                </svg>
+            </button>
+        </div>
+    </div>
     <div id="app">
         <div id="step-1" class="step active">
             <div class="welcome-container">
@@ -48,7 +69,259 @@
                 </div>
 
                 <div class="button-group" style="margin-top: 20px; display: flex; gap: 15px;">
-                    <button id="btn-finish" class="btn-primary" onclick="closeInstaller()" disabled>Завершить</button>
+                    <button id="btn-finish" class="btn-primary" onclick="goToStep(4)" disabled>Продолжить</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="step-4" class="step">
+            <div class="welcome-container" style="width: 100%;">
+                <div class="brand-title" style="font-size: 32px; margin-bottom: 10px;">Настройка</div>
+                <h1 class="title" style="margin-bottom: 15px;">Параметры secrets.yml</h1>
+                
+                <div class="form-container">
+                    <div class="form-section-title">1. Сеть и пользователи</div>
+                    <div class="form-group">
+                        <label>Публичный IP VPS:</label>
+                        <input type="text" id="sec_vps_ip" value="your_vps_public_ip">
+                    </div>
+                    <div class="form-group">
+                        <label>Имя пользователя VPS (SSH/sudo):</label>
+                        <input type="text" id="sec_vps_user" value="your_vps_username">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль root VPS:</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="sec_vps_root_pass" value="your_vps_root_password">
+                            <button type="button" class="password-toggle" onclick="togglePassword('sec_vps_root_pass', this)">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Приватный IP домашнего сервера:</label>
+                        <input type="text" id="sec_local_ip" value="your_local_private_ip">
+                    </div>
+                    <div class="form-group">
+                        <label>Пользователь домашнего сервера:</label>
+                        <input type="text" id="sec_local_user" value="your_local_username">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль root домашнего сервера:</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="sec_local_root_pass" value="your_local_root_password">
+                            <button type="button" class="password-toggle" onclick="togglePassword('sec_local_root_pass', this)">👁️</button>
+                        </div>
+                    </div>
+
+                    <div class="form-section-title">2. Глобальные параметры</div>
+                    <div class="form-group">
+                        <label>Доменное имя проекта (например: server.ru):</label>
+                        <input type="text" id="sec_server_name" value="your_domain.ru">
+                    </div>
+                    <div class="form-group">
+                        <label>Имя учетной записи администратора:</label>
+                        <input type="text" id="sec_admin_user" value="admin">
+                    </div>
+                    <div class="form-group">
+                        <label>Глобальный пароль администратора:</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="sec_admin_pass" value="change_this_to_a_very_strong_password">
+                            <button type="button" class="password-toggle" onclick="togglePassword('sec_admin_pass', this)">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Email (для генерации SSL-сертификатов через Certbot):</label>
+                        <input type="text" id="sec_email" value="your_primary_email@gmail.com">
+                    </div>
+
+                    <div class="form-section-title">3. Уведомления Telegram</div>
+                    <div class="form-group">
+                        <label>Telegram Бот Токен:</label>
+                        <input type="text" id="sec_tg_token" value="telegram_token_of_the_bot_you_created">
+                    </div>
+                    <div class="form-group">
+                        <label>Telegram Chat ID:</label>
+                        <input type="text" id="sec_tg_chat_id" value="telegram_chat_id_of_the_bot_you_created">
+                    </div>
+
+                    <div class="form-section-title">4. Интеграция с DNS</div>
+                    <div class="form-group">
+                        <label>API-ключ Webnames.ru (для Wildcard-сертификатов):</label>
+                        <input type="text" id="sec_webnames" value="your_webnames_api_key_here">
+                    </div>
+
+                    <div class="form-section-title">5. Настройки СУБД PostgreSQL и Redis</div>
+                    <div class="form-group">
+                        <label>Имя БД Nextcloud:</label>
+                        <input type="text" id="sec_pg_nc" value="nextcloud">
+                    </div>
+                    <div class="form-group">
+                        <label>Имя БД Vaultwarden:</label>
+                        <input type="text" id="sec_pg_vw" value="vaultwarden">
+                    </div>
+                    <div class="form-group">
+                        <label>Суперпользователь Postgres:</label>
+                        <input type="text" id="sec_pg_user" value="postgres_master">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль суперпользователя Postgres:</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="sec_pg_pass" value="postgres_master_secure_password">
+                            <button type="button" class="password-toggle" onclick="togglePassword('sec_pg_pass', this)">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль Redis для Nextcloud:</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="sec_redis_pass" value="redis_secure_password">
+                            <button type="button" class="password-toggle" onclick="togglePassword('sec_redis_pass', this)">👁️</button>
+                        </div>
+                    </div>
+
+                    <div class="form-section-title">6. Безопасность и бэкапы</div>
+                    <div class="form-group">
+                        <label>Пароль админ-панели Vaultwarden:</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="sec_vw_admin_pass" value="vaultwarden_admin_panel_secure_password">
+                            <button type="button" class="password-toggle" onclick="togglePassword('sec_vw_admin_pass', this)">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Публичный SSH ключ вашего ПК:</label>
+                        <input type="text" id="sec_public_ssh_key" value="ssh_desktop_public_key_where_ansible_is_installed">
+                    </div>
+                    <div class="form-group">
+                        <label>Приватный SSH ключ вашего ПК (для доступа к серверам):</label>
+                        <textarea id="sec_private_ssh_key" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Фраза шифрования borgmatic:</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="sec_borg_pass" value="borgmatic_encryption_passphrase">
+                            <button type="button" class="password-toggle" onclick="togglePassword('sec_borg_pass', this)">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>UUID диска для бэкапов (blkid):</label>
+                        <input type="text" id="sec_disk_uuid" value="backup_disk_uuid">
+                    </div>
+                </div>
+
+                <div class="button-group" style="margin-top: 20px; display: flex; gap: 15px;">
+                    <button class="btn-secondary" onclick="goToStep(3)">Назад</button>
+                    <button class="btn-primary" onclick="generateAndReviewYaml()">Продолжить</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="step-5" class="step">
+            <div class="welcome-container" style="width: 100%;">
+                <div class="brand-title" style="font-size: 32px; margin-bottom: 10px;">Проверка</div>
+                <h1 class="title" style="margin-bottom: 5px;">Проверьте ваш файл secrets.yml (обязательно сделайте себе копию)</h1>
+                <p style="font-size: 13px; color: #aaaaaa; margin-bottom: 15px; max-width: 550px;">
+                    Ниже представлен итоговый файл. Вы можете пролистать и проверить его.
+                </p>
+                
+                <div class="preview-container">
+                    <pre id="yaml-preview"></pre>
+                </div>
+
+                <div class="button-group" style="margin-top: 25px; display: flex; gap: 15px;">
+                    <button class="btn-secondary" onclick="goToStep(4)">Переделать</button>
+                    <button class="btn-primary" onclick="saveYamlAndFinish()">Записать и продолжить</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="step-6" class="step">
+            <div class="welcome-container" style="width: 100%;">
+                <div class="brand-title" style="font-size: 32px; margin-bottom: 10px;">Деплой</div>
+                <h1 class="title" style="margin-bottom: 5px;">Выберите сценарий развертывания</h1>
+                <p style="font-size: 13px; color: #aaaaaa; margin-bottom: 20px;">
+                    Выберите конфигурацию деплоя Ansible в соответствии с вашей инфраструктурой.
+                </p>
+
+                <div class="form-container">
+                    
+                    <div class="options-group-block">
+                        <div class="options-group-title">🌐 Для обоих серверов (Локальный + VPS)</div>
+                        <div class="options-grid">
+                            <div class="deploy-option-card" id="opt-1" onclick="selectDeployOption(1)">
+                                <div class="option-title">Пункт 1. Полный деплой</div>
+                                <div class="option-desc">Первичная подготовка системы (bootstrap) и полная настройка обоих серверов.</div>
+                            </div>
+                            <div class="deploy-option-card" id="opt-2" onclick="selectDeployOption(2)">
+                                <div class="option-title">Пункт 2. Запуск сервисов</div>
+                                <div class="option-desc">Развертывание без bootstrap. Настройка конфигураций и запуск сервисов на обоих серверах.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="options-group-block">
+                        <div class="options-group-title">🏠 Только для локального сервера</div>
+                        <div class="options-grid">
+                            <div class="deploy-option-card" id="opt-3" onclick="selectDeployOption(3)">
+                                <div class="option-title">Пункт 3. Полный деплой</div>
+                                <div class="option-desc">Первичная подготовка системы (bootstrap) и полная настройка локального сервера.</div>
+                            </div>
+                            <div class="deploy-option-card" id="opt-4" onclick="selectDeployOption(4)">
+                                <div class="option-title">Пункт 4. Запуск сервисов</div>
+                                <div class="option-desc">Развертывание без bootstrap. Настройка конфигураций и запуск сервисов на локальном сервере.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="options-group-block">
+                        <div class="options-group-title">☁️ Только для внешнего VPS</div>
+                        <div class="options-grid">
+                            <div class="deploy-option-card" id="opt-5" onclick="selectDeployOption(5)">
+                                <div class="option-title">Пункт 5. Полный деплой</div>
+                                <div class="option-desc">Первичная подготовка системы (bootstrap) и полная настройка удаленного сервера.</div>
+                            </div>
+                            <div class="deploy-option-card" id="opt-6" onclick="selectDeployOption(6)">
+                                <div class="option-title">Пункт 6. Запуск сервисов</div>
+                                <div class="option-desc">Развертывание без bootstrap. Настройка конфигураций и запуск сервисов на удаленном сервере.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="toggle-container" style="margin-top: 15px; justify-content: center;">
+                    <label class="switch-label">
+                        <input type="checkbox" id="verbose-logs-toggle">
+                        <span class="custom-checkbox"></span>
+                        Подробный вывод логов Ansible (-vvv)
+                    </label>
+                </div>
+
+                <div class="button-group" style="margin-top: 20px; display: flex; gap: 15px;">
+                    <button class="btn-secondary" onclick="goToStep(5)">Назад</button>
+                    <button id="btn-deploy-next" class="btn-primary" onclick="confirmDeployment()" disabled>Продолжить</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="step-7" class="step" style="max-width: 950px; width: 100%;">
+            <div class="welcome-container" style="width: 100%; max-width: 100%;">
+                <div class="brand-title">ServeHub-2</div>
+                <h1 class="title" style="margin-bottom: 15px;">Подтверждение деплоя</h1>
+                
+                <div class="status-box" style="text-align: left; width: 100%; background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; box-sizing: border-box; margin-bottom: 15px;">
+                    <div style="font-size: 12px; color: #aaaaaa; margin-bottom: 4px;">Выбранный режим развертывания:</div>
+                    <div id="confirm-option-text" style="color: #ffffff; font-size: 14px; font-weight: bold; margin-bottom: 10px; line-height: 1.4;">-</div>
+                    
+                    <div style="font-size: 12px; color: #aaaaaa; margin-bottom: 4px;">Подробный режим логов (-vvv):</div>
+                    <div id="confirm-verbose-text" style="color: #00ffcc; font-size: 14px; font-weight: bold;">Нет</div>
+                </div>
+
+                <div id="deploy-logs-container" class="preview-container" style="display: none; width: 100%; margin-bottom: 20px;">
+                    <pre id="deploy-logs"></pre>
+                </div>
+
+                <div class="button-group" style="display: flex; gap: 15px;">
+                    <button id="btn-deploy-back" class="btn-secondary" onclick="goToStep(6)">Назад</button>
+                    <button id="btn-deploy-run" class="btn-primary" onclick="startDeployment()">Запустить деплой</button>
+                    <button id="btn-deploy-exit" class="btn-secondary" onclick="closeWindow()" style="display: none;">Выйти из программы</button>
                 </div>
             </div>
         </div>

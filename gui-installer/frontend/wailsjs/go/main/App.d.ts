@@ -4,6 +4,16 @@ import {main} from '../models';
 
 export function CheckDocker():Promise<main.CheckResult>;
 
+export function CheckSecrets():Promise<main.CheckResult>;
+
 export function CloseApp():Promise<void>;
 
 export function InstallProject():Promise<main.CheckResult>;
+
+export function MaximizeApp():Promise<void>;
+
+export function MinimizeApp():Promise<void>;
+
+export function RunDeployment(arg1:number,arg2:boolean):Promise<main.CheckResult>;
+
+export function SaveSecrets(arg1:string):Promise<main.CheckResult>;

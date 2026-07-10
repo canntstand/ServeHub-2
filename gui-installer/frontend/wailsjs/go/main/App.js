@@ -6,10 +6,30 @@ export function CheckDocker() {
   return window['go']['main']['App']['CheckDocker']();
 }
 
+export function CheckSecrets() {
+  return window['go']['main']['App']['CheckSecrets']();
+}
+
 export function CloseApp() {
   return window['go']['main']['App']['CloseApp']();
 }
 
 export function InstallProject() {
   return window['go']['main']['App']['InstallProject']();
+}
+
+export function MaximizeApp() {
+  return window['go']['main']['App']['MaximizeApp']();
+}
+
+export function MinimizeApp() {
+  return window['go']['main']['App']['MinimizeApp']();
+}
+
+export function RunDeployment(arg1, arg2) {
+  return window['go']['main']['App']['RunDeployment'](arg1, arg2);
+}
+
+export function SaveSecrets(arg1) {
+  return window['go']['main']['App']['SaveSecrets'](arg1);
 }
