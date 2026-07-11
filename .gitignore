@@ -4,3 +4,6 @@ ansible/vars/secrets.yml
 certbot
 .vagrant
 .vscode
+gui-installer/build
+gui-installer/node_modules
+gui-installer/frontend/dist
