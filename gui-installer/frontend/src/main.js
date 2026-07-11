@@ -32,7 +32,7 @@ window.runDockerCheck = async function() {
     spinner.style.display = 'block';
     spinner.className = 'spinner';
     statusText.innerText = 'Проверяем Docker и Docker Compose...';
-    statusText.style.color = '#e0e0e0';
+    statusText.style.color = '#9a9aa0';
     btnNext.disabled = true;
     btnRetry.style.display = 'none';
 
@@ -45,17 +45,17 @@ window.runDockerCheck = async function() {
 
         if (result.success) {
             statusText.innerText = `✓ ${result.message}`;
-            statusText.style.color = '#00ffcc';
+            statusText.style.color = '#818cf8';
             btnNext.disabled = false;
         } else {
             statusText.innerText = `✗ Ошибка: ${result.message}.`;
-            statusText.style.color = '#ff5555';
+            statusText.style.color = '#e5484d';
             btnRetry.style.display = 'block';
         }
     } catch (err) {
         spinner.style.display = 'none';
         statusText.innerText = 'Критическая ошибка при вызове проверки бэкенда:\n' + err;
-        statusText.style.color = '#ff5555';
+        statusText.style.color = '#e5484d';
         btnRetry.style.display = 'block';
     }
 }
@@ -69,7 +69,7 @@ window.runInstallation = async function() {
 
     spinner.style.display = 'block';
     installText.innerText = 'Загрузка архива проекта ServeHub-2 с GitHub в память...';
-    installText.style.color = '#e0e0e0';
+    installText.style.color = '#9a9aa0';
     btnFinish.disabled = true;
 
     try {
@@ -81,8 +81,8 @@ window.runInstallation = async function() {
             spinner.style.display = 'none';
 
             if (secretsCheck.success) {
-                installText.innerHTML = `✓ ${result.message}<br><br><span style="color: #ffcc00; font-weight: bold;">ℹ Конфигурация найдена:</span> Файл <code style="background: #222; padding: 2px 6px; border-radius: 4px;">secrets.yml</code> уже существует в проекте. Шаги создания и настройки будут пропущены.`;
-                installText.style.color = '#00ffcc';
+                installText.innerHTML = `✓ ${result.message}<br><br><span style="color: #a5b4fc; font-weight: bold;">ℹ Конфигурация найдена:</span> Файл <code style="background: #1e1e22; padding: 2px 6px; border-radius: 4px;">secrets.yml</code> уже существует в проекте. Шаги создания и настройки будут пропущены.`;
+                installText.style.color = '#818cf8';
                 
                 btnFinish.disabled = false;
                 btnFinish.innerText = 'Перейти к выбору развертки';
@@ -94,7 +94,7 @@ window.runInstallation = async function() {
 
             } else {
                 installText.innerText = `✓ ${result.message}`;
-                installText.style.color = '#00ffcc';
+                installText.style.color = '#818cf8';
                 
                 btnFinish.disabled = false;
                 btnFinish.innerText = 'Продолжить к настройке';
@@ -107,12 +107,12 @@ window.runInstallation = async function() {
         } else {
             spinner.style.display = 'none';
             installText.innerText = `✗ Ошибка установки: ${result.message}`;
-            installText.style.color = '#ff5555';
+            installText.style.color = '#e5484d';
         }
     } catch (err) {
         spinner.style.display = 'none';
         installText.innerText = 'Критическая ошибка в процессе установки:\n' + err;
-        installText.style.color = '#ff5555';
+        installText.style.color = '#e5484d';
     }
 }
 
@@ -324,7 +324,7 @@ window.startDeployment = async function() {
         
         if (result.success) {
             logPre.innerText += `\n[ УСПЕХ ]: ${result.message}\n`;
-            logPre.style.borderColor = '#00ffcc';
+            logPre.style.borderColor = '#818cf8';
             
             btnRun.style.display = 'none';
             btnBack.style.display = 'none';
@@ -334,7 +334,7 @@ window.startDeployment = async function() {
             }
         } else {
             logPre.innerText += `\n[ ОШИБКА ]: Деплой завершился неудачей.\nПричина: ${result.message}\n`;
-            logPre.style.borderColor = '#ff5555';
+            logPre.style.borderColor = '#e5484d';
             
             btnRun.disabled = false;
             btnBack.disabled = false;
@@ -342,7 +342,7 @@ window.startDeployment = async function() {
         }
     } catch (err) {
         logPre.innerText += `\n[ КРИТИЧЕСКАЯ ОШИБКА СИСТЕМЫ ]: Ошибка вызова бэкенда:\n${err}\n`;
-        logPre.style.borderColor = '#ff5555';
+        logPre.style.borderColor = '#e5484d';
         
         btnRun.disabled = false;
         btnBack.disabled = false;

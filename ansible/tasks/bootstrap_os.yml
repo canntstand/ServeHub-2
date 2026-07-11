@@ -95,7 +95,7 @@
     (ansible_facts['os_family'] == "Archlinux" and arch_kernel_check.stdout == "reboot_needed")
 
 # =========================================================================
-# 4. УСТАНОВКА БАЗОВЫХ ПАКЕТОВ (ЯДРО УЖЕ НОВОЕ И АКТИВНОЕ)
+# 4. УСТАНОВКА БАЗОВЫХ ПАКЕТОВ
 # =========================================================================
 - name: "[Pacman] Arch: установка базовых пакетов"
   pacman:
@@ -284,7 +284,7 @@
     append: yes
 
 # =========================================================================
-# 8. УСТАНОВКА AmneziaWG (Debian/Ubuntu)
+# 8. УСТАНОВКА AmneziaWG
 # =========================================================================
 - name: "[Yay] Arch: проверка наличия yay"
   stat:
@@ -389,8 +389,35 @@
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
 
+- name: "[AmneziaWG] Arch: исправление совместимости с ядром 7.x+ (ipv6_stub)"
+  block:
+    - name: "[AmneziaWG] Arch: проверяем наличие исходников в /usr/src"
+      ansible.builtin.stat:
+        path: /usr/src/amneziawg-1.0.0/socket.c
+      register: amneziawg_source
+
+    - name: "[AmneziaWG] Arch: замена ipv6_stub на ip6_dst_lookup_flow"
+      ansible.builtin.replace:
+        path: /usr/src/amneziawg-1.0.0/socket.c
+        regexp: 'ipv6_stub->ipv6_dst_lookup_flow'
+        replace: 'ip6_dst_lookup_flow'
+      register: patch_result
+      when: amneziawg_source.stat.exists
+
+    - name: "[AmneziaWG] Arch: принудительная пересборка модуля после патча"
+      ansible.builtin.shell: |
+        dkms remove amneziawg/1.0.0 --all || true
+        dkms add -m amneziawg -v 1.0.0 || true
+        dkms build -m amneziawg -v 1.0.0
+        dkms install -m amneziawg -v 1.0.0
+      become: true
+      when: patch_result.changed
+  when: ansible_facts['os_family'] == "Archlinux"
+
 - name: "[DKMS] Принудительный запуск сборки модулей"
-  shell: |
-    dkms autoinstall -k $(uname -r) || true
+  ansible.builtin.shell: |
+    dkms autoinstall -k $(uname -r)
     modprobe amneziawg
+  register: dkms_modprobe
+  failed_when: dkms_modprobe.rc != 0
   changed_when: false

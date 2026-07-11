@@ -166,32 +166,32 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 	switch option {
 	case 1:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps,local --tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps,local --tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
 		}
 	case 2:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
 		}
 	case 3:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
 		}
 	case 4:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
 		}
 	case 5:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
 		}
 	case 6:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
 		}
 	default:
 		return CheckResult{Success: false, Message: "Неизвестный сценарий развертывания!"}
