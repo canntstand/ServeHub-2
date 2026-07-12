@@ -286,6 +286,13 @@
 # =========================================================================
 # 8. УСТАНОВКА AmneziaWG
 # =========================================================================
+- name: "[Net] Разрешить привязку к несуществующим IP (ip_nonlocal_bind)"
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: '1'
+    state: present
+    reload: yes
+
 - name: "[Yay] Arch: проверка наличия yay"
   stat:
     path: /usr/bin/yay
