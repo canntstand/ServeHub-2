@@ -47,6 +47,12 @@ type CheckResult struct {
 	Message string `json:"message"`
 }
 
+type SecretsResult struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Content string `json:"content"`
+}
+
 func (a *App) CloseApp() {
 	wailsRuntime.Quit(a.ctx)
 }
@@ -280,5 +286,23 @@ func (a *App) CheckSecrets() CheckResult {
 	return CheckResult{
 		Success: false,
 		Message: "Файл конфигурации не найден.",
+	}
+}
+
+func (a *App) LoadSecrets() SecretsResult {
+	targetFile := filepath.Join(".", "ServeHub-2-main", "ansible", "vars", "secrets.yml")
+
+	data, err := os.ReadFile(targetFile)
+	if err != nil {
+		return SecretsResult{
+			Success: false,
+			Message: "Не удалось прочитать файл secrets.yml: " + err.Error(),
+		}
+	}
+
+	return SecretsResult{
+		Success: true,
+		Message: "Файл secrets.yml успешно загружен.",
+		Content: string(data),
 	}
 }

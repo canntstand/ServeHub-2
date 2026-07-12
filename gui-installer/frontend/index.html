@@ -11,23 +11,42 @@
         <span class="window-title">ServeHub-2 Installer</span>
         
         <div class="window-controls">
-            <button onclick="minimizeWindow()" class="btn-control btn-minimize" title="Свернуть">
+            <button type="button" onclick="minimizeWindow()" class="btn-control btn-minimize" title="Свернуть" aria-label="Свернуть окно">
                 <svg width="10" height="1" viewBox="0 0 10 1">
                     <line x1="0" y1="0.5" x2="10" y2="0.5" stroke="currentColor" stroke-width="1"/>
                 </svg>
             </button>
-            <button onclick="maximizeWindow()" class="btn-control btn-maximize" title="Развернуть/Восстановить">
+            <button type="button" onclick="maximizeWindow()" class="btn-control btn-maximize" title="Развернуть/Восстановить" aria-label="Развернуть или восстановить окно">
                 <svg width="10" height="10" viewBox="0 0 10 10">
                     <rect x="1" y="1" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1.2"/>
                 </svg>
             </button>
-            <button onclick="closeWindow()" class="btn-control btn-close" title="Закрыть">
+            <button type="button" onclick="closeWindow()" class="btn-control btn-close" title="Закрыть" aria-label="Закрыть окно">
                 <svg width="10" height="10" viewBox="0 0 10 10">
                     <path d="M0,0 L10,10 M10,0 L0,10" stroke="currentColor" stroke-width="1.2"/>
                 </svg>
             </button>
         </div>
     </div>
+
+    <div class="step-progress" id="step-progress">
+        <div class="step-progress-track">
+            <div class="step-progress-fill" id="step-progress-fill"></div>
+            <div class="step-progress-dots">
+                <span class="step-dot" data-step="1"></span>
+                <span class="step-dot" data-step="2"></span>
+                <span class="step-dot" data-step="3"></span>
+                <span class="step-dot" data-step="4"></span>
+                <span class="step-dot" data-step="5"></span>
+                <span class="step-dot" data-step="6"></span>
+                <span class="step-dot" data-step="7"></span>
+            </div>
+        </div>
+        <div class="step-progress-label">
+            Шаг <span id="step-progress-current">1</span> из 7 — <span id="step-progress-title">Добро пожаловать</span>
+        </div>
+    </div>
+
     <div id="app">
         <div id="step-1" class="step active">
             <div class="welcome-container">
@@ -36,11 +55,11 @@
                 <h1 class="title">Мастер установки</h1>
                 <p class="subtitle">Добро пожаловать! Эта программа поможет вам установить и настроить проект ServeHub-2 на вашем компьютере.</p>
                 
-                <button class="btn-primary" onclick="goToStep(2)">Продолжить</button>
+                <button type="button" class="btn-primary" onclick="goToStep(2)">Продолжить</button>
                 <div style="margin-top: auto; padding-top: 30px;">
                     <a href="https://github.com/canntstand/ServeHub-2" target="_blank" 
-                    style="color: var(--accent-bright); text-decoration: none; font-family: 'Cascadia', monospace; font-size: 13px; opacity: 0.65; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px;" 
-                    onmouseover="this.style.opacity='1'; this.style.transform='clientY(-1px)'" 
+                    class="github-link"
+                    onmouseover="this.style.opacity='1'; this.style.transform='translateY(-1px)'" 
                     onmouseout="this.style.opacity='0.65'; this.style.transform='none'">
                         
                         <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" style="display: block;">
@@ -63,10 +82,10 @@
                     <div id="status-text">Проверяем Docker и Docker Compose...</div>
                 </div>
 
-                <div class="button-group" style="margin-top: 20px; display: flex; gap: 15px;">
-                    <button class="btn-secondary" onclick="goToStep(1)">Назад</button>
-                    <button id="btn-retry" class="btn-secondary" onclick="runDockerCheck()" style="display: none;">Повторить</button>
-                    <button id="btn-step2-next" class="btn-primary" onclick="goToStep(3)" disabled>Продолжить</button>
+                <div class="button-group">
+                    <button type="button" class="btn-secondary" onclick="goToStep(1)">Назад</button>
+                    <button type="button" id="btn-retry" class="btn-secondary" onclick="runDockerCheck()" style="display: none;">Повторить</button>
+                    <button type="button" id="btn-step2-next" class="btn-primary" onclick="goToStep(3)" disabled>Продолжить</button>
                 </div>
             </div>
         </div>
@@ -81,8 +100,10 @@
                     <div id="install-text">Подготовка к скачиванию...</div>
                 </div>
 
-                <div class="button-group" style="margin-top: 20px; display: flex; gap: 15px;">
-                    <button id="btn-finish" class="btn-primary" onclick="goToStep(4)" disabled>Продолжить</button>
+                <div class="button-group">
+                    <button type="button" id="btn-install-retry" class="btn-secondary" onclick="runInstallation()" style="display: none;">Повторить</button>
+                    <button type="button" id="btn-edit-secrets" class="btn-secondary" onclick="editExistingSecrets()" style="display: none;">Изменить конфигурацию</button>
+                    <button type="button" id="btn-finish" class="btn-primary" onclick="goToStep(4)" disabled>Продолжить</button>
                 </div>
             </div>
         </div>
@@ -212,9 +233,9 @@
                     </div>
                 </div>
 
-                <div class="button-group" style="margin-top: 20px; display: flex; gap: 15px;">
-                    <button class="btn-secondary" onclick="goToStep(3)">Назад</button>
-                    <button class="btn-primary" onclick="generateAndReviewYaml()">Продолжить</button>
+                <div class="button-group">
+                    <button type="button" class="btn-secondary" onclick="goToStep(3)">Назад</button>
+                    <button type="button" class="btn-primary" onclick="generateAndReviewYaml()">Продолжить</button>
                 </div>
             </div>
         </div>
@@ -223,17 +244,24 @@
             <div class="welcome-container" style="width: 100%;">
                 <div class="brand-title" style="font-size: 32px; margin-bottom: 10px;">Проверка</div>
                 <h1 class="title" style="margin-bottom: 5px;">Проверьте ваш файл secrets.yml (обязательно сделайте себе копию)</h1>
-                <p style="font-size: 13px; color: #aaaaaa; margin-bottom: 15px; max-width: 550px;">
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px; max-width: 550px;">
                     Ниже представлен итоговый файл. Вы можете пролистать и проверить его.
                 </p>
                 
                 <div class="preview-container">
+                    <button type="button" id="btn-copy-yaml" class="btn-copy" onclick="copyYamlToClipboard()" title="Скопировать в буфер обмена">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        <span id="copy-btn-text">Копировать</span>
+                    </button>
                     <pre id="yaml-preview"></pre>
                 </div>
 
-                <div class="button-group" style="margin-top: 25px; display: flex; gap: 15px;">
-                    <button class="btn-secondary" onclick="goToStep(4)">Переделать</button>
-                    <button class="btn-primary" onclick="saveYamlAndFinish()">Записать и продолжить</button>
+                <div class="button-group" style="margin-top: 25px;">
+                    <button type="button" class="btn-secondary" onclick="goToStep(4)">Переделать</button>
+                    <button type="button" class="btn-primary" onclick="saveYamlAndFinish()">Записать и продолжить</button>
                 </div>
             </div>
         </div>
@@ -242,7 +270,7 @@
             <div class="welcome-container" style="width: 100%;">
                 <div class="brand-title" style="font-size: 32px; margin-bottom: 10px;">Деплой</div>
                 <h1 class="title" style="margin-bottom: 5px;">Выберите сценарий развертывания</h1>
-                <p style="font-size: 13px; color: #aaaaaa; margin-bottom: 20px;">
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
                     Выберите конфигурацию деплоя Ansible в соответствии с вашей инфраструктурой.
                 </p>
 
@@ -251,11 +279,11 @@
                     <div class="options-group-block">
                         <div class="options-group-title">🌐 Для обоих серверов (Локальный + VPS)</div>
                         <div class="options-grid">
-                            <div class="deploy-option-card" id="opt-1" onclick="selectDeployOption(1)">
+                            <div class="deploy-option-card" id="opt-1" role="button" tabindex="0" onclick="selectDeployOption(1)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDeployOption(1);}">
                                 <div class="option-title">Пункт 1. Полный деплой</div>
                                 <div class="option-desc">Первичная подготовка системы (bootstrap) и полная настройка обоих серверов.</div>
                             </div>
-                            <div class="deploy-option-card" id="opt-2" onclick="selectDeployOption(2)">
+                            <div class="deploy-option-card" id="opt-2" role="button" tabindex="0" onclick="selectDeployOption(2)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDeployOption(2);}">
                                 <div class="option-title">Пункт 2. Запуск сервисов</div>
                                 <div class="option-desc">Развертывание без bootstrap. Настройка конфигураций и запуск сервисов на обоих серверах.</div>
                             </div>
@@ -265,11 +293,11 @@
                     <div class="options-group-block">
                         <div class="options-group-title">🏠 Только для локального сервера</div>
                         <div class="options-grid">
-                            <div class="deploy-option-card" id="opt-3" onclick="selectDeployOption(3)">
+                            <div class="deploy-option-card" id="opt-3" role="button" tabindex="0" onclick="selectDeployOption(3)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDeployOption(3);}">
                                 <div class="option-title">Пункт 3. Полный деплой</div>
                                 <div class="option-desc">Первичная подготовка системы (bootstrap) и полная настройка локального сервера.</div>
                             </div>
-                            <div class="deploy-option-card" id="opt-4" onclick="selectDeployOption(4)">
+                            <div class="deploy-option-card" id="opt-4" role="button" tabindex="0" onclick="selectDeployOption(4)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDeployOption(4);}">
                                 <div class="option-title">Пункт 4. Запуск сервисов</div>
                                 <div class="option-desc">Развертывание без bootstrap. Настройка конфигураций и запуск сервисов на локальном сервере.</div>
                             </div>
@@ -279,11 +307,11 @@
                     <div class="options-group-block">
                         <div class="options-group-title">☁️ Только для внешнего VPS</div>
                         <div class="options-grid">
-                            <div class="deploy-option-card" id="opt-5" onclick="selectDeployOption(5)">
+                            <div class="deploy-option-card" id="opt-5" role="button" tabindex="0" onclick="selectDeployOption(5)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDeployOption(5);}">
                                 <div class="option-title">Пункт 5. Полный деплой</div>
                                 <div class="option-desc">Первичная подготовка системы (bootstrap) и полная настройка удаленного сервера.</div>
                             </div>
-                            <div class="deploy-option-card" id="opt-6" onclick="selectDeployOption(6)">
+                            <div class="deploy-option-card" id="opt-6" role="button" tabindex="0" onclick="selectDeployOption(6)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDeployOption(6);}">
                                 <div class="option-title">Пункт 6. Запуск сервисов</div>
                                 <div class="option-desc">Развертывание без bootstrap. Настройка конфигураций и запуск сервисов на удаленном сервере.</div>
                             </div>
@@ -300,9 +328,9 @@
                     </label>
                 </div>
 
-                <div class="button-group" style="margin-top: 20px; display: flex; gap: 15px;">
-                    <button class="btn-secondary" onclick="goToStep(5)">Назад</button>
-                    <button id="btn-deploy-next" class="btn-primary" onclick="confirmDeployment()" disabled>Продолжить</button>
+                <div class="button-group">
+                    <button type="button" id="btn-step6-back" class="btn-secondary" onclick="goToStep(5)">Назад</button>
+                    <button type="button" id="btn-deploy-next" class="btn-primary" onclick="confirmDeployment()" disabled>Продолжить</button>
                 </div>
             </div>
         </div>
@@ -313,22 +341,117 @@
                 <h1 class="title" style="margin-bottom: 15px;">Подтверждение деплоя</h1>
                 
                 <div class="status-box" style="text-align: left; width: 100%; background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; box-sizing: border-box; margin-bottom: 15px;">
-                    <div style="font-size: 12px; color: #aaaaaa; margin-bottom: 4px;">Выбранный режим развертывания:</div>
-                    <div id="confirm-option-text" style="color: #ffffff; font-size: 14px; font-weight: bold; margin-bottom: 10px; line-height: 1.4;">-</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Выбранный режим развертывания:</div>
+                    <div id="confirm-option-text" style="color: var(--text-primary); font-size: 14px; font-weight: bold; margin-bottom: 10px; line-height: 1.4;">-</div>
                     
-                    <div style="font-size: 12px; color: #aaaaaa; margin-bottom: 4px;">Подробный режим логов (-vvv):</div>
-                    <div id="confirm-verbose-text" style="color: #818cf8; font-size: 14px; font-weight: bold;">Нет</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Подробный режим логов (-vvv):</div>
+                    <div id="confirm-verbose-text" style="color: var(--accent-bright); font-size: 14px; font-weight: bold;">Нет</div>
                 </div>
 
                 <div id="deploy-logs-container" class="preview-container" style="display: none; width: 100%; margin-bottom: 20px;">
                     <pre id="deploy-logs"></pre>
                 </div>
 
-                <div class="button-group" style="display: flex; gap: 15px;">
-                    <button id="btn-deploy-back" class="btn-secondary" onclick="goToStep(6)">Назад</button>
-                    <button id="btn-deploy-run" class="btn-primary" onclick="startDeployment()">Запустить деплой</button>
+                <div id="post-deploy-guide" class="post-deploy-guide" style="display: none;">
+                    <div class="guide-header">
+                        <div class="guide-title">🎉 Деплой завершён — что дальше</div>
+                        <p class="guide-subtitle">Несколько финальных шагов настройки и шпаргалка по сервисам. Разверните нужный раздел.</p>
+                    </div>
+
+                    <div class="guide-scroll">
+                        <details class="guide-section">
+                            <summary>📦 Настройка удобного просмотра бэкапов</summary>
+                            <div class="guide-content">
+                                <ol>
+                                    <li>Убедитесь, что диск для бэкапов подключён к серверу.</li>
+                                    <li>Укажите UUID диска в <code>secrets.yml</code> (можно посмотреть с помощью <code>sudo blkid</code>).</li>
+                                    <li>После разворачивания локальной архитектуры зайдите в Borg UI (имя пользователя всегда <code>admin</code>) и выполните следующие шаги:
+                                        <ol>
+                                            <li>Выберите импорт репозитория (укажите имя <code>/mnt/backup_storage/server_backup.borg</code>).</li>
+                                            <li>Выберите <strong>Observability Only</strong> и <strong>Read-only storage access</strong> (бэкапами занимается borgmatic, Borg UI — только для просмотра).</li>
+                                            <li>Укажите passphrase, которая была задана в <code>secrets.yml</code>.</li>
+                                            <li>Выберите тип сжатия <code>lz4</code>.</li>
+                                            <li>Импортируйте репозиторий.</li>
+                                        </ol>
+                                    </li>
+                                </ol>
+                                <div class="guide-warning">
+                                    ⚠ <span><strong>Напоминалка:</strong> бэкапы через Borg UI настраивать ни в коем случае нельзя!</span>
+                                </div>
+                                <ol start="4">
+                                    <li>Для включения метрик перейдите в <strong>Settings → System → Metrics Access</strong> и выключите параметр «Enable /metrics endpoint».</li>
+                                </ol>
+                            </div>
+                        </details>
+
+                        <details class="guide-section">
+                            <summary>🐳 Настройка Portainer</summary>
+                            <div class="guide-content">
+                                <p><strong>Добавление контейнеров удалённого сервера к Portainer:</strong></p>
+                                <ol>
+                                    <li>Выберите пункт <strong>Environments</strong>.</li>
+                                    <li>Нажмите <strong>Add environment</strong> (Docker Standalone).</li>
+                                    <li>Выберите вариант подключения: <strong>Agent</strong>.</li>
+                                    <li>В поле <strong>Environment URL</strong> укажите: <code>10.8.0.1:9001</code>.</li>
+                                </ol>
+                            </div>
+                        </details>
+
+                        <details class="guide-section">
+                            <summary>🔌 Автономность локального сервера</summary>
+                            <div class="guide-content">
+                                <ol>
+                                    <li>Чтобы сервер включался обратно после отключения электричества, в BIOS нужно найти следующие настройки (названия могут отличаться в зависимости от производителя):
+                                        <ol>
+                                            <li><strong>State After G3:</strong> выбрать <code>S0 State</code>.</li>
+                                            <li><strong>Wake system from S5:</strong> <code>Disabled</code>.</li>
+                                        </ol>
+                                    </li>
+                                </ol>
+                            </div>
+                        </details>
+
+                        <details class="guide-section">
+                            <summary>🚀 Пользование сервисами</summary>
+                            <div class="guide-content">
+                                <ol>
+                                    <li><strong>Вход на портал:</strong> после успешного запуска перейдите по вашему домену на главную страницу (веб-портал), предварительно включив VPN-клиент AmneziaWG на вашем устройстве.</li>
+                                    <li><strong>Первичная настройка приложений:</strong> для сервисов Navidrome, Audiobookshelf, Vaultwarden, Portainer, Gitea при первом открытии необходимо пройти быструю процедуру создания аккаунта администратора. Для доступа к системной панели администрирования Vaultwarden используется токен, заданный в переменной <code>secret_vaultwarden_password</code>.</li>
+                                    <li><strong>Автоматическое развёртывание:</strong> сервисы Nextcloud, Grafana и другие настраиваются автоматически. Данные для первого входа в них соответствуют глобальным переменным <code>admin_user</code> и <code>admin_password</code> из вашего <code>secrets.yml</code>.</li>
+                                    <li><strong>Рекомендованные приложения для повседневного использования:</strong>
+                                        <ul>
+                                            <li>Облачное хранилище — <em>Nextcloud</em></li>
+                                            <li>Менеджер паролей — <em>Bitwarden</em></li>
+                                            <li>Управление DNS-сервером — <em>AdGuard Home Manager</em></li>
+                                            <li>Музыкальная коллекция — <em>Tempo</em></li>
+                                            <li>Аудиокниги и подкасты — <em>Audiobookshelf</em></li>
+                                            <li>VPN-клиент — <em>AmneziaWG / WG Tunnel</em></li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Прямое подключение по SSH внутри защищённого VPN-туннеля:</strong>
+                                        <ul>
+                                            <li>К удалённому серверу (VPS): <code>ssh user@10.8.0.1</code></li>
+                                            <li>К локальному серверу: <code>ssh user@10.8.0.2</code></li>
+                                        </ul>
+                                        <p class="guide-hint">Эти приватные IP-адреса будут доступны только тогда, когда на вашем рабочем устройстве запущен и активен VPN-клиент AmneziaWG.</p>
+                                    </li>
+                                    <li><strong>Использование папок</strong> (при переносе проекта главное — скопировать эти папки):
+                                        <ul>
+                                            <li>В папке <code>~/ServeHub-2/apps-data</code> (есть как на локальном, так и на удалённом серверах) хранятся данные приложений. При переносе проекта её важно сохранить.</li>
+                                            <li>В папке <code>~/PersonalData</code> хранятся все пользовательские данные: документы, фото, видео, музыка и т.д.</li>
+                                        </ul>
+                                    </li>
+                                </ol>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button type="button" id="btn-deploy-back" class="btn-secondary" onclick="goToStep(6)">Назад</button>
+                    <button type="button" id="btn-deploy-run" class="btn-primary" onclick="startDeployment()">Запустить деплой</button>
                     <div id="btn-deploy-enter" style="display: none; white-space: nowrap;">
-                        <button class="btn-primary" onclick="sendEnterToAnsible()" style="background-color: #818cf8; margin-right: 8px;">
+                        <button type="button" class="btn-primary btn-accent" onclick="sendEnterToAnsible()" style="margin-right: 8px;">
                             Нажмите ENTER для продолжения
                         </button>
                         <div class="tooltip-wrapper">
@@ -340,7 +463,7 @@
                             </div>
                         </div>
                     </div>
-                    <button id="btn-deploy-exit" class="btn-secondary" onclick="closeWindow()" style="display: none;">Выйти из программы</button>
+                    <button type="button" id="btn-deploy-exit" class="btn-secondary" onclick="closeWindow()" style="display: none;">Выйти из программы</button>
                 </div>
             </div>
         </div>

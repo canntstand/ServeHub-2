@@ -1,8 +1,39 @@
 import './style.css';
-import { CheckDocker, InstallProject, SaveSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, SendEnter } from '../wailsjs/go/main/App.js';
+import { CheckDocker, InstallProject, SaveSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
 import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
 let generatedYamlString = "";
+
+const STEP_TITLES = {
+    1: 'Добро пожаловать',
+    2: 'Проверка требований',
+    3: 'Установка компонентов',
+    4: 'Настройка secrets.yml',
+    5: 'Проверка конфигурации',
+    6: 'Выбор сценария деплоя',
+    7: 'Запуск деплоя',
+};
+
+function updateStepProgress(stepNumber) {
+    const totalSteps = 7;
+    const fill = document.getElementById('step-progress-fill');
+    const currentEl = document.getElementById('step-progress-current');
+    const titleEl = document.getElementById('step-progress-title');
+
+    if (fill) {
+        const pct = ((stepNumber - 1) / (totalSteps - 1)) * 100;
+        fill.style.width = `${pct}%`;
+    }
+    if (currentEl) currentEl.innerText = stepNumber;
+    if (titleEl) titleEl.innerText = STEP_TITLES[stepNumber] || '';
+
+    document.querySelectorAll('.step-dot').forEach((dot) => {
+        const dotStep = parseInt(dot.getAttribute('data-step'), 10);
+        dot.classList.remove('completed', 'active');
+        if (dotStep < stepNumber) dot.classList.add('completed');
+        if (dotStep === stepNumber) dot.classList.add('active');
+    });
+}
 
 window.goToStep = function(stepNumber) {
     document.querySelectorAll('.step').forEach(step => {
@@ -13,6 +44,8 @@ window.goToStep = function(stepNumber) {
     if (nextStep) {
         nextStep.classList.add('active');
     }
+
+    updateStepProgress(stepNumber);
 
     if (stepNumber === 2) {
         runDockerCheck();
@@ -64,13 +97,17 @@ window.runInstallation = async function() {
     const installText = document.getElementById('install-text');
     const spinner = document.getElementById('install-loading');
     const btnFinish = document.getElementById('btn-finish');
-
-    const btnStep6Back = document.querySelector('#step-6 .btn-secondary');
+    const btnRetry = document.getElementById('btn-install-retry');
+    const btnEditSecrets = document.getElementById('btn-edit-secrets');
+    const btnStep6Back = document.getElementById('btn-step6-back');
 
     spinner.style.display = 'block';
     installText.innerText = 'Загрузка архива проекта ServeHub-2 с GitHub в память...';
-    installText.style.color = '#9a9aa0';
+    installText.style.color = 'var(--text-secondary)';
     btnFinish.disabled = true;
+    btnFinish.style.display = 'inline-block';
+    btnRetry.style.display = 'none';
+    btnEditSecrets.style.display = 'none';
 
     try {
         const result = await InstallProject();
@@ -81,12 +118,14 @@ window.runInstallation = async function() {
             spinner.style.display = 'none';
 
             if (secretsCheck.success) {
-                installText.innerHTML = `✓ ${result.message}<br><br><span style="color: #a5b4fc; font-weight: bold;">ℹ Конфигурация найдена:</span> Файл <code style="background: #1e1e22; padding: 2px 6px; border-radius: 4px;">secrets.yml</code> уже существует в проекте. Шаги создания и настройки будут пропущены.`;
-                installText.style.color = '#818cf8';
+                installText.innerHTML = `✓ ${result.message}<br><br><span style="color: var(--accent-soft); font-weight: bold;">ℹ Конфигурация найдена:</span> Файл <code style="background: var(--bg-3); padding: 2px 6px; border-radius: 4px;">secrets.yml</code> уже существует в проекте. Шаги создания и настройки будут пропущены.`;
+                installText.style.color = 'var(--accent-bright)';
                 
                 btnFinish.disabled = false;
                 btnFinish.innerText = 'Перейти к выбору развертки';
                 btnFinish.setAttribute('onclick', 'goToStep(6)');
+
+                btnEditSecrets.style.display = 'inline-block';
 
                 if (btnStep6Back) {
                     btnStep6Back.setAttribute('onclick', 'goToStep(3)');
@@ -94,7 +133,7 @@ window.runInstallation = async function() {
 
             } else {
                 installText.innerText = `✓ ${result.message}`;
-                installText.style.color = '#818cf8';
+                installText.style.color = 'var(--accent-bright)';
                 
                 btnFinish.disabled = false;
                 btnFinish.innerText = 'Продолжить к настройке';
@@ -107,12 +146,95 @@ window.runInstallation = async function() {
         } else {
             spinner.style.display = 'none';
             installText.innerText = `✗ Ошибка установки: ${result.message}`;
-            installText.style.color = '#e5484d';
+            installText.style.color = 'var(--danger)';
+            btnFinish.style.display = 'none';
+            btnRetry.style.display = 'inline-block';
         }
     } catch (err) {
         spinner.style.display = 'none';
         installText.innerText = 'Критическая ошибка в процессе установки:\n' + err;
-        installText.style.color = '#e5484d';
+        installText.style.color = 'var(--danger)';
+        btnFinish.style.display = 'none';
+        btnRetry.style.display = 'inline-block';
+    }
+}
+
+const SECRETS_FIELD_MAP = {
+    vps_public_ip: 'sec_vps_ip',
+    vps_user: 'sec_vps_user',
+    vps_root_password: 'sec_vps_root_pass',
+    local_private_ip: 'sec_local_ip',
+    local_user: 'sec_local_user',
+    local_root_password: 'sec_local_root_pass',
+    server_name: 'sec_server_name',
+    admin_user: 'sec_admin_user',
+    admin_password: 'sec_admin_pass',
+    email: 'sec_email',
+    telegram_token: 'sec_tg_token',
+    telegram_chat_id: 'sec_tg_chat_id',
+    webnames_apikey: 'sec_webnames',
+    postgres_db_nextcloud: 'sec_pg_nc',
+    postgres_db_vaultwarden: 'sec_pg_vw',
+    postgres_user: 'sec_pg_user',
+    postgres_password: 'sec_pg_pass',
+    nextcloud_redis_pass: 'sec_redis_pass',
+    secret_vaultwarden_password: 'sec_vw_admin_pass',
+    ssh_public_key: 'sec_public_ssh_key',
+    ssh_private_key: 'sec_private_ssh_key',
+    borgmatic_encryption_passphrase: 'sec_borg_pass',
+    backup_disk_uuid: 'sec_disk_uuid',
+};
+
+function populateSecretsForm(yamlText) {
+    const lines = yamlText.split('\n');
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+
+        const literalMatch = line.match(/^([a-z_]+):\s*\|\s*$/);
+        if (literalMatch) {
+            const fieldId = SECRETS_FIELD_MAP[literalMatch[1]];
+            i++;
+            const blockLines = [];
+            while (i < lines.length && (lines[i].startsWith('    ') || lines[i].trim() === '')) {
+                blockLines.push(lines[i].replace(/^ {4}/, ''));
+                i++;
+            }
+            while (blockLines.length && blockLines[blockLines.length - 1] === '') {
+                blockLines.pop();
+            }
+            if (fieldId) {
+                const el = document.getElementById(fieldId);
+                if (el) el.value = blockLines.join('\n');
+            }
+            continue;
+        }
+
+        const simpleMatch = line.match(/^([a-z_]+):\s*"(.*)"\s*$/);
+        if (simpleMatch) {
+            const fieldId = SECRETS_FIELD_MAP[simpleMatch[1]];
+            if (fieldId) {
+                const el = document.getElementById(fieldId);
+                if (el) el.value = simpleMatch[2];
+            }
+        }
+
+        i++;
+    }
+}
+
+window.editExistingSecrets = async function() {
+    try {
+        const result = await LoadSecrets();
+        if (result.success) {
+            populateSecretsForm(result.content);
+            goToStep(4);
+        } else {
+            alert(`Не удалось загрузить текущую конфигурацию: ${result.message}`);
+        }
+    } catch (err) {
+        alert(`Критическая ошибка бэкенда при загрузке конфигурации: ${err}`);
     }
 }
 
@@ -204,8 +326,33 @@ backup_disk_uuid: "${diskUuid}"
 `;
 
     document.getElementById('yaml-preview').innerText = generatedYamlString;
+
+    const btnStep6Back = document.getElementById('btn-step6-back');
+    if (btnStep6Back) {
+        btnStep6Back.setAttribute('onclick', 'goToStep(5)');
+    }
     
     goToStep(5);
+}
+
+window.copyYamlToClipboard = async function() {
+    const btn = document.getElementById('btn-copy-yaml');
+    const btnText = document.getElementById('copy-btn-text');
+    if (!generatedYamlString) return;
+
+    try {
+        await navigator.clipboard.writeText(generatedYamlString);
+        btn.classList.add('copied');
+        btnText.innerText = 'Скопировано ✓';
+    } catch (err) {
+        btnText.innerText = 'Ошибка копирования';
+        console.error('Не удалось скопировать secrets.yml в буфер обмена:', err);
+    } finally {
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            btnText.innerText = 'Копировать';
+        }, 2000);
+    }
 }
 
 window.saveYamlAndFinish = async function() {
@@ -299,6 +446,9 @@ window.startDeployment = async function() {
     if (btnExit) btnExit.style.display = 'none';
     if (btnEnter) btnEnter.style.display = 'block';
 
+    const postDeployGuide = document.getElementById('post-deploy-guide');
+    if (postDeployGuide) postDeployGuide.style.display = 'none';
+
     function addLog(message) {
         const logPre = document.getElementById('deploy-logs');
         const isAtBottom = (logPre.scrollHeight - logPre.clientHeight) <= (logPre.scrollTop + 5);
@@ -329,6 +479,9 @@ window.startDeployment = async function() {
                 btnExit.style.display = 'block';
                 btnExit.className = 'btn-primary';
             }
+
+            const guide = document.getElementById('post-deploy-guide');
+            if (guide) guide.style.display = 'block';
         } else {
             logPre.innerText += `\n[ ОШИБКА ]: Деплой завершился неудачей.\nПричина: ${result.message}\n`;
             logPre.style.borderColor = '#e5484d';
@@ -358,3 +511,5 @@ window.minimizeWindow = function() {
 window.maximizeWindow = function() {
     MaximizeApp();
 }
+
+updateStepProgress(1);
