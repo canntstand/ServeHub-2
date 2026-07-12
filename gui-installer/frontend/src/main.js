@@ -1,5 +1,5 @@
 import './style.css';
-import { CheckDocker, InstallProject, SaveSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets } from '../wailsjs/go/main/App.js';
+import { CheckDocker, InstallProject, SaveSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, SendEnter } from '../wailsjs/go/main/App.js';
 import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
 let generatedYamlString = "";
@@ -221,20 +221,6 @@ window.saveYamlAndFinish = async function() {
     }
 }
 
-window.togglePassword = function(inputId, btnElement) {
-    const passwordInput = document.getElementById(inputId);
-    
-    if (passwordInput.type === "password") {
-        passwordInput.type = "text";
-        btnElement.textContent = "👁️";
-        btnElement.title = "Скрыть пароль";
-    } else {
-        passwordInput.type = "password";
-        btnElement.textContent = "👁️";
-        btnElement.title = "Показать пароль";
-    }
-}
-
 window.closeInstaller = function() {
     CloseApp();
 }
@@ -256,6 +242,17 @@ window.selectDeployOption = function(num) {
     const btnNext = document.getElementById('btn-deploy-next');
     if (btnNext) {
         btnNext.disabled = false;
+    }
+}
+
+window.sendEnterToAnsible = async function() {
+    try {
+        const result = await SendEnter();
+        if (!result.success) {
+            console.warn(result.message);
+        }
+    } catch (err) {
+        console.error("Ошибка при отправке Enter:", err);
     }
 }
 
@@ -291,6 +288,7 @@ window.startDeployment = async function() {
     const btnRun = document.getElementById('btn-deploy-run');
     const btnBack = document.getElementById('btn-deploy-back');
     const btnExit = document.getElementById('btn-deploy-exit');
+    const btnEnter = document.getElementById('btn-deploy-enter');
     const isVerbose = document.getElementById('verbose-logs-toggle').checked;
 
     logContainer.style.display = 'block';
@@ -299,14 +297,12 @@ window.startDeployment = async function() {
     btnRun.disabled = true;
     btnBack.disabled = true;
     if (btnExit) btnExit.style.display = 'none';
+    if (btnEnter) btnEnter.style.display = 'block';
 
     function addLog(message) {
         const logPre = document.getElementById('deploy-logs');
-        
         const isAtBottom = (logPre.scrollHeight - logPre.clientHeight) <= (logPre.scrollTop + 5);
-        
         logPre.innerText += message;
-        
         if (isAtBottom) {
             logPre.scrollTop = logPre.scrollHeight;
         }
@@ -322,10 +318,11 @@ window.startDeployment = async function() {
     try {
         const result = await RunDeployment(selectedOptionNum, isVerbose);
         
+        if (btnEnter) btnEnter.style.display = 'none';
+
         if (result.success) {
             logPre.innerText += `\n[ УСПЕХ ]: ${result.message}\n`;
             logPre.style.borderColor = '#818cf8';
-            
             btnRun.style.display = 'none';
             btnBack.style.display = 'none';
             if (btnExit) {
@@ -335,15 +332,15 @@ window.startDeployment = async function() {
         } else {
             logPre.innerText += `\n[ ОШИБКА ]: Деплой завершился неудачей.\nПричина: ${result.message}\n`;
             logPre.style.borderColor = '#e5484d';
-            
             btnRun.disabled = false;
             btnBack.disabled = false;
             if (btnExit) btnExit.style.display = 'block';
         }
     } catch (err) {
+        if (btnEnter) btnEnter.style.display = 'none';
         logPre.innerText += `\n[ КРИТИЧЕСКАЯ ОШИБКА СИСТЕМЫ ]: Ошибка вызова бэкенда:\n${err}\n`;
         logPre.style.borderColor = '#e5484d';
-        
+
         btnRun.disabled = false;
         btnBack.disabled = false;
         if (btnExit) btnExit.style.display = 'block';

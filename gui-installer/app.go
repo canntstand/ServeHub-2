@@ -16,6 +16,21 @@ import (
 
 type App struct {
 	ctx context.Context
+	cmdStdin  io.WriteCloser
+	activeCmd *exec.Cmd
+}
+
+func (a *App) SendEnter() CheckResult {
+	if a.cmdStdin == nil {
+		return CheckResult{Success: false, Message: "Процесс деплоя не запущен или не ожидает ввода"}
+	}
+	
+	_, err := a.cmdStdin.Write([]byte("\n"))
+	if err != nil {
+		return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось отправить Enter: %s", err.Error())}
+	}
+	
+	return CheckResult{Success: true, Message: "Сигнал Enter успешно отправлен"}
 }
 
 func NewApp() *App {
@@ -197,27 +212,35 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 		return CheckResult{Success: false, Message: "Неизвестный сценарий развертывания!"}
 	}
 
-	for i, ansibleCmd := range steps {
-		statusMsg := fmt.Sprintf("\n[ СИСТЕМА ]: Запуск шага %d из %d...\nКоманда: %s\n--------------------------------------------------\n", i+1, len(steps), ansibleCmd)
-		wailsRuntime.EventsEmit(a.ctx, "deploy-log", statusMsg)
+	for _, ansibleCmd := range steps {
+		wailsRuntime.EventsEmit(a.ctx, "deploy-log")
 
 		cmdArgs := []string{
 			"compose",
 			"-f", "./ServeHub-2-main/docker-compose.ansible.yaml",
-			"run", "-T", "--rm", "ansible",
+			"run", "--rm", "ansible", 
 			"sh", "-c", ansibleCmd,
 		}
 
 		cmd := exec.CommandContext(a.ctx, "docker", cmdArgs...)
 
+		stdinPipe, err := cmd.StdinPipe()
+		if err != nil {
+			return CheckResult{Success: false, Message: fmt.Sprintf("Ошибка инициализации потока ввода: %s", err.Error())}
+		}
+		a.cmdStdin = stdinPipe
+		a.activeCmd = cmd
+
 		stdoutPipe, err := cmd.StdoutPipe()
 		if err != nil {
-			return CheckResult{Success: false, Message: fmt.Sprintf("Ошибка инициализации потока вывода на шаге %d: %s", i+1, err.Error())}
+			a.cmdStdin.Close()
+			return CheckResult{Success: false, Message: fmt.Sprintf("Ошибка инициализации потока вывода: %s", err.Error())}
 		}
 		cmd.Stderr = cmd.Stdout
 
 		if err := cmd.Start(); err != nil {
-			return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось запустить Docker на шаге %d: %s", i+1, err.Error())}
+			a.cmdStdin.Close()
+			return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось запустить Docker: %s", err.Error())}
 		}
 
 		scanner := bufio.NewScanner(stdoutPipe)
@@ -226,11 +249,16 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 		}
 
 		if err := cmd.Wait(); err != nil {
+			a.cmdStdin.Close()
+			a.cmdStdin = nil
 			return CheckResult{
 				Success: false,
 				Message: fmt.Sprintf("Ansible завершился с ошибкой: %s", err.Error()),
 			}
 		}
+		
+		a.cmdStdin.Close()
+		a.cmdStdin = nil
 	}
 
 	return CheckResult{

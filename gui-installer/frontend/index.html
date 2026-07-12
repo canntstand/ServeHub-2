@@ -92,8 +92,7 @@
                     <div class="form-group">
                         <label>Пароль root VPS:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_vps_root_pass" value="your_vps_root_password">
-                            <button type="button" class="password-toggle" onclick="togglePassword('sec_vps_root_pass', this)">👁️</button>
+                            <input type="text" id="sec_vps_root_pass" value="your_vps_root_password">
                         </div>
                     </div>
                     <div class="form-group">
@@ -107,8 +106,7 @@
                     <div class="form-group">
                         <label>Пароль root домашнего сервера:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_local_root_pass" value="your_local_root_password">
-                            <button type="button" class="password-toggle" onclick="togglePassword('sec_local_root_pass', this)">👁️</button>
+                            <input type="text" id="sec_local_root_pass" value="your_local_root_password">
                         </div>
                     </div>
 
@@ -124,8 +122,7 @@
                     <div class="form-group">
                         <label>Глобальный пароль администратора:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_admin_pass" value="change_this_to_a_very_strong_password">
-                            <button type="button" class="password-toggle" onclick="togglePassword('sec_admin_pass', this)">👁️</button>
+                            <input type="text" id="sec_admin_pass" value="change_this_to_a_very_strong_password">
                         </div>
                     </div>
                     <div class="form-group">
@@ -165,15 +162,13 @@
                     <div class="form-group">
                         <label>Пароль суперпользователя Postgres:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_pg_pass" value="postgres_master_secure_password">
-                            <button type="button" class="password-toggle" onclick="togglePassword('sec_pg_pass', this)">👁️</button>
+                            <input type="text" id="sec_pg_pass" value="postgres_master_secure_password">
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Пароль Redis для Nextcloud:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_redis_pass" value="redis_secure_password">
-                            <button type="button" class="password-toggle" onclick="togglePassword('sec_redis_pass', this)">👁️</button>
+                            <input type="text" id="sec_redis_pass" value="redis_secure_password">
                         </div>
                     </div>
 
@@ -181,8 +176,7 @@
                     <div class="form-group">
                         <label>Пароль админ-панели Vaultwarden:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_vw_admin_pass" value="vaultwarden_admin_panel_secure_password">
-                            <button type="button" class="password-toggle" onclick="togglePassword('sec_vw_admin_pass', this)">👁️</button>
+                            <input type="text" id="sec_vw_admin_pass" value="vaultwarden_admin_panel_secure_password">
                         </div>
                     </div>
                     <div class="form-group">
@@ -196,8 +190,7 @@
                     <div class="form-group">
                         <label>Фраза шифрования borgmatic:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_borg_pass" value="borgmatic_encryption_passphrase">
-                            <button type="button" class="password-toggle" onclick="togglePassword('sec_borg_pass', this)">👁️</button>
+                            <input type="text" id="sec_borg_pass" value="borgmatic_encryption_passphrase">
                         </div>
                     </div>
                     <div class="form-group">
@@ -321,6 +314,7 @@
                 <div class="button-group" style="display: flex; gap: 15px;">
                     <button id="btn-deploy-back" class="btn-secondary" onclick="goToStep(6)">Назад</button>
                     <button id="btn-deploy-run" class="btn-primary" onclick="startDeployment()">Запустить деплой</button>
+                    <button id="btn-deploy-enter" class="btn-primary" onclick="sendEnterToAnsible()" style="display: none; background-color: #10b981;">Нажмите ENTER для продолжения</button>
                     <button id="btn-deploy-exit" class="btn-secondary" onclick="closeWindow()" style="display: none;">Выйти из программы</button>
                 </div>
             </div>

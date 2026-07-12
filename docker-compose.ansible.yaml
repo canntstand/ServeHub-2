@@ -10,8 +10,6 @@ services:
       - ssh-data:/root/.ssh:rw
     entrypoint: ["/bin/sh", "/ansible/scripts/ansible-entrypoint.sh"]
     working_dir: /ansible
-    stdin_open: true
-    tty: true
 
 volumes:
   ssh-data:
