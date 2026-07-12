@@ -14,6 +14,9 @@ if [ -f "$SECRETS_FILE" ]; then
     
     if grep -q "^ssh_private_key:[[:space:]]*|" "$SECRETS_FILE"; then
         awk '/^ssh_private_key:/ {p=1; next} /^[^[:space:]]/ {p=0} p {print substr($0, 5)}' "$SECRETS_FILE" > "$PRIVATE_KEY"
+
+        tr -d '\r' < "$PRIVATE_KEY" > "${PRIVATE_KEY}.tmp" && mv "${PRIVATE_KEY}.tmp" "$PRIVATE_KEY"
+
         chmod 600 "$PRIVATE_KEY"
         echo "==> Приватный SSH-ключ успешно импортирован (Многострочный блок YAML)"
         
@@ -51,5 +54,13 @@ fi
 
 echo "StrictHostKeyChecking no" > "$SSH_DIR/config"
 chmod 600 "$SSH_DIR/config"
+
+echo """
+[defaults]
+deprecation_warnings = False
+command_warnings = False
+action_warnings = False
+display_skipped_hosts = no
+interpreter_python = auto_silent""" >> /ansible/ansible.cfg
 
 exec "$@"

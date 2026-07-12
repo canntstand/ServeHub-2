@@ -38,7 +38,7 @@ DEBUG_ARGS=""
 
 run_ansible() {
     local args="$@"
-    docker compose -f docker-compose.ansible.yaml run --rm ansible sh -c "ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook ${args} ${DEBUG_ARGS}"
+    docker compose -f docker-compose.ansible.yaml run --rm ansible sh -c "ansible-playbook ${args} ${DEBUG_ARGS}"
 }
 
 check_secrets() {

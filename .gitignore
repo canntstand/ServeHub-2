@@ -4,6 +4,10 @@ ansible/vars/secrets.yml
 certbot
 .vagrant
 .vscode
-gui-installer/build
-gui-installer/node_modules
-gui-installer/frontend/dist
+gui-installer/frontend/node_modules/
+gui-installer/npm-debug.log*
+gui-installer/yarn-debug.log*
+gui-installer/yarn-error.log*
+gui-installer/frontend/dist/
+gui-installer/frontend/wailsjs/
+gui-installer/build/bin/

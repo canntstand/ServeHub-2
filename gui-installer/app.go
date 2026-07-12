@@ -1,21 +1,22 @@
 package main
 
 import (
-	"context"
-	"os/exec"
 	"archive/zip"
-	"bytes"
-	"io"
-	"fmt"
 	"bufio"
+	"bytes"
+	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
-	ctx context.Context
+	ctx       context.Context
 	cmdStdin  io.WriteCloser
 	activeCmd *exec.Cmd
 }
@@ -24,19 +25,18 @@ func (a *App) SendEnter() CheckResult {
 	if a.cmdStdin == nil {
 		return CheckResult{Success: false, Message: "Процесс деплоя не запущен или не ожидает ввода"}
 	}
-	
+
 	_, err := a.cmdStdin.Write([]byte("\n"))
 	if err != nil {
 		return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось отправить Enter: %s", err.Error())}
 	}
-	
+
 	return CheckResult{Success: true, Message: "Сигнал Enter успешно отправлен"}
 }
 
 func NewApp() *App {
 	return &App{}
 }
-
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
@@ -55,7 +55,7 @@ func (a *App) CheckDocker() CheckResult {
 	_, err := exec.Command("docker", "info").Output()
 	if err != nil {
 		return CheckResult{
-			Success: false, 
+			Success: false,
 			Message: "Docker не запущен или не установлен!",
 		}
 	}
@@ -63,24 +63,24 @@ func (a *App) CheckDocker() CheckResult {
 	_, err = exec.Command("docker", "compose", "version").Output()
 	if err != nil {
 		return CheckResult{
-			Success: false, 
+			Success: false,
 			Message: "Docker Compose не найден в системе!",
 		}
 	}
 
 	return CheckResult{
-		Success: true, 
+		Success: true,
 		Message: "Docker запущен и готов к работе.",
 	}
 }
 
 func (a *App) InstallProject() CheckResult {
 	if _, err := os.Stat("ServeHub-2-main"); err == nil {
-        return CheckResult{
-            Success: true,
-            Message: "Проект уже был развернут ранее (папка ServeHub-2-main существует).",
-        }
-    }
+		return CheckResult{
+			Success: true,
+			Message: "Проект уже был развернут ранее (папка ServeHub-2-main существует).",
+		}
+	}
 
 	url := "https://github.com/canntstand/ServeHub-2/archive/refs/heads/main.zip"
 
@@ -138,7 +138,7 @@ func (a *App) InstallProject() CheckResult {
 			return CheckResult{Success: false, Message: "Ошибка записи файла на диск: " + err.Error()}
 		}
 	}
-	
+
 	return CheckResult{
 		Success: true,
 		Message: "ServeHub-2 успешно скачан и развернут в рабочей папке!",
@@ -164,7 +164,7 @@ func (a *App) SaveSecrets(yamlContent string) CheckResult {
 }
 
 func (a *App) MinimizeApp() {
-    wailsRuntime.WindowMinimise(a.ctx)
+	wailsRuntime.WindowMinimise(a.ctx)
 }
 
 func (a *App) MaximizeApp() {
@@ -181,32 +181,32 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 	switch option {
 	case 1:
 		steps = []string{
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps,local --tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps,local --tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
 		}
 	case 2:
 		steps = []string{
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
 		}
 	case 3:
 		steps = []string{
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
 		}
 	case 4:
 		steps = []string{
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
 		}
 	case 5:
 		steps = []string{
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
 		}
 	case 6:
 		steps = []string{
-			fmt.Sprintf("ANSIBLE_DEPRECATION_WARNINGS=False ANSIBLE_COMMAND_WARNINGS=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf(" ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
 		}
 	default:
 		return CheckResult{Success: false, Message: "Неизвестный сценарий развертывания!"}
@@ -218,7 +218,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 		cmdArgs := []string{
 			"compose",
 			"-f", "./ServeHub-2-main/docker-compose.ansible.yaml",
-			"run", "--rm", "ansible", 
+			"run", "--rm", "ansible",
 			"sh", "-c", ansibleCmd,
 		}
 
@@ -256,7 +256,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 				Message: fmt.Sprintf("Ansible завершился с ошибкой: %s", err.Error()),
 			}
 		}
-		
+
 		a.cmdStdin.Close()
 		a.cmdStdin = nil
 	}
@@ -269,14 +269,14 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 
 func (a *App) CheckSecrets() CheckResult {
 	targetFile := filepath.Join(".", "ServeHub-2-main", "ansible", "vars", "secrets.yml")
-	
+
 	if _, err := os.Stat(targetFile); err == nil {
 		return CheckResult{
 			Success: true,
 			Message: "Обнаружен ранее созданный конфигурационный файл secrets.yml.",
 		}
 	}
-	
+
 	return CheckResult{
 		Success: false,
 		Message: "Файл конфигурации не найден.",

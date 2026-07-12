@@ -37,6 +37,19 @@
                 <p class="subtitle">Добро пожаловать! Эта программа поможет вам установить и настроить проект ServeHub-2 на вашем компьютере.</p>
                 
                 <button class="btn-primary" onclick="goToStep(2)">Продолжить</button>
+                <div style="margin-top: auto; padding-top: 30px;">
+                    <a href="https://github.com/canntstand/ServeHub-2" target="_blank" 
+                    style="color: var(--accent-bright); text-decoration: none; font-family: 'Cascadia', monospace; font-size: 13px; opacity: 0.65; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px;" 
+                    onmouseover="this.style.opacity='1'; this.style.transform='clientY(-1px)'" 
+                    onmouseout="this.style.opacity='0.65'; this.style.transform='none'">
+                        
+                        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" style="display: block;">
+                            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+                        </svg>
+                        
+                        <span>GitHub Repository</span>
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -314,7 +327,19 @@
                 <div class="button-group" style="display: flex; gap: 15px;">
                     <button id="btn-deploy-back" class="btn-secondary" onclick="goToStep(6)">Назад</button>
                     <button id="btn-deploy-run" class="btn-primary" onclick="startDeployment()">Запустить деплой</button>
-                    <button id="btn-deploy-enter" class="btn-primary" onclick="sendEnterToAnsible()" style="display: none; background-color: #10b981;">Нажмите ENTER для продолжения</button>
+                    <div id="btn-deploy-enter" style="display: none; white-space: nowrap;">
+                        <button class="btn-primary" onclick="sendEnterToAnsible()" style="background-color: #818cf8; margin-right: 8px;">
+                            Нажмите ENTER для продолжения
+                        </button>
+                        <div class="tooltip-wrapper">
+                            <span class="tooltip-icon">?</span>
+                            <div class="tooltip-content">
+                                Кнопка необходима, когда деплой временно приостанавливается модулем <code>ansible.builtin.pause</code> для выполнения ручных шагов.
+                                <br><br>
+                                Например, при настройке WireGuard и подготовке папок, скрипт выведет инструкцию в окно логов выше и будет ожидать сигнала от этой кнопки для продолжения автоматической работы.
+                            </div>
+                        </div>
+                    </div>
                     <button id="btn-deploy-exit" class="btn-secondary" onclick="closeWindow()" style="display: none;">Выйти из программы</button>
                 </div>
             </div>
