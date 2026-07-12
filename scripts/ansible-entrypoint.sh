@@ -55,12 +55,4 @@ fi
 echo "StrictHostKeyChecking no" > "$SSH_DIR/config"
 chmod 600 "$SSH_DIR/config"
 
-echo """
-[defaults]
-deprecation_warnings = False
-command_warnings = False
-action_warnings = False
-display_skipped_hosts = no
-interpreter_python = auto_silent""" >> /ansible/ansible.cfg
-
 exec "$@"

@@ -4,12 +4,14 @@ services:
     container_name: ansible
     environment:
       - ANSIBLE_HOST_KEY_CHECKING=False
-      - ANSIBLE_CONFIG=/ansible/ansible.cfg
+      - ANSIBLE_CONFIG=/ansible/ansible/ansible.cfg
     volumes:
       - .:/ansible:ro
       - ssh-data:/root/.ssh:rw
     entrypoint: ["/bin/sh", "/ansible/scripts/ansible-entrypoint.sh"]
     working_dir: /ansible
+    tty: true
+    stdin_open: true
 
 volumes:
   ssh-data:
