@@ -11,14 +11,28 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 
+	pty "github.com/aymanbagabas/go-pty"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+)
+
+var ansiEscape = regexp.MustCompile(
+	"\x1b\\][^\x07\x1b]*(\x07|\x1b\\\\)" +
+	"|\x1b\\[[0-9;?]*[a-zA-Z]" +
+	"|\x1b[()][A-Za-z0-9]" +
+	"|\x1b[=>78]",
 )
 
 type App struct {
 	ctx       context.Context
-	cmdStdin  io.WriteCloser
-	activeCmd *exec.Cmd
+	cmdStdin  io.Writer
+	ptty      pty.Pty
+	activeCmd *pty.Cmd
+}
+
+func stripAnsi(s string) string {
+	return ansiEscape.ReplaceAllString(s, "")
 }
 
 func (a *App) SendEnter() CheckResult {
@@ -26,7 +40,7 @@ func (a *App) SendEnter() CheckResult {
 		return CheckResult{Success: false, Message: "Процесс деплоя не запущен или не ожидает ввода"}
 	}
 
-	_, err := a.cmdStdin.Write([]byte("\n"))
+	_, err := a.cmdStdin.Write([]byte("\r\n"))
 	if err != nil {
 		return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось отправить Enter: %s", err.Error())}
 	}
@@ -219,53 +233,58 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 	}
 
 	for _, ansibleCmd := range steps {
-		wailsRuntime.EventsEmit(a.ctx, "deploy-log")
+    wailsRuntime.EventsEmit(a.ctx, "deploy-log")
 
-		cmdArgs := []string{
-			"compose",
-			"-f", "./ServeHub-2-main/docker-compose.ansible.yaml",
-			"run", "--rm", "ansible",
-			"sh", "-c", ansibleCmd,
-		}
+    cmdArgs := []string{
+        "compose",
+        "-f", "./ServeHub-2-main/docker-compose.ansible.yaml",
+        "run", "--rm", "ansible",
+        "sh", "-c", ansibleCmd,
+    }
 
-		cmd := exec.CommandContext(a.ctx, "docker", cmdArgs...)
+    ptty, err := pty.New()
+    if err != nil {
+        return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось создать псевдотерминал: %s", err.Error())}
+    }
+    _ = ptty.Resize(200, 50)
 
-		stdinPipe, err := cmd.StdinPipe()
-		if err != nil {
-			return CheckResult{Success: false, Message: fmt.Sprintf("Ошибка инициализации потока ввода: %s", err.Error())}
-		}
-		a.cmdStdin = stdinPipe
-		a.activeCmd = cmd
+    cmd := ptty.CommandContext(a.ctx, "docker", cmdArgs...)
+    cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 
-		stdoutPipe, err := cmd.StdoutPipe()
-		if err != nil {
-			a.cmdStdin.Close()
-			return CheckResult{Success: false, Message: fmt.Sprintf("Ошибка инициализации потока вывода: %s", err.Error())}
-		}
-		cmd.Stderr = cmd.Stdout
+    if err := cmd.Start(); err != nil {
+        ptty.Close()
+        return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось запустить Docker: %s", err.Error())}
+    }
 
-		if err := cmd.Start(); err != nil {
-			a.cmdStdin.Close()
-			return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось запустить Docker: %s", err.Error())}
-		}
+    a.ptty = ptty
+    a.cmdStdin = ptty
+    a.activeCmd = cmd
 
-		scanner := bufio.NewScanner(stdoutPipe)
-		for scanner.Scan() {
-			wailsRuntime.EventsEmit(a.ctx, "deploy-log", scanner.Text()+"\n")
-		}
+    go func(p pty.Pty) {
+        scanner := bufio.NewScanner(p)
+        scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+        for scanner.Scan() {
+            clean := stripAnsi(scanner.Text())
+            if clean == "" {
+                continue
+            }
+            wailsRuntime.EventsEmit(a.ctx, "deploy-log", clean+"\n")
+        }
+    }(ptty)
 
-		if err := cmd.Wait(); err != nil {
-			a.cmdStdin.Close()
-			a.cmdStdin = nil
-			return CheckResult{
-				Success: false,
-				Message: fmt.Sprintf("Ansible завершился с ошибкой: %s", err.Error()),
-			}
-		}
+    waitErr := cmd.Wait()
 
-		a.cmdStdin.Close()
-		a.cmdStdin = nil
-	}
+    ptty.Close()
+    a.ptty = nil
+    a.cmdStdin = nil
+
+    if waitErr != nil {
+        return CheckResult{
+            Success: false,
+            Message: fmt.Sprintf("Ansible завершился с ошибкой: %s", waitErr.Error()),
+        }
+    }
+}
 
 	return CheckResult{
 		Success: true,
