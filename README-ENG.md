@@ -91,3 +91,28 @@ It is worth clarifying that hosting everything on one powerful VPS would be easi
     - **[Wails](https://wails.io/docs/gettingstarted/installation)**
 2. Go to the folder `/gui-installer`
 3. Run the command `wails build` (It may vary, it is better to follow the Wails documentation.)
+
+# Building the installer from the code
+## 1. Environmental requirements
+Install the dependencies before starting the build:
+- **[Go 1.21+](https://go.dev/doc/install)**
+- **[NPM / Node.js (15+)](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)**
+- **[Wails v2](https://wails.io/docs/gettingstarted/installation)**
+- **libwebkit2gtk-4.1-dev** — *только для Linux* (It is necessary for the Wails graphics engine to work)
+
+## 2. Building a standard binary file
+1. Go to the folder `/gui-installer`.
+2. Run the build command for your OS:
+   - **Windows:** `wails build`
+   - **Linux:** `wails build -tags webkit2_41`
+
+The executable file `gui-installer' (or `gui-installer.exe `) will be saved in the `gui-installer/build/bin/` folder.
+
+## 3. Сборка AppImage (только для Linux)
+1. Go back to the root of the project.
+2. Execute the automatic packaging script:
+   ```bash
+   ./scripts/build_appimage.sh
+   ```
+
+The finished package `ServeHub-Installer-x86_64.AppImage` will be saved in the 'gui-installer/build/bin/` folder.

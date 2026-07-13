@@ -86,8 +86,26 @@
 5. Чтобы полностью удалить машины, можно использовать `vagrant destroy -f`.
 
 # Сборка установщика из кода
-1. Установите:
-    - **[Go](https://go.dev/doc/install)**
-    - **[Wails](https://wails.io/docs/gettingstarted/installation)**
-2. Зайдите в папку `/gui-installer`
-3. Выполните команду `wails build` (может отличаться, лучше следовать документации Wails)
+## 1. Требования к окружению
+Установите зависимости перед началом сборки:
+- **[Go 1.21+](https://go.dev/doc/install)**
+- **[NPM / Node.js (15+)](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)**
+- **[Wails v2](https://wails.io/docs/gettingstarted/installation)**
+- **libwebkit2gtk-4.1-dev** — *только для Linux* (необходим для работы графического движка Wails)
+
+## 2. Сборка стандартного бинарного файла
+1. Зайдите в папку `/gui-installer`.
+2. Выполните команду сборки под вашу ОС:
+   - **Windows:** `wails build`
+   - **Linux:** `wails build -tags webkit2_41`
+
+Исполняемый файл `gui-installer` (или `gui-installer.exe`) будет сохранен в папке `gui-installer/build/bin/`.
+
+## 3. Сборка AppImage (только для Linux)
+1. Вернитесь в корень проекта.
+2. Выполните скрипт автоматической упаковки:
+   ```bash
+   ./scripts/build_appimage.sh
+   ```
+
+Готовый пакет `ServeHub-Installer-x86_64.AppImage` будет сохранен в папке `gui-installer/build/bin/`.

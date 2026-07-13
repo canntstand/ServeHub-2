@@ -11,3 +11,5 @@ gui-installer/yarn-error.log*
 gui-installer/frontend/dist/
 gui-installer/frontend/wailsjs/
 gui-installer/build/bin/
+gui-installer/appimagetool
+gui-installer/build/linux/
