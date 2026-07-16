@@ -208,6 +208,7 @@ server {
 
     location ~* ^/gatus(/|$)        { return 301 https://gatus.$host/; }
     location ~* ^/wg-easy(/|$)      { return 301 https://wireguard.$host/; }
+    location ~* ^/habitica(/|$)      { return 301 https://habitica.$host/; }
     location ~* ^/adguard-home(/|$) { return 301 https://adguard.$host/; }
 
     location ~* ^/(navidrome|audiobookshelf|nextcloud|gitea|vaultwarden|grafana|portainer|borg-ui|v2) {
