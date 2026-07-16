@@ -179,7 +179,7 @@ server {
     location ~* ^/wg-easy(/|$)      { return 301 https://wireguard.$host/; }
     location ~* ^/adguard-home(/|$) { return 301 https://adguard.$host/; }
 
-    location ~* ^/(navidrome|audiobookshelf|nextcloud|gitea|vaultwarden|grafana|portainer|borg-ui|v2) {
+    location ~* ^/(navidrome|habitica|audiobookshelf|nextcloud|gitea|vaultwarden|grafana|portainer|borg-ui|v2) {
         proxy_pass http://10.8.0.2:80;
         
         proxy_http_version 1.1;

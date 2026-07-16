@@ -19,6 +19,10 @@
         icon: si-gitea
         href: /gitea
         description: "Self-hosted Git & Obsidian Backups"
+    - Habitica:
+        icon: mdi-controller-classic
+        href: /habitica/
+        description: Геймифицированный трекер привычек
 
 - 🛠️ Другие инструменты:
     - Borg UI:

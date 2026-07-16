@@ -60,6 +60,22 @@ server {
         proxy_set_header Connection $connection_upgrade;
     }
 
+    location /habitica/ {
+        proxy_pass http://habitica-client:8080/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /habitica/api/ {
+        proxy_pass http://habitica:3000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
     location /v2 {
         proxy_pass http://gitea:3000; 
         

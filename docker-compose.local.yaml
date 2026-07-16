@@ -30,6 +30,8 @@ services:
         condition: service_healthy
       vaultwarden:
         condition: service_started
+      habitica-client:
+        condition: service_started
       portainer:
         condition: service_started
       amnezia-client:
@@ -489,3 +491,58 @@ services:
     expose:
       - 3000
     restart: unless-stopped
+
+  habitica:
+    image: docker.io/awinterstein/habitica-server:5.48.6
+    container_name: habitica-server
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      habitica-db:
+        condition: service_healthy
+    environment:
+      - NODE_DB_URI=mongodb://habitica-db/habitica
+      - BASE_URL=https://${SERVER_NAME}/habitica
+      - INVITE_ONLY=false
+    expose:
+      - 3000
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+  
+  habitica-client:
+    image: docker.io/awinterstein/habitica-client:5.48.6
+    container_name: habitica-client
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      habitica:
+        condition: service_started
+    expose:
+      - 8080
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  habitica-db:
+    image: docker.io/mongo:8.3.4
+    container_name: habitica-db
+    restart: unless-stopped
+    hostname: habitica-db
+    command: ["--replSet", "rs", "--bind_ip_all", "--port", "27017"]
+    logging: *default-logging
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate() }" | mongosh --port 27017 --quiet
+      interval: 10s
+      timeout: 30s
+      start_period: 5s
+      start_interval: 1s
+      retries: 30
+    volumes:
+      - ./apps-data/habitica-db:/data/db:rw
+    deploy:
+      resources:
+        limits:
+          memory: 1G

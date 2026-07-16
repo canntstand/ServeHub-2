@@ -159,6 +159,15 @@
     group: "33"
     mode: "u=rwX,g=rX,o="
 
+- name: "[FS] Точечная настройка прав для Habitica DB (MongoDB, UID 999)"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/habitica-db"
+    state: directory
+    recurse: yes
+    owner: "999"
+    group: "999"
+    mode: "0755"
+
 # =========================================================================
 # 3. НАСТРОЙКА РЕЗЕРВНОГО КОПИРОВАНИЯ (BORGMATIC & BORG BACKUP)
 # =========================================================================
