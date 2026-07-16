@@ -502,8 +502,13 @@ services:
         condition: service_healthy
     environment:
       - NODE_DB_URI=mongodb://habitica-db/habitica
-      - BASE_URL=https://${SERVER_NAME}/habitica
+      - BASE_URL=http://habitica.${SERVER_NAME}
       - INVITE_ONLY=false
+    networks:
+      default:
+        aliases:
+          - server
+          - habitica-server
     expose:
       - 3000
     deploy:
@@ -520,14 +525,14 @@ services:
       habitica:
         condition: service_started
     expose:
-      - 8080
+      - 80
     deploy:
       resources:
         limits:
           memory: 512M
 
   habitica-db:
-    image: docker.io/mongo:8.3.4
+    image: docker.io/mongo:7.0
     container_name: habitica-db
     restart: unless-stopped
     hostname: habitica-db
