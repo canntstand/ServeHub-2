@@ -21,4 +21,10 @@ then
   echo "There are no config files in the /config folder"
 fi
 
+if [[ $COUNTER -gt 0 ]]
+then
+  echo "Setting DNS to 10.8.0.1..."
+  echo "nameserver 10.8.0.1" | sudo tee /etc/resolv.conf > /dev/null
+fi
+
 sleep infinity
