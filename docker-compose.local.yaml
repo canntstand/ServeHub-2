@@ -234,7 +234,7 @@ services:
           memory: 1G
 
   vaultwarden:
-    image: vaultwarden/server:1.36.0
+    image: vaultwarden/server:1.37.1
     container_name: vaultwarden
     logging: *default-logging
     restart: unless-stopped
