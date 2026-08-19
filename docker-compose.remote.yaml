@@ -64,7 +64,7 @@ services:
           memory: 1G
 
   wg-easy:
-    image: ghcr.io/wg-easy/wg-easy:15.3
+    image: ghcr.io/wg-easy/wg-easy:15.4
     container_name: wg-easy
     environment:
       - LANG=en
@@ -144,7 +144,7 @@ services:
           memory: 1G
 
   adguardhome:
-    image: adguard/adguardhome:v0.107.77
+    image: adguard/adguardhome:v0.107.79
     container_name: adguardhome
     logging: *default-logging
     restart: unless-stopped
@@ -198,7 +198,7 @@ services:
         condition: service_healthy
 
   node-exporter:
-    image: prom/node-exporter:v1.11.1
+    image: prom/node-exporter:v1.12.1
     container_name: node-exporter
     logging: *default-logging
     restart: unless-stopped
@@ -224,9 +224,8 @@ services:
       wg-easy:
         condition: service_healthy
 
-
   cadvisor:
-    image: ghcr.io/google/cadvisor:0.57
+    image: ghcr.io/google/cadvisor:0.60.5
     container_name: cadvisor
     logging: *default-logging
     restart: unless-stopped
@@ -261,9 +260,8 @@ services:
       wg-easy:
         condition: service_healthy
 
-
   portainer-agent:
-    image: portainer/agent:2.39.3-alpine
+    image: portainer/agent:2.39.6-alpine
     container_name: portainer-agent
     logging: *default-logging
     restart: unless-stopped

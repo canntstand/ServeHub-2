@@ -1,20 +1,4 @@
-FROM golang:1.24.5 AS builder
-
-ARG TARGETARCH
-ARG TARGETVARIANT
-
-WORKDIR /amneziawg-go
-
-RUN git clone https://github.com/amnezia-vpn/amneziawg-go.git . --depth=1 \
-    && go mod download \
-    && go mod verify \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
-       go build -ldflags '-s -w' -v -o amneziawg-go
-
 FROM alpine:3.22.1
-
-ARG TARGETARCH
-ARG AWGTOOLS_RELEASE=1.0.20250706
 
 RUN apk --no-cache add \
     iproute2 \
@@ -23,24 +7,15 @@ RUN apk --no-cache add \
     openresolv \
     dumb-init \
     && apk --no-cache add --virtual .build-deps \
-    dpkg \
-    wget \
-    unzip \
     git \
     build-base \
     linux-headers
 
-RUN git clone https://github.com/amnezia-vpn/amneziawg-tools.git /amneziawg-tools --depth=1 \
-    && cd /amneziawg-tools/src \
-    && make \
-    && make install \
-    && ln -s /usr/local/bin/awg /usr/bin/wg \
-    && ln -s /usr/local/bin/awg-quick /usr/bin/wg-quick \
-    && cd / \
-    && rm -rf /amneziawg-tools \
+RUN git clone https://github.com/amnezia-vpn/amneziawg-tools.git /tmp/amneziawg-tools --depth=1 \
+    && make -C /tmp/amneziawg-tools/src \
+    && make -C /tmp/amneziawg-tools/src install \
+    && rm -rf /tmp/amneziawg-tools \
     && apk del .build-deps
-
-COPY --from=builder /amneziawg-go/amneziawg-go /usr/bin/
 
 COPY scripts/amnezia-client_init.sh /init.sh
 RUN chmod +x /init.sh

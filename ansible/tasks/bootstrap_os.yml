@@ -99,7 +99,28 @@
 # =========================================================================
 - name: "[Pacman] Arch: установка базовых пакетов"
   pacman:
-    name: [docker, docker-compose, linux-headers, dkms, git, fail2ban, fakeroot, binutils, make, gcc, patch, sudo, debugedit, borg, borgmatic, gettext, argon2, openssl, curl]
+    name:
+      [
+        docker,
+        docker-compose,
+        linux-headers,
+        dkms,
+        git,
+        fail2ban,
+        fakeroot,
+        binutils,
+        make,
+        gcc,
+        patch,
+        sudo,
+        debugedit,
+        borg,
+        borgmatic,
+        gettext,
+        argon2,
+        openssl,
+        curl,
+      ]
     state: present
     extra_args: --noconfirm
   when: ansible_facts['os_family'] == "Archlinux"
@@ -289,7 +310,7 @@
 - name: "[Net] Разрешить привязку к несуществующим IP (ip_nonlocal_bind)"
   ansible.posix.sysctl:
     name: net.ipv4.ip_nonlocal_bind
-    value: '1'
+    value: "1"
     state: present
     reload: yes
 
@@ -351,13 +372,13 @@
   ansible.builtin.file:
     path: /etc/apt/keyrings
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 - name: "[AmneziaWG] Ubuntu: скачиваем GPG-ключ напрямую"
   ansible.builtin.get_url:
     url: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x75C9DD72C799870E310542E24166F2C257290828"
     dest: /etc/apt/keyrings/amnezia.asc
-    mode: '0644'
+    mode: "0644"
 
 - name: "[AmneziaWG] Ubuntu: добавляем репозиторий"
   apt_repository:
@@ -395,31 +416,6 @@
     state: present
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
-
-- name: "[AmneziaWG] Arch: исправление совместимости с ядром 7.x+ (ipv6_stub)"
-  block:
-    - name: "[AmneziaWG] Arch: проверяем наличие исходников в /usr/src"
-      ansible.builtin.stat:
-        path: /usr/src/amneziawg-1.0.0/socket.c
-      register: amneziawg_source
-
-    - name: "[AmneziaWG] Arch: замена ipv6_stub на ip6_dst_lookup_flow"
-      ansible.builtin.replace:
-        path: /usr/src/amneziawg-1.0.0/socket.c
-        regexp: 'ipv6_stub->ipv6_dst_lookup_flow'
-        replace: 'ip6_dst_lookup_flow'
-      register: patch_result
-      when: amneziawg_source.stat.exists
-
-    - name: "[AmneziaWG] Arch: принудительная пересборка модуля после патча"
-      ansible.builtin.shell: |
-        dkms remove amneziawg/1.0.0 --all || true
-        dkms add -m amneziawg -v 1.0.0 || true
-        dkms build -m amneziawg -v 1.0.0
-        dkms install -m amneziawg -v 1.0.0
-      become: true
-      when: patch_result.changed
-  when: ansible_facts['os_family'] == "Archlinux"
 
 - name: "[DKMS] Принудительный запуск сборки модулей"
   ansible.builtin.shell: |
