@@ -182,7 +182,7 @@ services:
     environment:
       - PORT=3000
       - TZ=Europe/Moscow
-      - HOMEPAGE_ALLOWED_HOSTS=${SERVER_NAME},localhost,127.0.0.1
+      - HOMEPAGE_ALLOWED_HOSTS=${VPS_PUBLIC_IP},localhost,127.0.0.1,${SERVER_NAME}
     volumes:
       - ./configs/homepage/config:/app/config
       - ./configs/homepage/public/images:/app/public/images
