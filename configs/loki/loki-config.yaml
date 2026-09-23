@@ -39,3 +39,6 @@ compactor:
   delete_request_store: filesystem
   retention_delete_delay: 2h
   retention_delete_worker_count: 150
+
+analytics:
+  reporting_enabled: false
