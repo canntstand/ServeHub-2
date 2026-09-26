@@ -2,7 +2,7 @@
 set -e
 
 cd gui-installer
-
+echo "==!> Должно запускаться в Linux либо WSL"
 echo "==> Сборка приложения через Wails..."
 wails build -tags webkit2_41
 

@@ -166,6 +166,7 @@ const SECRETS_FIELD_MAP = {
     local_private_ip: 'sec_local_ip',
     local_user: 'sec_local_user',
     local_root_password: 'sec_local_root_pass',
+    vps_main_interface: "vps_interface",
     server_name: 'sec_server_name',
     admin_user: 'sec_admin_user',
     admin_password: 'sec_admin_pass',
@@ -242,6 +243,7 @@ window.generateAndReviewYaml = function() {
     const vpsIp = document.getElementById('sec_vps_ip').value;
     const vpsUser = document.getElementById('sec_vps_user').value;
     const vpsRootPass = document.getElementById('sec_vps_root_pass').value;
+    const vpsInterface = document.getElementById('vps_interface').value;
     const localIp = document.getElementById('sec_local_ip').value;
     const localUser = document.getElementById('sec_local_user').value;
     const localRootPass = document.getElementById('sec_local_root_pass').value;
@@ -285,6 +287,8 @@ vps_root_password: "${vpsRootPass}"
 local_private_ip: "${localIp}"
 local_user: "${localUser}"
 local_root_password: "${localRootPass}"
+
+vps_main_interface: "${vpsInterface}"
 
 # ------------------------------------------------------------------------------
 # 2. ГЛОБАЛЬНЫЕ НАСТРОЙКИ И АДМИНИСТРИРОВАНИЕ

@@ -523,6 +523,7 @@ const SECRETS_FIELD_MAP = {
     local_private_ip: 'sec_local_ip',
     local_user: 'sec_local_user',
     local_root_password: 'sec_local_root_pass',
+    vps_main_interface: "vps_interface",
     server_name: 'sec_server_name',
     admin_user: 'sec_admin_user',
     admin_password: 'sec_admin_pass',

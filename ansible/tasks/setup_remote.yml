@@ -230,6 +230,64 @@
     jump: MASQUERADE
   register: iptables_nat_rule
 
+- name: "[Firewall] wg-easy UI: разрешить доступ с loopback (IPv4)"
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "51821"
+    source: "127.0.0.1"
+    jump: ACCEPT
+    state: present
+  register: iptables_wgeasy_loopback_v4
+
+- name: "[Firewall] wg-easy UI: разрешить доступ из VPN-подсети (IPv4)"
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "51821"
+    source: "10.8.0.0/24"
+    jump: ACCEPT
+    state: present
+  register: iptables_wgeasy_vpn_v4
+
+- name: "[Firewall] wg-easy UI: запретить доступ отовсюду ещё (IPv4)"
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "51821"
+    jump: DROP
+    state: present
+  register: iptables_wgeasy_drop_v4
+
+- name: "[Firewall] wg-easy UI: разрешить доступ с loopback (IPv6)"
+  ansible.builtin.iptables:
+    ip_version: ipv6
+    chain: INPUT
+    protocol: tcp
+    destination_port: "51821"
+    source: "::1"
+    jump: ACCEPT
+    state: present
+  register: iptables_wgeasy_loopback_v6
+
+- name: "[Firewall] wg-easy UI: запретить доступ отовсюду ещё (IPv6)"
+  ansible.builtin.iptables:
+    ip_version: ipv6
+    chain: INPUT
+    protocol: tcp
+    destination_port: "51821"
+    jump: DROP
+    state: present
+  register: iptables_wgeasy_drop_v6
+
+- name: "[Firewall] Статус изменений FORWARD"
+  ansible.builtin.set_fact:
+    iptables_forward_rules:
+      changed: >-
+        {{ iptables_forward_in.changed or iptables_forward_out.changed
+           or iptables_wgeasy_loopback_v4.changed or iptables_wgeasy_vpn_v4.changed or iptables_wgeasy_drop_v4.changed
+           or iptables_wgeasy_loopback_v6.changed or iptables_wgeasy_drop_v6.changed }}
+
 - name: "[Firewall] Сохранение правил iptables (Debian/Ubuntu)"
   ansible.builtin.command: netfilter-persistent save
   when: >
