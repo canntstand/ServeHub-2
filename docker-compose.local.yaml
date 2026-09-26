@@ -75,7 +75,7 @@ services:
     expose:
       - 4533
     environment:
-      ND_SCANINTERVAL: "1m"
+      ND_SCANINTERVAL: "2m"
       ND_LOGLEVEL: "info"
       ND_BASEURL: "/navidrome"
     volumes:
@@ -339,8 +339,9 @@ services:
     expose:
       - 8080
     command:
-      - "--allow_dynamic_housekeeping=true"
-      - "--housekeeping_interval=10s"
+      - "--allow_dynamic_housekeeping=false"
+      - "--housekeeping_interval=2m"
+      - "--max_housekeeping_interval=2m"
       - "--disable_metrics=disk,referenced_memory"
       - "--raw_cgroup_prefix_whitelist=/system.slice,/user.slice"
     volumes:

@@ -10,7 +10,7 @@ alerting:
 endpoints:
   - name: "Is Local Server Alive?"
     url: "http://host.docker.internal:8080/health-check"
-    interval: 60s
+    interval: 2m
     conditions:
       - "[STATUS] == 200"
     alerts:
@@ -22,7 +22,7 @@ endpoints:
 
   - name: "Is VPS Server Alive?"
     url: "http://host.docker.internal:8080/vps-health-check"
-    interval: 60s
+    interval: 2m
     conditions:
       - "[STATUS] == 200"
     alerts:

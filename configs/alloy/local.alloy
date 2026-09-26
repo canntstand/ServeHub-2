@@ -1,5 +1,6 @@
 discovery.docker "local_containers" {
-  host = "unix:///var/run/docker.sock"
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "2m"
 }
 
 discovery.relabel "docker_logs_relabel" {
@@ -25,6 +26,8 @@ loki.source.docker "docker_logs" {
 
 loki.write "loki_storage" {
   endpoint {
-    url = "http://loki:3100/loki/api/v1/push"
+    url        = "http://loki:3100/loki/api/v1/push"
+    batch_wait = "10s"
+    batch_size = "1MiB"
   }
 }

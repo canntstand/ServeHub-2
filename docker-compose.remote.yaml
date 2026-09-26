@@ -169,7 +169,7 @@ services:
       - ADGUARD_SERVERS=http://127.0.0.1:8082
       - ADGUARD_USERNAMES=${ADMIN_USER}
       - ADGUARD_PASSWORDS=${ADMIN_PASSWORD}
-      - INTERVAL=15s
+      - INTERVAL=2m
     depends_on:
       - adguardhome
 
@@ -232,8 +232,9 @@ services:
     privileged: true
     network_mode: "host"
     command:
-      - "--allow_dynamic_housekeeping=true"
-      - "--housekeeping_interval=10s"
+      - "--allow_dynamic_housekeeping=false"
+      - "--housekeeping_interval=2m"
+      - "--max_housekeeping_interval=2m"
       - "--disable_metrics=disk,referenced_memory"
       - "--raw_cgroup_prefix_whitelist=/system.slice,/user.slice"
       - "--listen_ip=10.8.0.1"

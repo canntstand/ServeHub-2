@@ -10,6 +10,18 @@ dns:
     - https://dns.cloudflare.com/dns-query
     - https://dns.google/dns-query
 
+statistics:
+  enabled: true
+  interval: 24h
+  ignored: []
+
+querylog:
+  enabled: true
+  file_enabled: true
+  interval: 24h
+  size_memory: 1000
+  ignored: []
+
 users:
   - name: {{ admin_user }}
     password: "{{ admin_password | password_hash('bcrypt') }}"
