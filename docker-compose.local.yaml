@@ -398,6 +398,8 @@ services:
       dockerfile: Dockerfile.amnezia
     container_name: amnezia-client
     restart: unless-stopped
+    security_opt:
+      - systempaths=unconfined
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
