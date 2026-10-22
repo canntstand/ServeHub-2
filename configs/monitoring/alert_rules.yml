@@ -40,7 +40,8 @@ groups:
         annotations:
           summary: "Заканчивается место на диске"
           description: "Диск заполнен более чем на 85% (текущее значение: {{ $value | printf \"%.2f\" }}%)."
-  
+  - name: borgmatic_alerts
+    rules:
       - alert: BorgmaticBackupFailed
         expr: servehub_borgmatic_backup_last_run_success == 0
         for: 5m
