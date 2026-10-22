@@ -465,6 +465,8 @@
 
       $IPT -C FORWARD -i awg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -i awg0 -j ACCEPT
       $IPT -C FORWARD -o awg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -o awg0 -j ACCEPT
+      $IPT -t nat -C POSTROUTING -s 172.16.0.0/12 -d 10.8.0.0/24 -o awg0 -j MASQUERADE 2>/dev/null || \
+        $IPT -t nat -A POSTROUTING -s 172.16.0.0/12 -d 10.8.0.0/24 -o awg0 -j MASQUERADE
       $IPT -t nat -C POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE 2>/dev/null || \
         $IPT -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE
   register: local_firewall_script
