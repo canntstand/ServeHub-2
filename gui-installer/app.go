@@ -267,7 +267,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
     cmdArgs := []string{
         "compose",
         "-f", "./ServeHub-2-dev/docker-compose.ansible.yaml",
-        "run", "--rm", "ansible",
+        "run", "--build", "--rm", "ansible",
         "sh", "-c", ansibleCmd,
     }
 
