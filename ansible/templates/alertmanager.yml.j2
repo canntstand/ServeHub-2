@@ -22,10 +22,11 @@ receivers:
           <b>Уведомление от системы мониторинга ServeHub-2</b>
           <b>Статус:</b> {{ .Status | toUpper }}
 
-          <b>Описание алертов:</b>
           {{ range .Alerts }}
-          • <b>Алерт:</b> {{ .Labels.alertname }}
-            <b>Сервер:</b> {{ .Labels.instance }}
-            <b>Инфо:</b> {{ .Annotations.summary }} {{ .Annotations.description }}
+          <b>Алерт:</b> {{ .Labels.alertname | html }}
+
+          <b>Сервер:</b> {{ .Labels.instance | html }}
+
+          <b>Инфо:</b> {{ .Annotations.summary | html }} {{ .Annotations.description | html }}
           {{ end }}
           {% endraw %}

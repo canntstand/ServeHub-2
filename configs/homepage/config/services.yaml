@@ -1,54 +1,55 @@
 - ✨ Сервисы:
     - Vaultwarden:
         icon: si-bitwarden
-        href: /vaultwarden/
+        href: https://vaultwarden.{{HOMEPAGE_VAR_SERVER_NAME}}/
         description: Менеджер паролей с 2FA
     - Navidrome:
         icon: mdi-music-circle
-        href: /navidrome
+        href: https://navidrome.{{HOMEPAGE_VAR_SERVER_NAME}}/
         description: Личная медиатека
     - Nextcloud:
         icon: si-nextcloud
-        href: /nextcloud
+        href: https://nextcloud.{{HOMEPAGE_VAR_SERVER_NAME}}/
         description: Облако и совместная работа
     - Audiobookshelf:
         icon: si-audiobookshelf
-        href: /audiobookshelf
-        description: Сервер для аудиокниг
+        href: https://audiobookshelf.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Сервер аудиокниг и подкастов
     - Gitea:
         icon: si-gitea
-        href: /gitea
-        description: "Self-hosted Git & Obsidian Backups"
+        href: https://gitea.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Self-hosted Git и резервные копии Obsidian
     - Habitica:
         icon: mdi-controller-classic
-        href: /habitica/
+        href: https://habitica.{{HOMEPAGE_VAR_SERVER_NAME}}/
         description: Геймифицированный трекер привычек
     - Homebox:
         icon: si-hackthebox
-        href: /homebox
-        description: "Учет вещей и оборудования"
-- 🛠️ Другие инструменты:
-    - Borg UI:
-        icon: mdi-backup-restore
-        href: /borg-ui
-        description: Управление бэкапами
-    - Portainer:
-        icon: si-portainer
-        href: /portainer/
-        description: Управление контейнерами
+        href: https://homebox.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Учет вещей и оборудования
+
+- 🛠️ Мониторинг и инфраструктура:
     - Grafana:
         icon: si-grafana
-        href: /grafana
-        description: Системные метрики
+        href: https://grafana.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Дашборды и метрики
+    - Prometheus:
+        icon: si-prometheus
+        href: https://prometheus.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Сбор и запрос метрик
+    - Alertmanager:
+        icon: si-prometheus
+        href: https://alertmanager.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Управление алертами
     - WireGuard:
         icon: si-wireguard
-        href: /wg-easy/
-        description: Управление VPN
+        href: https://wireguard.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Управление VPN-клиентами
     - AdGuard Home:
         icon: si-adguard
-        href: /adguard-home
+        href: https://adguard.{{HOMEPAGE_VAR_SERVER_NAME}}/
         description: DNS и блокировка рекламы
     - Gatus:
         icon: mdi-check-network
-        href: /gatus/
-        description: Аптайм и статус сервисов
+        href: https://gatus.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Доступность сервисов

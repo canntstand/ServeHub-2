@@ -1,4 +1,4 @@
-![ServeHub-2-logo.svg](ServeHub-2-logo-with-background.svg)
+![ServeHub-2-logo.svg](icons/ServeHub-logo-violet-banner-dark.svg)
 ![Version](https://img.shields.io/github/v/release/canntstand/ServeHub-2?label=version)
 ![License](https://img.shields.io/github/license/canntstand/ServeHub-2)
 ![Last Commit](https://img.shields.io/github/last-commit/canntstand/ServeHub-2)
@@ -42,7 +42,6 @@ It is worth clarifying that hosting everything on one powerful VPS would be easi
 - **Prometheus & Exporters:** Collection of host metrics (Node Exporter), container metrics (cAdvisor), and web server metrics (Nginx Exporter).
 - **Grafana:** Visualization of system state and service performance.
 - **Gatus:** Uptime monitoring of the local server via minute-by-minute `healthcheck` endpoint polling.
-- **Portainer:** Web interface for Docker container administration.
 - **Loki + Grafana Alloy:** Unified log collection from all containers.
 
 ## Alerting and Communication
@@ -52,7 +51,6 @@ It is worth clarifying that hosting everything on one powerful VPS would be easi
 
 ## Backup
 - **BorgBackup + Borgmatic:** Encrypted automated backups to disk with `lz4` compression.
-- **BorgUI:** Interface for easy backup management and viewing.
 
 ## Automation
 - **Ansible:** Configuration management system for automatic OS deployment, security hardening, and Docker container orchestration.

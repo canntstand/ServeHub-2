@@ -5,64 +5,6 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  nginx:
-    image: nginx:stable
-    container_name: nginx
-    logging: *default-logging
-    restart: unless-stopped
-    network_mode: "host"
-    environment:
-      - SERVER_NAME=${SERVER_NAME}
-    volumes:
-      - ./configs/nginx/templates/nginx.remote.conf.template:/etc/nginx/templates/default.conf.template:ro
-      - ./certbot/certs:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-    depends_on:
-      wg-easy:
-        condition: service_healthy
-      adguardhome:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/vps-health-check"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-  certbot:
-    build:
-      context: .
-      dockerfile: Dockerfile.certbot
-    container_name: certbot
-    logging: *default-logging
-    volumes:
-      - ./certbot/certs:/etc/letsencrypt
-      - ./certbot/certs-data:/var/lib/letsencrypt
-      - ./certbot/certbot-dns-webnames:/opt/certbot-dns-webnames
-    environment:
-      - SERVER_NAME=${SERVER_NAME}
-    command: >
-      certonly
-      --manual
-      --manual-auth-hook /opt/certbot-dns-webnames/authenticator.sh
-      --manual-cleanup-hook /opt/certbot-dns-webnames/cleanup.sh
-      --preferred-challenges dns-01
-      --agree-tos
-      --no-eff-email
-      --non-interactive
-      --force-renewal
-      -d "${SERVER_NAME}"
-      -d "*.${SERVER_NAME}"
-      --email "${EMAIL}"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
   wg-easy:
     image: ghcr.io/wg-easy/wg-easy:15.4
     container_name: wg-easy
@@ -70,18 +12,15 @@ services:
       - LANG=en
       - PORT=51821
       - DISABLE_IPV6=true
-
       - EXPERIMENTAL_AWG=true
       - OVERRIDE_AUTO_AWG=awg
       - INSECURE=true
-
       - INIT_ENABLED=true
       - INIT_USERNAME=${ADMIN_USER}
       - INIT_PASSWORD=${ADMIN_PASSWORD}
       - INIT_HOST=${VPS_PUBLIC_IP}
       - INIT_PORT=51820
       - INIT_DNS=10.8.0.1
-
       - INIT_IPV4_CIDR=10.8.0.0/24
       - INIT_IPV6_CIDR=fdcc:ad94:bacf:61a4::cafe:0/112
       - INIT_ALLOWED_IPS=10.8.0.0/24
@@ -107,7 +46,7 @@ services:
     restart: unless-stopped
     network_mode: host
     volumes:
-      - ./configs/gatus:/config
+      - ./configs/gatus:/config:ro
     environment:
       - TZ=Europe/Moscow
       - ADMIN_USER=${ADMIN_USER}
@@ -115,26 +54,8 @@ services:
       - SERVER_NAME=${SERVER_NAME}
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-    deploy:
-      resources:
-        limits:
-          memory: 1G
     depends_on:
-      nginx:
-        condition: service_healthy
-
-  nginx-exporter:
-    image: nginx/nginx-prometheus-exporter:latest
-    container_name: nginx-exporter
-    restart: unless-stopped
-    logging: *default-logging
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    command: --nginx.scrape-uri=http://host.docker.internal:8080/stub_status
-    ports:
-      - "10.8.0.1:9113:9113"
-    depends_on:
-      nginx:
+      wg-easy:
         condition: service_healthy
     deploy:
       resources:
@@ -162,6 +83,7 @@ services:
     image: ghcr.io/henrywhitaker3/adguard-exporter:latest
     container_name: adguard-exporter
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "10.8.0.1:9618:9618"
     environment:
@@ -170,31 +92,9 @@ services:
       - ADGUARD_PASSWORDS=${ADMIN_PASSWORD}
       - INTERVAL=2m
     depends_on:
-      - adguardhome
-
-  homepage:
-    image: ghcr.io/gethomepage/homepage:latest
-    container_name: homepage
-    restart: unless-stopped
-    logging: *default-logging
-    ports:
-      - "127.0.0.1:3000:3000"
-    environment:
-      - PORT=3000
-      - TZ=Europe/Moscow
-      - HOMEPAGE_ALLOWED_HOSTS=${VPS_PUBLIC_IP},localhost,127.0.0.1,${SERVER_NAME}
-    volumes:
-      - ./configs/homepage/config:/app/config
-      - ./configs/homepage/public/images:/app/public/images
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-    depends_on:
+      adguardhome:
+        condition: service_started
       wg-easy:
-        condition: service_healthy
-      nginx:
         condition: service_healthy
 
   node-exporter:
@@ -260,15 +160,40 @@ services:
       wg-easy:
         condition: service_healthy
 
-  portainer-agent:
-    image: portainer/agent:2.39.6-alpine
-    container_name: portainer-agent
+  loki:
+    image: grafana/loki:3.7
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "10.8.0.1:3100:3100"
+    volumes:
+      - ./configs/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - ./apps-data/loki:/loki
+    command: ["-config.file=/etc/loki/loki-config.yaml"]
+    logging: *default-logging
+    depends_on:
+      wg-easy:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.0
+    container_name: alertmanager
     logging: *default-logging
     restart: unless-stopped
     ports:
-      - "10.8.0.1:9001:9001"
+      - "10.8.0.1:9093:9093"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ./configs/monitoring:/etc/alertmanager:ro
+      - ./apps-data/alertmanager:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=https://alertmanager.${SERVER_NAME}/"
+      - "--web.route-prefix=/"
     deploy:
       resources:
         limits:
@@ -276,6 +201,64 @@ services:
     depends_on:
       wg-easy:
         condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v3
+    container_name: prometheus
+    logging: *default-logging
+    restart: unless-stopped
+    ports:
+      - "10.8.0.1:9090:9090"
+    volumes:
+      - ./configs/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./configs/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - ./apps-data/prometheus/data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.external-url=https://prometheus.${SERVER_NAME}/"
+      - "--web.route-prefix=/"
+    depends_on:
+      alertmanager:
+        condition: service_started
+      node-exporter:
+        condition: service_started
+      cadvisor:
+        condition: service_started
+      wg-easy:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  grafana:
+    image: grafana/grafana:13.0-slim
+    container_name: grafana
+    logging: *default-logging
+    restart: unless-stopped
+    ports:
+      - "10.8.0.1:3000:3000"
+    environment:
+      - GF_SERVER_ROOT_URL=https://grafana.${SERVER_NAME}/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_SECURITY_ADMIN_USER=${ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    volumes:
+      - ./apps-data/grafana/data:/var/lib/grafana
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./configs/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   alloy:
     image: grafana/alloy:latest
@@ -285,7 +268,11 @@ services:
     volumes:
       - ./configs/alloy/remote.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./apps-data/alloy:/var/lib/alloy/data
     logging: *default-logging
+    depends_on:
+      loki:
+        condition: service_started
     deploy:
       resources:
         limits:

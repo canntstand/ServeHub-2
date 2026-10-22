@@ -4,29 +4,31 @@ discovery.docker "local_containers" {
 }
 
 discovery.relabel "docker_logs_relabel" {
-  targets = discovery.docker.local_containers.targets
+  targets = []
 
   rule {
     source_labels = ["__meta_docker_container_name"]
     regex         = "/(.*)"
     target_label  = "container_name"
   }
-
-  rule {
-    target_label = "server"
-    replacement  = "remote-ubuntu"
-  }
 }
 
 loki.source.docker "docker_logs" {
-  host       = "unix:///var/run/docker.sock"
-  targets    = discovery.relabel.docker_logs_relabel.output
+  host    = "unix:///var/run/docker.sock"
+  targets = discovery.docker.local_containers.targets
+
+  labels = {
+    "server" = "remote-ubuntu"
+  }
+
+  relabel_rules = discovery.relabel.docker_logs_relabel.rules
+
   forward_to = [loki.write.loki_storage.receiver]
 }
 
 loki.write "loki_storage" {
   endpoint {
-    url        = "http://10.8.0.2:3100/loki/api/v1/push" 
+    url        = "http://10.8.0.2:3100/loki/api/v1/push"
     batch_wait = "10s"
     batch_size = "1MiB"
   }

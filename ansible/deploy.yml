@@ -1,108 +1,131 @@
-- name: "[Bootstrap] Проверка: доступен ли root?"
-  hosts: vps, local
-  gather_facts: no
+- name: "[Bootstrap] Подготовка доступа и базовая настройка Ubuntu 24.04"
+  hosts: vps,local
+  gather_facts: false
   vars_files:
     - vars/secrets.yml
   tags: bootstrap
-
   vars:
-    ansible_password: "{{ user_pass }}"
-    ansible_ssh_pass: "{{ user_pass }}"
+    ansible_python_interpreter: /usr/bin/python3
 
   pre_tasks:
-    - name: "[SSH] Проверка: доступен ли root?"
-      ansible.builtin.ping:
-      ignore_errors: yes
-      ignore_unreachable: yes
+    - name: "[SSH] Проверка прямого root-доступа без зависимости от Python"
+      ansible.builtin.raw: id -u
       vars:
         ansible_user: root
+        ansible_password: "{{ root_ssh_password }}"
+        ansible_become: false
       register: root_auth_check
+      changed_when: false
+      failed_when: false
+      ignore_unreachable: true
 
-    - name: "[SSH] Логика: настройка подключения под root"
-      set_fact:
+    - name: "[SSH] Использование root, если прямой вход доступен"
+      ansible.builtin.set_fact:
         ansible_user: root
-        ansible_become: no
-      when: root_auth_check.ping is defined
+        ansible_password: "{{ root_ssh_password }}"
+        ansible_become: false
+      when:
+        - root_auth_check.rc | default(-1) == 0
+        - root_auth_check.stdout | default('') | trim == '0'
 
-    - name: "[SSH] Логика: настройка sudo для обычного пользователя"
-      set_fact:
-        ansible_become: yes
+    - name: "[SSH] Использование sudo для исходного пользователя"
+      ansible.builtin.set_fact:
+        ansible_become: true
         ansible_become_method: sudo
-        ansible_become_password: "{{ user_pass }}"
-      when: root_auth_check.ping is not defined
+        ansible_become_password: "{{ bootstrap_sudo_password }}"
+      when: >-
+        (root_auth_check.rc | default(-1) != 0)
+        or (root_auth_check.stdout | default('') | trim != '0')
 
   tasks:
-    - name: "[Python] Установка Python3 (необходим для работы Ansible)"
-      raw: |
-        if [ "$USER" != "root" ]; then SUDO="sudo"; else SUDO=""; fi
-        
-        if command -v apt-get >/dev/null; then
-            $SUDO apt-get update && $SUDO env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get install -y python3
-        elif command -v pacman >/dev/null; then
-            $SUDO pacman -Sy --noconfirm --overwrite "*" archlinux-keyring && $SUDO pacman -Syu --noconfirm --overwrite "*" python3
-        else
-            echo "Unsupported distribution" >&2
-            exit 1
+    - name: "[Bootstrap] Проверка ОС и установка Python3/python3-apt при необходимости"
+      ansible.builtin.raw: |
+        set -eu
+        . /etc/os-release
+        if [ "${ID:-}" != "ubuntu" ] || [ "${VERSION_ID:-}" != "24.04" ]; then
+          echo "Unsupported OS: ${PRETTY_NAME:-unknown}. Required Ubuntu 24.04 LTS." >&2
+          exit 1
         fi
-      changed_when: false
+        if [ ! -x /usr/bin/python3 ] || ! /usr/bin/python3 -c 'import apt' >/dev/null 2>&1; then
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-apt
+          echo PYTHON_BOOTSTRAP_PACKAGES_INSTALLED
+        else
+          echo PYTHON_BOOTSTRAP_PACKAGES_ALREADY_PRESENT
+        fi
+      register: python3_bootstrap
+      changed_when: "'PYTHON_BOOTSTRAP_PACKAGES_INSTALLED' in python3_bootstrap.stdout"
 
     - name: "[Facts] Сбор системных фактов после установки Python"
-      setup:
+      ansible.builtin.setup:
 
-    - name: "[Общее] Проверка поддерживаемой ОС (Debian/Ubuntu или Arch)"
-      fail:
-        msg: "Неподдерживаемая ОС. Требуется Debian/Ubuntu или Arch Linux"
-      when:
-        - ansible_facts['os_family'] != 'Debian'
-        - ansible_facts['os_family'] != 'Archlinux'
+    - name: "[Preflight] Проверка Ubuntu 24.04 LTS"
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ansible_facts['distribution_version'] == '24.04'
+        fail_msg: "Поддерживается только Ubuntu 24.04 LTS."
 
     - name: "[Bootstrap] Запуск сценария базовой настройки ОС"
-      include_tasks: tasks/bootstrap_os.yml
+      ansible.builtin.include_tasks: tasks/bootstrap_os.yml
 
   handlers:
     - name: Restart SSH
-      ansible.builtin.systemd:
-        name: "{{ 'ssh' if ansible_facts['os_family'] == 'Debian' else 'sshd' }}"
+      ansible.builtin.systemd_service:
+        name: ssh
         state: restarted
 
 - name: "[Git] Синхронизация репозитория ServeHub-2"
-  hosts: vps, local
+  hosts: vps,local
+  gather_facts: true
   vars_files:
     - vars/secrets.yml
-  become: yes
+  become: true
   tasks:
-    - name: "[Git] Клонирование или обновление репозитория ServeHub-2"
+    - name: "[Preflight] Проверка доступности пользователя развёртывания"
+      ansible.builtin.assert:
+        that:
+          - deploy_user is defined
+          - deploy_user | length > 0
+          - ansible_user == deploy_user
+        fail_msg: >-
+          После bootstrap Ansible должен подключаться как deploy_user по SSH-ключу.
+          Проверьте ansible_user, ssh_public_key и ansible.cfg/inventory.
+
+    - name: "[Git] Клонирование или безопасное обновление репозитория ServeHub-2"
       ansible.builtin.git:
-        repo: "https://github.com/canntstand/ServeHub-2"
+        repo: "https://github.com/canntstand/ServeHub-2.git"
         dest: "/home/{{ deploy_user }}/ServeHub-2"
-        clone: yes
-        update: yes
-        force: yes
-      become: true
+        clone: true
+        update: true
+        force: false
       become_user: "{{ deploy_user }}"
 
     - name: "[Общее] Генерация файла .env из шаблона env.j2"
       ansible.builtin.template:
-        src: env.j2
+        src: "{{ playbook_dir }}/templates/env.j2"
         dest: "/home/{{ deploy_user }}/ServeHub-2/.env"
         owner: "{{ deploy_user }}"
         group: "{{ deploy_user }}"
         mode: "0600"
+      no_log: true
 
 - name: "Настройка удалённой инфраструктуры (VPS)"
   hosts: vps
+  gather_facts: true
   vars_files:
     - vars/secrets.yml
-  become: yes
+  become: true
   tasks:
-    - name: "[VPS] Запуск нативных задач настройки удалённого сервера"
-      include_tasks: tasks/setup_remote.yml
+    - name: "[VPS] Запуск задач настройки удалённого сервера"
+      ansible.builtin.include_tasks: tasks/setup_remote.yml
 
 - name: "Настройка локальной инфраструктуры (Local Server)"
   hosts: local
+  gather_facts: true
   vars_files:
     - vars/secrets.yml
-  become: yes
+  become: true
   tasks:
-    - name: "[Local] Запуск нативных задач настройки локального сервера"
-      include_tasks: tasks/setup_local.yml
+    - name: "[Local] Запуск задач настройки локального сервера"
+      ansible.builtin.include_tasks: tasks/setup_local.yml

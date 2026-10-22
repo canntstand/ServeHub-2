@@ -1,7 +1,13 @@
+# Credentials for the initial connection to the VPS.
 ansible_host: "{{ vps_public_ip }}"
 ansible_user: "{{ vps_user }}"
-ansible_python_interpreter: /usr/bin/python3
-
-user_pass: "{{ vps_root_password }}"
-
 deploy_user: "{{ vps_user }}"
+
+# Root SSH probe: can be empty when root SSH is unavailable and a normal user is used.
+root_ssh_password: "{{ vps_root_password | default('', true) }}"
+
+# Initial connection and sudo credentials. If the optional per-user password is
+# omitted, fall back to vps_root_password for compatibility with the old setup.
+bootstrap_ssh_password: "{{ vps_ssh_password | default(vps_root_password | default('', true), true) }}"
+bootstrap_sudo_password: "{{ vps_sudo_password | default(vps_root_password | default('', true), true) }}"
+ansible_password: "{{ bootstrap_ssh_password }}"

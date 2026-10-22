@@ -1,135 +1,5 @@
-- name: "[Pause] Пауза для ручной конфигурации WireGuard и данных на Local"
-  ansible.builtin.pause:
-    prompt: |
-      ======================================================================
-      ⚙️ НАСТРОЙКА WIREGUARD И ДАННЫХ НА LOCAL SERVER (РУЧНОЙ ШАГ):
-      ======================================================================
-      Выполните шаги для связывания локального сервера с удаленной VPS:
-
-      1. 📁 ДАННЫЕ ПРИЛОЖЕНИЙ (ПРИ ПЕРЕЕЗДЕ):
-          - Положите старую папку 'apps-data' в /home/{{ local_user }}/ServeHub-2/
-          - Положите папку 'PersonalData' в /home/{{ local_user }}/
-        
-      Если была использована старая папка apps-data, то генерацию конфига WireGuard можно не делать.
-
-      2. 🌐 ГЕНЕРАЦИЯ КОНФИГА WIREGUARD:
-          - Откройте SSH-туннель до панели: ssh -L 8000:127.0.0.1:51821 {{ local_user }}@{{ vps_public_ip }}
-          - Зайдите в веб-интерфейс: http://127.0.0.1:8000
-          - Включите Prometheus в настройках wg-easy (если требуется).
-          - Создайте клиента для локального сервера с фиксированным IP 10.8.0.2.
-          - Сохраните конфиг на локальном сервере по пути:
-            /home/{{ local_user }}/ServeHub-2/apps-data/amnezia/awg0.conf
-        
-      Для проверки или переноса данных вы можете подключиться по SSH:
-      ssh {{ local_user }}@{{ local_private_ip }}
-      ======================================================================
-      Как только конфигурация awg0.conf на месте, нажмите ENTER для продолжения...
-
-- name: "Проверка наличия конфигурационного файла"
-  ansible.builtin.stat:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/amnezia/awg0.conf"
-  register: wg_config
-
-- name: "Ошибка: отсутствует файл конфигурации WireGuard"
-  ansible.builtin.fail:
-    msg: "WireGuard конфиг не найден! Пожалуйста, создайте его перед продолжением."
-  when: not wg_config.stat.exists
-
-# =========================================================================
-# 1. СЕТЕВАЯ ПОДГОТОВКА И ОЧИСТКА ИНТЕРФЕЙСОВ
-# =========================================================================
-- name: "[Network] Проверка наличия старого интерфейса awg0"
-  ansible.builtin.command: ip link show awg0
-  register: awg0_check
-  failed_when: false
-  changed_when: false
-
-- name: "[Network] Удаление старого интерфейса awg0, если он существует"
-  ansible.builtin.command: ip link delete awg0
-  when: awg0_check.rc == 0
-
-# =========================================================================
-# 2. СОЗДАНИЕ ДИРЕКТОРИЙ И НАСТРОЙКА ПРАВ (ПОЛНЫЙ АУДИТ ПО COMPOSE)
-# =========================================================================
-- name: "[FS] Гарантия существования корня apps-data"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data"
-    state: directory
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0755"
-
-- name: "[FS] Настройка системных папок приложений (владелец deploy_user)"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/{{ item }}"
-    state: directory
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0777"
-  loop:
-    - vaultwarden/data
-    - navidrome/data
-    - audiobookshelf/config
-    - audiobookshelf/metadata
-    - portainer/data
-    - postgres/nextcloud
-    - postgres/vaultwarden
-
-- name: "[FS] Точечная настройка прав для Nextcloud HTML (UID 33)"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/nextcloud/html"
-    state: directory
-    recurse: yes
-    owner: "33"
-    group: "33"
-    mode: "u=rwX,g=rwX,o=rX"
-
-- name: "[FS] Точечная настройка прав для Borg-UI (UID 1001)"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/borg-ui"
-    state: directory
-    recurse: yes
-    owner: "1001"
-    group: "1001"
-    mode: "u=rwX,g=,o="
-
-- name: "[FS] Точечная настройка прав для Prometheus (UID 65534)"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/prometheus/data"
-    state: directory
-    recurse: yes
-    owner: "65534"
-    group: "65534"
-    mode: "u=rwX,g=rX,o=rX"
-
-- name: "[FS] Точечная настройка прав для Grafana (UID 472)"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/grafana/data"
-    state: directory
-    recurse: yes
-    owner: "472"
-    group: "472"
-    mode: "0755"
-
-- name: "[FS] Точечная настройка прав для Grafana Loki (UID 10001)"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/loki"
-    state: directory
-    recurse: yes
-    owner: "10001"
-    group: "10001"
-    mode: "0755"
-
-- name: "[FS] Точечная настройка прав для Gitea (UID 1000)"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/gitea"
-    state: directory
-    recurse: yes
-    owner: "1000"
-    group: "1000"
-    mode: "0755"
-
-- name: "[FS] Точечная настройка прав для Amnezia VPN (Владелец deploy_user)"
+# Create the target directories before pausing so a clean host can receive awg0.conf.
+- name: "[FS] Подготовка каталога для конфигурации AmneziaWG до ручного шага"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/amnezia"
     state: directory
@@ -137,93 +7,225 @@
     group: "{{ deploy_user }}"
     mode: "0700"
 
-- name: "[FS] Создание пользовательских папок для медиафайлов"
+- name: "[Pause] Ручная настройка WireGuard и перенос данных на Local"
+  ansible.builtin.pause:
+    prompt: |
+      ======================================================================
+      НАСТРОЙКА LOCAL SERVER (РУЧНОЙ ШАГ)
+      ======================================================================
+      При миграции скопируйте старые apps-data в:
+        /home/{{ deploy_user }}/ServeHub-2/apps-data/
+      и PersonalData в:
+        /home/{{ deploy_user }}/PersonalData/
+
+      Если файл клиента ещё не создан, откройте SSH-туннель к панели wg-easy:
+        ssh -L 8000:127.0.0.1:51821 {{ vps_user }}@{{ vps_public_ip }}
+      Затем откройте http://127.0.0.1:8000, создайте клиента с фиксированным
+      IPv4-адресом 10.8.0.2 и сохраните конфигурацию в:
+        /home/{{ deploy_user }}/ServeHub-2/apps-data/amnezia/awg0.conf
+
+      На чистом сервере отсутствие старых apps-data допустимо, но awg0.conf
+      должен быть создан до продолжения. Нажмите ENTER после подготовки.
+
+- name: "[VPN] Проверка наличия клиентской конфигурации AmneziaWG"
+  ansible.builtin.stat:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/amnezia/awg0.conf"
+  register: wg_config
+
+- name: "[VPN] Остановка развёртывания, если отсутствует awg0.conf"
+  ansible.builtin.assert:
+    that:
+      - wg_config.stat.exists
+      - wg_config.stat.size | default(0) | int > 0
+    fail_msg: >-
+      Конфигурация awg0.conf отсутствует или пуста. Создайте конфигурацию
+      клиента wg-easy с IP 10.8.0.2 и повторите запуск.
+
+- name: "[VPN] Ограничение доступа к клиентской конфигурации AmneziaWG"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/amnezia/awg0.conf"
+    state: file
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+
+- name: "[Docker Compose] Проверка конфигурации локального стека до изменений данных"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.local.yaml config --quiet
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  changed_when: false
+  no_log: true
+
+# The current local Compose file always bind-mounts /mnt/backup_storage into the
+# privileged Borg UI container. Never let Docker silently create this directory
+# on the root filesystem when no dedicated backup UUID was configured.
+- name: "[Backup] Проверка уже смонтированного диска, если backup_disk_uuid не задан"
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - --noheadings
+      - --output
+      - SOURCE
+      - --mountpoint
+      - /mnt/backup_storage
+  register: existing_backup_mount
+  changed_when: false
+  failed_when: false
+  when: backup_disk_uuid | default('') | string | trim | length == 0
+
+- name: "[Backup] Защита от размещения Borg UI на корневой файловой системе"
+  ansible.builtin.assert:
+    that:
+      - existing_backup_mount.rc | default(1) == 0
+    fail_msg: >-
+      Локальный Compose монтирует /mnt/backup_storage в привилегированный Borg UI.
+      Задайте backup_disk_uuid для автоматического монтирования отдельного диска
+      или заранее смонтируйте отдельную файловую систему в /mnt/backup_storage.
+  when: backup_disk_uuid | default('') | string | trim | length == 0
+
+# Не удаляем awg0 вручную: интерфейс создаёт контейнер amnezia-client.
+# Удаление без перезапуска контейнера ломает VPN при повторном запуске playbook.
+
+# =========================================================================
+# DATA DIRECTORIES AND LEAST-PRIVILEGE OWNERSHIP
+# =========================================================================
+- name: "[FS] Создание корня apps-data"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
+- name: "[FS] Создание каталогов данных с владельцами UID/GID контейнеров"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "vaultwarden/data", owner: "1000", group: "1000", mode: "0700" }
+    - { path: "navidrome/data", owner: "1000", group: "1000", mode: "0700" }
+    - { path: "audiobookshelf/config", owner: "1000", group: "1000", mode: "0700" }
+    - { path: "audiobookshelf/metadata", owner: "1000", group: "1000", mode: "0700" }
+    - { path: "portainer/data", owner: "0", group: "0", mode: "0700" }
+    - { path: "postgres/nextcloud", owner: "999", group: "999", mode: "0700" }
+    - { path: "postgres/vaultwarden", owner: "999", group: "999", mode: "0700" }
+    - { path: "postgres/homebox", owner: "999", group: "999", mode: "0700" }
+    - { path: "borg-ui", owner: "1001", group: "1001", mode: "0700" }
+    - { path: "borg-ui-cache", owner: "1001", group: "1001", mode: "0700" }
+    - { path: "homebox", owner: "1000", group: "1000", mode: "0700" }
+    - { path: "prometheus/data", owner: "65534", group: "65534", mode: "0700" }
+    - { path: "grafana/data", owner: "472", group: "472", mode: "0700" }
+    - { path: "loki", owner: "10001", group: "10001", mode: "0700" }
+    - { path: "gitea", owner: "1000", group: "1000", mode: "0700" }
+    - { path: "habitica-db", owner: "999", group: "999", mode: "0700" }
+    - { path: "alertmanager", owner: "65534", group: "65534", mode: "0700" }
+    - { path: "amnezia", owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0700" }
+
+- name: "[FS] Рекурсивная коррекция UID/GID и ограничение прав каталогов данных"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/{{ item.path }}"
+    state: directory
+    recurse: true
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "vaultwarden/data", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
+    - { path: "navidrome/data", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
+    - { path: "audiobookshelf/config", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
+    - { path: "audiobookshelf/metadata", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
+    - { path: "portainer/data", owner: "0", group: "0", mode: "u=rwX,g=,o=" }
+    - { path: "postgres/nextcloud", owner: "999", group: "999", mode: "u=rwX,g=,o=" }
+    - { path: "postgres/vaultwarden", owner: "999", group: "999", mode: "u=rwX,g=,o=" }
+    - { path: "postgres/homebox", owner: "999", group: "999", mode: "u=rwX,g=,o=" }
+    - { path: "borg-ui", owner: "1001", group: "1001", mode: "u=rwX,g=,o=" }
+    - { path: "borg-ui-cache", owner: "1001", group: "1001", mode: "u=rwX,g=,o=" }
+    - { path: "homebox", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
+    - { path: "prometheus/data", owner: "65534", group: "65534", mode: "u=rwX,g=,o=" }
+    - { path: "grafana/data", owner: "472", group: "472", mode: "u=rwX,g=,o=" }
+    - { path: "loki", owner: "10001", group: "10001", mode: "u=rwX,g=,o=" }
+    - { path: "gitea", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
+    - { path: "habitica-db", owner: "999", group: "999", mode: "u=rwX,g=,o=" }
+    - { path: "alertmanager", owner: "65534", group: "65534", mode: "u=rwX,g=,o=" }
+    - { path: "amnezia", owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "u=rwX,g=,o=" }
+
+- name: "[FS] Настройка Nextcloud HTML (UID 33)"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/nextcloud/html"
+    state: directory
+    recurse: true
+    owner: "33"
+    group: "{{ deploy_user }}"
+    mode: "u=rwX,g=rwX,o="
+
+- name: "[FS] Создание родительского каталога PersonalData с проходом для контейнера Nextcloud"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/PersonalData"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0711"
+
+- name: "[FS] Создание каталогов медиафайлов"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/PersonalData/{{ item }}"
     state: directory
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
-    mode: "0755"
+    mode: "0750"
   loop:
     - Music
     - Audiobooks
     - Podcasts
     - Books
 
-- name: "[FS] Настройка папки NextcloudData внутри PersonalData"
+- name: "[FS] Настройка NextcloudData (UID 33)"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/PersonalData/NextcloudData"
     state: directory
-    recurse: yes
+    recurse: true
     owner: "33"
-    group: "33"
-    mode: "u=rwX,g=rX,o="
-
-- name: "[FS] Точечная настройка прав для Habitica DB (MongoDB, UID 999)"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/habitica-db"
-    state: directory
-    recurse: yes
-    owner: "999"
-    group: "999"
-    mode: "0755"
+    group: "{{ deploy_user }}"
+    mode: "u=rwX,g=rwX,o="
 
 # =========================================================================
-# 3. НАСТРОЙКА РЕЗЕРВНОГО КОПИРОВАНИЯ (BORGMATIC & BORG BACKUP)
+# BACKUP STORAGE + BORGMATIC SYSTEMD TIMER
 # =========================================================================
-- name: "[Backup] Проверка физического присутствия диска с указанным UUID"
-  ansible.builtin.command: "blkid -U {{ backup_disk_uuid }}"
+- name: "[Backup] Проверка UUID заданного диска"
+  ansible.builtin.command:
+    argv:
+      - blkid
+      - -U
+      - "{{ backup_disk_uuid }}"
   register: disk_check
   changed_when: false
-  become: true
   failed_when: false
-  when: backup_disk_uuid is defined and (backup_disk_uuid | length > 0)
+  when: backup_disk_uuid | default('') | string | length > 0
 
-- name: "[Backup] Блок настройки бэкапов (выполняется, только если UUID корректен и диск найден)"
+- name: "[Backup] Ошибка, если настроенный диск не найден"
+  ansible.builtin.fail:
+    msg: "backup_disk_uuid задан, но диск с этим UUID не найден. Бэкапы не будут запускаться на корневой файловой системе."
+  when:
+    - backup_disk_uuid | default('') | string | length > 0
+    - disk_check.rc | default(1) != 0
+
+- name: "[Backup] Блок настройки резервного копирования"
+  when:
+    - backup_disk_uuid | default('') | string | length > 0
+    - disk_check.rc | default(1) == 0
   block:
-    - name: "[Backup] Монтирование резервного диска и запись в /etc/fstab"
+    - name: "[Backup] Монтирование диска и запись в fstab"
       ansible.posix.mount:
         path: /mnt/backup_storage
         src: "UUID={{ backup_disk_uuid }}"
         fstype: auto
-        opts: "defaults,nofail"
+        opts: defaults,nofail
         state: mounted
 
-    - name: "[Backup] Создание директории конфигурации /etc/borgmatic"
-      ansible.builtin.file:
-        path: /etc/borgmatic
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-
-    - name: "[Backup] Генерация конфигурации config.yaml из шаблона Jinja2"
-      ansible.builtin.template:
-        src: templates/borgmatic_config.yaml.j2
-        dest: /etc/borgmatic/config.yaml
-        owner: root
-        group: root
-        mode: "0600"
-
-    - name: "[Backup] Проверка, существует ли файл config в репозитории (индикатор инициализации)"
-      ansible.builtin.stat:
-        path: /mnt/backup_storage/server_backup.borg/config
-      register: borg_repo_stat
-
-    - name: "[Backup] Инициализация репозитория Borg (только если файла config нет)"
-      ansible.builtin.command: borgmatic rcreate --encryption repokey-blake2 --make-parent
-      when: not borg_repo_stat.stat.exists
-
-    - name: "[Backup] Подготовка директории кэша Borg для Docker-контейнера"
-      ansible.builtin.file:
-        path: /root/.cache/borg
-        state: directory
-        owner: root
-        group: root
-        mode: "0777"
-      become: true
-
-    - name: "[Backup] Оптимизация прав безопасности на директорию бэкапов"
+    - name: "[Backup] Ограничение доступа к каталогу резервного диска"
       ansible.builtin.file:
         path: /mnt/backup_storage
         state: directory
@@ -231,207 +233,296 @@
         group: root
         mode: "0700"
 
-    - name: "[Backup] Создание директории для systemd override borgmatic.service"
+    - name: "[Backup] Создание каталога конфигурации Borgmatic"
       ansible.builtin.file:
-        path: /etc/systemd/system/borgmatic.service.d
+        path: /etc/borgmatic
         state: directory
         owner: root
         group: root
-        mode: "0755"
+        mode: "0700"
 
-    - name: "[Backup] Расширение CapabilityBoundingSet для работы с кэшем"
+    - name: "[Backup] Проверка наличия парольной фразы шифрования"
+      ansible.builtin.assert:
+        that:
+          - (borgmatic_encryption_passphrase | default(borg_passphrase | default('')) | string | length) >= 20
+        fail_msg: >-
+          Для включённого Borgmatic задайте borgmatic_encryption_passphrase длиной
+          не менее 20 символов в vars/secrets.yml. Не запускайте зашифрованные
+          бэкапы с пустой парольной фразой.
+      no_log: true
+
+    - name: "[Backup] Генерация конфигурации Borgmatic"
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/borgmatic_config.yaml.j2"
+        dest: /etc/borgmatic/config.yaml
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: "[Backup] Валидация конфигурации Borgmatic"
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/borgmatic
+          - --config
+          - /etc/borgmatic/config.yaml
+          - config
+          - validate
+      changed_when: false
+      no_log: true
+
+    - name: "[Backup] Проверка наличия существующего репозитория Borg"
+      ansible.builtin.stat:
+        path: /mnt/backup_storage/server_backup.borg/config
+      register: borg_repo_stat
+
+    - name: "[Backup] Инициализация репозитория только при отсутствии config"
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/borgmatic
+          - --config
+          - /etc/borgmatic/config.yaml
+          - repo-create
+          - --encryption
+          - repokey-blake2
+          - --make-parent-dirs
+      when: not borg_repo_stat.stat.exists
+      no_log: true
+
+    - name: "[Backup] Создание приватного кэша Borg"
+      ansible.builtin.file:
+        path: /root/.cache/borg
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: "[Backup] Установка borgmatic.service"
       ansible.builtin.copy:
-        dest: /etc/systemd/system/borgmatic.service.d/override.conf
-        content: |
-          [Service]
-          CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_NET_RAW CAP_DAC_OVERRIDE
+        dest: /etc/systemd/system/borgmatic.service
         owner: root
         group: root
         mode: "0644"
-      register: systemd_override
+        content: |
+          [Unit]
+          Description= borgmatic backup
+          Documentation=https://torsion.org/borgmatic/
+          Wants=network-online.target
+          After=network-online.target local-fs.target docker.service
+          RequiresMountsFor=/mnt/backup_storage
+          ConditionPathIsMountPoint=/mnt/backup_storage
 
-    - name: "[Backup] Перезапуск демона systemd при изменении оверрайда"
-      ansible.builtin.systemd:
-        daemon_reload: yes
-      when: systemd_override.changed
+          [Service]
+          Type=oneshot
+          User=root
+          Environment=PATH=/usr/local/bin:/usr/bin:/bin
+          ExecStart=/usr/local/bin/borgmatic --config /etc/borgmatic/config.yaml --verbosity -1
+          Nice=19
+          IOSchedulingClass=best-effort
+          IOSchedulingPriority=7
+          TimeoutStartSec=6h
+      register: borgmatic_service_file
 
-    - name: "[Backup] Включение и запуск системного таймера borgmatic.timer"
-      ansible.builtin.systemd:
+    - name: "[Backup] Установка borgmatic.timer"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/borgmatic.timer
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Run borgmatic backups daily
+
+          [Timer]
+          OnCalendar=*-*-* 04:00:00
+          RandomizedDelaySec=15m
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+      register: borgmatic_timer_file
+
+    - name: "[Backup] Перечитывание systemd при изменении unit-файлов"
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: borgmatic_service_file.changed or borgmatic_timer_file.changed
+
+    - name: "[Backup] Включение и запуск borgmatic.timer"
+      ansible.builtin.systemd_service:
         name: borgmatic.timer
-        enabled: yes
+        enabled: true
         state: started
-  when:
-    - backup_disk_uuid is defined
-    - backup_disk_uuid | length > 0
-    - disk_check.rc == 0
 
 # =========================================================================
-# 4. НАСТРОЙКА ALERTMANAGER
+# ALERTMANAGER
 # =========================================================================
-- name: "[Monitoring] Создание директории для данных Alertmanager"
+- name: "[Monitoring] Создание каталога данных Alertmanager"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/alertmanager"
     state: directory
     owner: "65534"
     group: "65534"
-    mode: "0755"
+    mode: "0750"
 
-- name: "[Monitoring] Рендеринг конфигурации alertmanager.yml из шаблона"
+- name: "[Monitoring] Генерация alertmanager.yml"
   ansible.builtin.template:
-    src: templates/alertmanager.yml.j2
+    src: "{{ playbook_dir }}/templates/alertmanager.yml.j2"
     dest: "/home/{{ deploy_user }}/ServeHub-2/configs/monitoring/alertmanager.yml"
     owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0644"
+    group: "65534"
+    mode: "0640"
+  register: alertmanager_config
+  no_log: true
 
 # =========================================================================
-# 5. СИСТЕМНЫЕ НАСТРОЙКИ ЯДРА И СЕТЕВОЙ БРАНДМАУЭР (IPTABLES)
+# KERNEL, FORWARDING AND FIREWALL
 # =========================================================================
-- name: "[Kernel] Загрузка модуля ядра AmneziaWG"
-  ansible.builtin.modprobe:
-    name: amneziawg
-    state: present
+- name: "[Kernel] Проверка/загрузка модуля AmneziaWG"
+  ansible.builtin.command:
+    cmd: modprobe amneziawg
+  changed_when: false
 
-- name: "[Kernel] Применение параметров sysctl для маршрутизации трафика"
-  ansible.builtin.sysctl:
+- name: "[Kernel] Настройка sysctl для маршрутизации"
+  ansible.posix.sysctl:
     name: "{{ item.name }}"
     value: "{{ item.value }}"
     state: present
-    sysctl_set: yes
-    reload: yes
+    sysctl_set: true
+    reload: true
   loop:
     - { name: "net.ipv4.ip_forward", value: "1" }
     - { name: "net.ipv4.conf.all.src_valid_mark", value: "1" }
-    - { name: "net.ipv6.conf.all.disable_ipv6", value: "0" }
-    - { name: "net.ipv6.conf.all.forwarding", value: "1" }
-    - { name: "net.ipv6.conf.default.forwarding", value: "1" }
 
-- name: "[Firewall] Установка утилит сохранения iptables (Debian/Ubuntu)"
+- name: "[Firewall] Удаление iptables-persistent, не сохраняем динамические цепочки Docker"
   ansible.builtin.apt:
-    name: iptables-persistent
-    state: present
-    update_cache: yes
-  environment:
-    DEBIAN_FRONTEND: noninteractive
-  when: ansible_facts['os_family'] == "Debian"
+    name:
+      - iptables-persistent
+      - netfilter-persistent
+    state: absent
+    purge: false
 
-- name: "[Firewall] Активация и запуск сервиса iptables (Arch Linux)"
-  ansible.builtin.systemd:
-    name: iptables
-    enabled: yes
-    state: started
-  when: ansible_facts['os_family'] == "Archlinux"
+- name: "[Firewall] Создание скрипта восстановления правил ServeHub"
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/servehub-firewall-local.sh
+    owner: root
+    group: root
+    mode: "0750"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      IPT=/usr/sbin/iptables
+      OUT_IFACE={{ ansible_facts['default_ipv4']['interface'] | quote }}
 
-- name: "[Firewall] Настройка FORWARD для входящего трафика awg0"
-  ansible.builtin.iptables:
-    chain: FORWARD
-    in_interface: awg0
-    jump: ACCEPT
-    state: present
-  register: iptables_forward_in
+      $IPT -C FORWARD -i awg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -i awg0 -j ACCEPT
+      $IPT -C FORWARD -o awg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -o awg0 -j ACCEPT
+      $IPT -t nat -C POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE 2>/dev/null || \
+        $IPT -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE
+  register: local_firewall_script
 
-- name: "[Firewall] Настройка FORWARD для исходящего трафика awg0"
-  ansible.builtin.iptables:
-    chain: FORWARD
-    out_interface: awg0
-    jump: ACCEPT
-    state: present
-  register: iptables_forward_out
+- name: "[Firewall] Создание systemd-сервиса восстановления правил ServeHub"
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/servehub-firewall.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Restore ServeHub VPN firewall rules
+      Wants=network-online.target
+      After=network-online.target docker.service
+      PartOf=docker.service
 
-- name: "[Firewall] Статус изменений FORWARD"
-  ansible.builtin.set_fact:
-    iptables_forward_rules:
-      changed: "{{ iptables_forward_in.changed or iptables_forward_out.changed }}"
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/sbin/servehub-firewall-local.sh
 
-- name: "[Firewall] Настройка NAT MASQUERADE для подсети VPN"
-  ansible.builtin.iptables:
-    table: nat
-    chain: POSTROUTING
-    source: 10.8.0.0/24
-    out_interface: "{{ ansible_facts['default_ipv4']['interface'] }}"
-    jump: MASQUERADE
-  register: iptables_nat_rule
+      [Install]
+      WantedBy=multi-user.target
+  register: local_firewall_unit
 
-- name: "[Firewall] Сохранение правил iptables (Debian/Ubuntu)"
-  ansible.builtin.command: netfilter-persistent save
-  when: >
-    ansible_facts['os_family'] == "Debian" and 
-    (iptables_forward_rules.changed or iptables_nat_rule.changed)
-  changed_when: false
+- name: "[Firewall] Перечитывание systemd при изменении unit"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: local_firewall_unit.changed
 
-- name: "[Firewall] Сохранение правил iptables (Arch Linux)"
-  ansible.builtin.shell: iptables-save > /etc/iptables/iptables.rules
-  when: >
-    ansible_facts['os_family'] == "Archlinux" and 
-    (iptables_forward_rules.changed or iptables_nat_rule.changed)
-  changed_when: false
+- name: "[Firewall] Применение правил и включение автозагрузки"
+  ansible.builtin.systemd_service:
+    name: servehub-firewall.service
+    enabled: true
+    state: "{{ 'restarted' if local_firewall_script.changed or local_firewall_unit.changed else 'started' }}"
 
 # =========================================================================
-# 6. ЗАПУСК СЕРВИСОВ СТЕКА SERVEHUB-2
+# START LOCAL COMPOSE STACK
 # =========================================================================
-- name: "[Docker] Восстановление системных цепочек iptables для Docker"
-  ansible.builtin.systemd:
-    name: docker
-    state: restarted
-
-- name: "[Docker] Запуск основного стека контейнеров ServeHub-2"
+- name: "[Docker] Запуск локального стека без безусловного restart Docker"
   community.docker.docker_compose_v2:
     project_src: "/home/{{ deploy_user }}/ServeHub-2"
     files:
       - docker-compose.local.yaml
     state: present
+    pull: missing
   register: compose_start
 
-- name: "[Docker] Получение итогового статуса запущенных сервисов"
+- name: "[Alertmanager] Применение изменённой конфигурации"
   ansible.builtin.command:
-    cmd: "docker compose -f docker-compose.local.yaml ps"
+    cmd: docker compose -f docker-compose.local.yaml restart alertmanager
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  when: alertmanager_config.changed
+
+- name: "[Docker Compose] Проверка статуса локальных контейнеров"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.local.yaml ps
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   register: compose_ps_output
   changed_when: false
 
-- name: "[Status] 📊 ТЕКУЩИЙ СТАТУС ЗАПУЩЕННЫХ СЕРВИСОВ 📊"
+- name: "[Status] Текущий статус локальных контейнеров"
   ansible.builtin.debug:
     var: compose_ps_output.stdout_lines
 
 # =========================================================================
-# 7. НАСТРОЙКА DNS ДЛЯ ИНТЕРФЕЙСА AWG0
+# SYSTEMD-RESOLVED DNS FOR awg0
 # =========================================================================
-- name: "[Network] Гарантия работы systemd-resolved для resolvectl"
-  ansible.builtin.systemd:
+- name: "[Network] Включение systemd-resolved"
+  ansible.builtin.systemd_service:
     name: systemd-resolved
-    enabled: yes
+    enabled: true
     state: started
 
-- name: "[Network] Создание systemd-сервиса amnezia-dns для настройки DNS интерфейса awg0"
+- name: "[Network] Установка сервиса amnezia-dns"
   ansible.builtin.copy:
     dest: /etc/systemd/system/amnezia-dns.service
+    owner: root
+    group: root
+    mode: "0644"
     content: |
       [Unit]
-      Description=Fix Amnezia DNS for awg0
-      After=docker.service
-      BindsTo=docker.service
+      Description=Configure DNS routing over ServeHub AmneziaWG interface
+      Requires=docker.service
+      After=docker.service systemd-resolved.service
+      PartOf=docker.service
 
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      ExecStartPre=/bin/sh -c 'until ip link show awg0; do sleep 1; done'
+      TimeoutStartSec=120
+      ExecStartPre=/bin/bash -ec 'for i in {1..100}; do /usr/sbin/ip link show awg0 >/dev/null 2>&1 && exit 0; sleep 1; done; echo "awg0 did not appear within 100 seconds" >&2; exit 1'
       ExecStart=/usr/bin/resolvectl dns awg0 10.8.0.1
       ExecStartPost=/usr/bin/resolvectl domain awg0 ~.
 
       [Install]
       WantedBy=multi-user.target
-    owner: root
-    group: root
-    mode: "0644"
   register: amnezia_dns_service
 
-- name: "[Network] Перезагрузка daemon systemd при изменении конфига сервиса DNS"
-  ansible.builtin.systemd:
-    daemon_reload: yes
+- name: "[Network] Перечитывание systemd при изменении DNS unit"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
   when: amnezia_dns_service.changed
 
-- name: "[Network] Включение и запуск системного сервиса amnezia-dns"
-  ansible.builtin.systemd:
+- name: "[Network] Активация/перезапуск DNS-сервиса"
+  ansible.builtin.systemd_service:
     name: amnezia-dns.service
-    enabled: yes
-    state: started
+    enabled: true
+    state: "{{ 'restarted' if amnezia_dns_service.changed else 'started' }}"
+    daemon_reload: false

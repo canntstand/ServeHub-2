@@ -1,17 +1,30 @@
+schema_version: 34
+
 http:
-  address: 10.8.0.1:8082
+  address: "10.8.0.1:8082"
   session_ttl: 72h
 
 dns:
   bind_hosts:
-    - 10.8.0.1
+    - "10.8.0.1"
   port: 53
+
+  bootstrap_dns:
+    - "1.1.1.1"
+    - "8.8.8.8"
+
   upstream_dns:
-    - https://dns.cloudflare.com/dns-query
-    - https://dns.google/dns-query
+    - "https://dns.cloudflare.com/dns-query"
+    - "https://dns.google/dns-query"
+
+  upstream_mode: parallel
+
+  cache_enabled: true
+  cache_size: 4194304
+  cache_ttl_min: 300
+  cache_ttl_max: 3600
+  cache_optimistic: true
 
 users:
-  - name: {{ admin_user }}
-    password: "{{ admin_password | password_hash('bcrypt') }}"
-
-schema_version: 27
+  - name: "{{ admin_user }}"
+     password: "{{ (admin_password | password_hash('bcrypt', adguard_password_salt | default('servehubadguardsalt22x'))) | to_json }}"

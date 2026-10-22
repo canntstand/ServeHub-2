@@ -1,5 +1,5 @@
 web:
-  address: "127.0.0.1"
+  address: "10.8.0.1"
   port: 51822
 
 alerting:
@@ -8,9 +8,10 @@ alerting:
     id: "${TELEGRAM_CHAT_ID}"
 
 endpoints:
-  - name: "Is Local Server Alive?"
-    url: "http://127.0.0.1:8080/health-check"
-    interval: 2m
+  - name: "Local server health endpoint"
+    group: "infrastructure"
+    url: "http://10.8.0.2:8080/health-check"
+    interval: 5m
     conditions:
       - "[STATUS] == 200"
     alerts:
@@ -18,11 +19,12 @@ endpoints:
         failure-threshold: 3
         success-threshold: 2
         send-on-resolved: true
-        description: "Локальный домашний сервер недоступен!"
+        description: "Локальный сервер или его Nginx недоступен по WireGuard."
 
-  - name: "Is VPS Server Alive?"
-    url: "http://127.0.0.1:8080/vps-health-check"
-    interval: 2m
+  - name: "VPS node exporter"
+    group: "infrastructure"
+    url: "http://10.8.0.1:9100/metrics"
+    interval: 5m
     conditions:
       - "[STATUS] == 200"
     alerts:
@@ -30,16 +32,70 @@ endpoints:
         failure-threshold: 3
         success-threshold: 2
         send-on-resolved: true
-        description: "Веб-окружение VPS не отвечает!"
+        description: "VPS node-exporter не отвечает по WireGuard."
 
-  - name: SSL Certificate
-    url: "https://${SERVER_NAME}"
+  - name: "Homepage"
+    group: "web"
+    url: "https://${SERVER_NAME}/"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+    alerts:
+      - type: telegram
+        failure-threshold: 3
+        success-threshold: 2
+        send-on-resolved: true
+        description: "Homepage на основном домене недоступен."
+
+  - name: "Grafana"
+    group: "monitoring"
+    url: "https://grafana.${SERVER_NAME}/api/health"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+    alerts:
+      - type: telegram
+        failure-threshold: 3
+        success-threshold: 2
+        send-on-resolved: true
+        description: "Grafana не отвечает через локальный Nginx."
+
+  - name: "Prometheus"
+    group: "monitoring"
+    url: "https://prometheus.${SERVER_NAME}/-/ready"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+    alerts:
+      - type: telegram
+        failure-threshold: 3
+        success-threshold: 2
+        send-on-resolved: true
+        description: "Prometheus не готов принимать запросы."
+
+  - name: "Alertmanager"
+    group: "monitoring"
+    url: "https://alertmanager.${SERVER_NAME}/-/ready"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+    alerts:
+      - type: telegram
+        failure-threshold: 3
+        success-threshold: 2
+        send-on-resolved: true
+        description: "Alertmanager не отвечает через локальный Nginx."
+
+  - name: "Wildcard TLS certificate"
+    group: "security"
+    url: "https://grafana.${SERVER_NAME}/"
     interval: 1h
     conditions:
+      - "[STATUS] == 200"
       - "[CERTIFICATE_EXPIRATION] > 720h"
     alerts:
       - type: telegram
-        description: "SSL сертификат скоро истекает"
+        description: "Wildcard TLS-сертификат истекает менее чем через 30 дней или недействителен."
         failure-threshold: 3
         success-threshold: 2
         send-on-resolved: true

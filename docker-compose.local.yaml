@@ -12,17 +12,18 @@ services:
     ports:
       - "10.8.0.2:80:80"
       - "127.0.0.1:80:80"
+      - "10.8.0.2:443:443"
+      - "127.0.0.1:443:443"
       - "10.8.0.2:8080:8080"
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
     environment:
       - SERVER_NAME=${SERVER_NAME}
     volumes:
-      - ./configs/nginx/templates/nginx.local.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./configs/nginx/templates/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certbot/certs:/etc/letsencrypt:ro
     depends_on:
       navidrome:
-        condition: service_started
-      grafana:
         condition: service_started
       audiobookshelf:
         condition: service_started
@@ -32,15 +33,13 @@ services:
         condition: service_started
       habitica-client:
         condition: service_started
-      portainer:
-        condition: service_started
       amnezia-client:
         condition: service_healthy
-      borg-ui:
-        condition: service_started
       homebox:
         condition: service_started
       gitea:
+        condition: service_started
+      homepage:
         condition: service_started
     deploy:
       resources:
@@ -53,21 +52,165 @@ services:
       retries: 3
       start_period: 10s
 
+  certbot:
+    build:
+      context: .
+      dockerfile: Dockerfile.certbot
+    container_name: certbot
+    logging: *default-logging
+    profiles: ["maintenance"]
+    restart: "no"
+    volumes:
+      - ./certbot/certs:/etc/letsencrypt
+      - ./certbot/certs-data:/var/lib/letsencrypt
+      - ./certbot/certbot-dns-webnames:/opt/certbot-dns-webnames
+    environment:
+      - SERVER_NAME=${SERVER_NAME}
+    command: >
+      certonly
+      --manual
+      --manual-auth-hook /opt/certbot-dns-webnames/authenticator.sh
+      --manual-cleanup-hook /opt/certbot-dns-webnames/cleanup.sh
+      --preferred-challenges dns-01
+      --agree-tos
+      --no-eff-email
+      --non-interactive
+      -d "${SERVER_NAME}"
+      -d "*.${SERVER_NAME}"
+      --email "${EMAIL}"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    logging: *default-logging
+    expose:
+      - "3000"
+    environment:
+      - PORT=3000
+      - TZ=Europe/Moscow
+      - HOMEPAGE_ALLOWED_HOSTS=${SERVER_NAME},localhost,127.0.0.1,homepage
+      - HOMEPAGE_VAR_SERVER_NAME=${SERVER_NAME}
+    volumes:
+      - ./configs/homepage/config:/app/config:ro
+      - ./configs/homepage/public/images:/app/public/images:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
   nginx-exporter:
     image: nginx/nginx-prometheus-exporter:latest
     container_name: nginx-exporter
     restart: unless-stopped
     logging: *default-logging
-    expose:
-      - 9113
+    ports:
+      - "10.8.0.2:9113:9113"
     command: --nginx.scrape-uri=http://nginx:8080/stub_status
     depends_on:
       nginx:
+        condition: service_healthy
+      amnezia-client:
         condition: service_healthy
     deploy:
       resources:
         limits:
           memory: 1G
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    container_name: node-exporter
+    logging: *default-logging
+    restart: unless-stopped
+    network_mode: "host"
+    pid: "host"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /run/udev:/run/udev:ro
+    command:
+      - "--web.listen-address=10.8.0.2:9100"
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/rootfs/(sys|proc|dev|host|etc|var/lib/docker)($$|/)"
+    depends_on:
+      amnezia-client:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:0.60.5
+    container_name: cadvisor
+    logging: *default-logging
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "10.8.0.2:8090:8080"
+    command:
+      - "--allow_dynamic_housekeeping=false"
+      - "--housekeeping_interval=2m"
+      - "--max_housekeeping_interval=2m"
+      - "--disable_metrics=disk,referenced_memory"
+      - "--raw_cgroup_prefix_whitelist=/system.slice,/user.slice"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev:/dev:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /sys/fs/cgroup:/cgroup:ro
+    depends_on:
+      amnezia-client:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    restart: unless-stopped
+    command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    volumes:
+      - ./configs/alloy/local.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./apps-data/alloy:/var/lib/alloy/data
+    logging: *default-logging
+    depends_on:
+      amnezia-client:
+        condition: service_healthy
+
+  amnezia-client:
+    build:
+      context: .
+      dockerfile: Dockerfile.amnezia
+    container_name: amnezia-client
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./apps-data/amnezia:/config:ro
+    network_mode: host
+    logging: *default-logging
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD-SHELL", "test -n \"$$(awg show interfaces)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   navidrome:
     container_name: navidrome
@@ -75,11 +218,11 @@ services:
     restart: unless-stopped
     logging: *default-logging
     expose:
-      - 4533
+      - "4533"
     environment:
       ND_SCANINTERVAL: "2m"
       ND_LOGLEVEL: "info"
-      ND_BASEURL: "/navidrome"
+      ND_BASEURL: "https://navidrome.${SERVER_NAME}"
     volumes:
       - ./apps-data/navidrome/data:/data
       - /home/${LOCAL_USER}/PersonalData/Music:/music:ro
@@ -94,10 +237,9 @@ services:
     logging: *default-logging
     restart: unless-stopped
     expose:
-      - 80
+      - "80"
     environment:
       - AUDIOBOOKSHELF_PORT=80
-      - AUDIOBOOKSHELF_BASE_PATH=/audiobookshelf
     volumes:
       - ./apps-data/audiobookshelf/config:/config
       - ./apps-data/audiobookshelf/metadata:/metadata
@@ -121,7 +263,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     expose:
-      - 5432
+      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -149,7 +291,7 @@ services:
     logging: *default-logging
     restart: unless-stopped
     expose:
-      - 80
+      - "80"
     depends_on:
       nextcloud-db:
         condition: service_healthy
@@ -162,13 +304,14 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - NEXTCLOUD_ADMIN_USER=${ADMIN_USER}
       - NEXTCLOUD_ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - OVERWRITEWEBROOT=/nextcloud
+      - OVERWRITEHOST=nextcloud.${SERVER_NAME}
       - OVERWRITEPROTOCOL=https
+      - OVERWRITECLIURL=https://nextcloud.${SERVER_NAME}
       - REDIS_HOST=nextcloud-redis
       - REDIS_PORT=6379
       - REDIS_HOST_PASSWORD=${NEXTCLOUD_REDIS_PASS}
       - HTACCESS_OVERRIDE_CURRENT=1
-      - NEXTCLOUD_TRUSTED_DOMAINS=${SERVER_NAME}
+      - NEXTCLOUD_TRUSTED_DOMAINS=nextcloud.${SERVER_NAME}
       - TRUSTED_PROXIES=172.16.0.0/12 10.8.0.0/24
       - NC_maintenance_window_start=2
       - NC_default_phone_region=RU
@@ -183,11 +326,7 @@ services:
         limits:
           memory: 3G
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "test -f /var/www/html/config/config.php && php occ status",
-        ]
+      test: ["CMD-SHELL", "test -f /var/www/html/config/config.php && php occ status"]
       interval: 1m30s
       timeout: 30s
       retries: 5
@@ -224,7 +363,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     expose:
-      - 5432
+      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -241,237 +380,18 @@ services:
     logging: *default-logging
     restart: unless-stopped
     expose:
-      - 80
+      - "80"
     depends_on:
       vaultwarden-db:
         condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@vaultwarden-db:5432/vaultwarden
-      - DOMAIN=https://${SERVER_NAME}/vaultwarden
+      - DOMAIN=https://vaultwarden.${SERVER_NAME}
       - SIGNUPS_ALLOWED=true
       - WEBSOCKET_ENABLED=true
       - ADMIN_TOKEN=${SECRET_VAULTWARDEN_PASSWORD}
     volumes:
       - ./apps-data/vaultwarden/data:/data
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  prometheus:
-    image: prom/prometheus:v3
-    container_name: prometheus
-    logging: *default-logging
-    restart: unless-stopped
-    expose:
-      - 9090
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ./configs/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./configs/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
-      - ./apps-data/prometheus/data:/prometheus
-    depends_on:
-      node-exporter:
-        condition: service_started
-      cadvisor:
-        condition: service_started
-      alertmanager:
-        condition: service_started
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  grafana:
-    image: grafana/grafana:13.0-slim
-    container_name: grafana
-    logging: *default-logging
-    restart: unless-stopped
-    expose:
-      - 3000
-    environment:
-      - GF_SERVER_ROOT_URL=https://${SERVER_NAME}/grafana/
-      - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      - GF_SECURITY_ADMIN_USER=${ADMIN_USER}
-      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - GF_ANALYTICS_REPORTING_ENABLED=false
-      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
-    volumes:
-      - ./apps-data/grafana/data:/var/lib/grafana
-      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./configs/grafana/dashboards:/var/lib/grafana/dashboards:ro
-    depends_on:
-      prometheus:
-        condition: service_started
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  node-exporter:
-    image: prom/node-exporter:v1.12.1
-    container_name: node-exporter
-    logging: *default-logging
-    restart: unless-stopped
-    network_mode: "host"
-    pid: "host"
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-      - /run/udev:/run/udev:ro
-    command:
-      - "--path.procfs=/host/proc"
-      - "--path.sysfs=/host/sys"
-      - "--path.rootfs=/rootfs"
-      - "--collector.filesystem.mount-points-exclude=^/rootfs/(sys|proc|dev|host|etc|var/lib/docker)($$|/)"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  cadvisor:
-    image: ghcr.io/google/cadvisor:0.60.5
-    container_name: cadvisor
-    logging: *default-logging
-    restart: unless-stopped
-    privileged: true
-    expose:
-      - 8080
-    command:
-      - "--allow_dynamic_housekeeping=false"
-      - "--housekeeping_interval=2m"
-      - "--max_housekeeping_interval=2m"
-      - "--disable_metrics=disk,referenced_memory"
-      - "--raw_cgroup_prefix_whitelist=/system.slice,/user.slice"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev:/dev:ro
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
-      - /sys/fs/cgroup:/cgroup:ro
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  portainer:
-    image: portainer/portainer-ce:2.39.6
-    container_name: portainer
-    logging: *default-logging
-    restart: unless-stopped
-    expose:
-      - 9000
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./apps-data/portainer/data:/data
-    command: --base-url=/portainer/
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  alertmanager:
-    image: prom/alertmanager:v0.34.0
-    container_name: alertmanager
-    logging: *default-logging
-    restart: unless-stopped
-    volumes:
-      - ./configs/monitoring:/etc/alertmanager
-      - ./apps-data/alertmanager:/alertmanager
-    command:
-      - "--config.file=/etc/alertmanager/alertmanager.yml"
-      - "--storage.path=/alertmanager"
-    expose:
-      - 9093
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  amnezia-client:
-    build:
-      context: .
-      dockerfile: Dockerfile.amnezia
-    container_name: amnezia-client
-    restart: unless-stopped
-    security_opt:
-      - systempaths=unconfined
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    volumes:
-      - ./apps-data/amnezia:/config
-      - /lib/modules:/lib/modules:ro
-    logging: *default-logging
-    network_mode: "host"
-    healthcheck:
-      test: ["CMD-SHELL", "awg show | grep interface || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-  borg-ui:
-    image: ainullcode/borg-ui:2.2.6
-    container_name: borg-ui
-    restart: unless-stopped
-    logging: *default-logging
-    privileged: true
-    expose:
-      - 8081
-    environment:
-      - INITIAL_ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - BORG_CACHE_DIR=/home/borg/.cache/borg
-      - LOCAL_MOUNT_POINTS=/mnt/backup_storage
-      - BASE_PATH=/borg-ui
-      - REDIS_HOST=disabled
-    volumes:
-      - ./apps-data/borg-ui:/data
-      - ./apps-data/borg-ui-cache:/home/borg/.cache/borg:rw
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
-      - /mnt/backup_storage:/mnt/backup_storage:rw
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  loki:
-    image: grafana/loki:3.7
-    container_name: loki
-    restart: unless-stopped
-    ports:
-      - "10.8.0.2:3100:3100"
-    volumes:
-      - ./configs/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
-      - ./apps-data/loki:/loki
-    command: -config.file=/etc/loki/loki-config.yaml
-    logging: *default-logging
-    depends_on:
-      amnezia-client:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  alloy:
-    image: grafana/alloy:latest
-    container_name: alloy
-    restart: unless-stopped
-    command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
-    volumes:
-      - ./configs/alloy/local.alloy:/etc/alloy/config.alloy:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    depends_on:
-      - loki
-    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -484,7 +404,7 @@ services:
     environment:
       - USER_UID=1000
       - USER_GID=1000
-      - GITEA__server__ROOT_URL=https://${SERVER_NAME}/gitea/
+      - GITEA__server__ROOT_URL=https://gitea.${SERVER_NAME}/
       - GITEA__server__DISABLE_SSH=true
       - GITEA__database__DB_TYPE=sqlite3
       - GITEA__database__PATH=/data/gitea/gitea.db
@@ -494,7 +414,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     expose:
-      - 3000
+      - "3000"
     restart: unless-stopped
 
   habitica:
@@ -507,7 +427,7 @@ services:
         condition: service_healthy
     environment:
       - NODE_DB_URI=mongodb://habitica-db/habitica
-      - BASE_URL=http://habitica.${SERVER_NAME}
+      - BASE_URL=https://habitica.${SERVER_NAME}
       - INVITE_ONLY=false
     networks:
       default:
@@ -515,7 +435,7 @@ services:
           - server
           - habitica-server
     expose:
-      - 3000
+      - "3000"
     deploy:
       resources:
         limits:
@@ -530,7 +450,7 @@ services:
       habitica:
         condition: service_started
     expose:
-      - 80
+      - "80"
     deploy:
       resources:
         limits:
@@ -581,8 +501,8 @@ services:
     image: ghcr.io/sysadminsmedia/homebox:latest
     container_name: homebox
     restart: unless-stopped
-    ports:
-      - "10.8.0.2:7745:7745"
+    expose:
+      - "7745"
     environment:
       - HBOX_MODE=production
       - HBOX_WEB_PORT=7745

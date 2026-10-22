@@ -1,426 +1,341 @@
 # =========================================================================
-# 1. СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ
+# 1. USER, SUDO AND SSH KEY
 # =========================================================================
-- name: "[User] Создание пользователя {{ deploy_user }} и добавление в группы (sudo/wheel)"
-  user:
+- name: "[User] Создание пользователя {{ deploy_user }} и добавление в sudo"
+  ansible.builtin.user:
     name: "{{ deploy_user }}"
     shell: /bin/bash
-    groups: "{{ 'sudo' if ansible_facts['os_family'] == 'Debian' else 'wheel' }}"
-    append: yes
+    groups:
+      - sudo
+    append: true
+    create_home: true
     state: present
 
 - name: "[Sudoers] Настройка беспарольного sudo для {{ deploy_user }}"
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/sudoers.d/90-ansible-users
+    regexp: '^{{ deploy_user | regex_escape }}\s'
     line: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL"
-    validate: "visudo -cf %s"
-    create: yes
+    create: true
+    owner: root
+    group: root
     mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
 
-# =========================================================================
-# 2. ПОЛНОЕ ОБНОВЛЕНИЕ ОС
-# =========================================================================
-- name: "[APT] Debian/Ubuntu: обновление кэша и пакетов (включая ядро)"
-  apt:
-    update_cache: yes
-    upgrade: safe
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: Обновление ключей Arch Linux
-  community.general.pacman:
-    name: archlinux-keyring
-    state: latest
-    update_cache: yes
-  when: ansible_facts['os_family'] == "Archlinux"
-
-- name: "[Pacman] Arch: полное обновление системы"
-  pacman:
-    update_cache: yes
-    upgrade: yes
-    extra_args: --noconfirm
-  when: ansible_facts['os_family'] == "Archlinux"
-
-# =========================================================================
-# 3. ПРОВЕРКА ЯДРА И ПЕРЕЗАГРУЗКА (ДЛЯ ВСЕХ ОС)
-# =========================================================================
-- name: "[Kernel] Debian/Ubuntu: проверка расхождения версий запущенного и установленного ядра"
-  shell: |
-    running_kernel="$(uname -r)"
-    latest_installed_kernel="$(dpkg -l 'linux-image-[0-9]*' | awk '/^ii/ {print $2}' | grep -v 'extra' | sort -V | tail -n1 | sed 's/linux-image-//')"
-    if [ "$running_kernel" != "$latest_installed_kernel" ]; then
-      echo "reboot_needed"
-    else
-      echo "ok"
-    fi
-  register: ubuntu_kernel_check
-  changed_when: false
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: "[Kernel] Arch: проверка расхождения версий ядра"
-  shell: |
-    running=$(uname -r)
-    installed_pkg=$(pacman -Q | grep -E '^linux(-lts|-zen)? ' | awk '{print $2}' | head -n1)
-    if [[ "$running" != *"$installed_pkg"* ]]; then
-      echo "reboot_needed"
-    else
-      echo "ok"
-    fi
-  args:
-    executable: /bin/bash
-  register: arch_kernel_check
-  changed_when: false
-  when: ansible_facts['os_family'] == "Archlinux"
-
-- name: "[Reboot] Debian/Ubuntu: отправка команды на перезагрузку"
-  ansible.builtin.shell: "sleep 2 && shutdown -r now"
-  async: 1
-  poll: 0
-  when: ansible_facts['os_family'] == "Debian" and ubuntu_kernel_check.stdout == "reboot_needed"
-
-- name: "[Reboot] Arch: отправка команды на перезагрузку"
-  ansible.builtin.shell: "sleep 2 && shutdown -r now"
-  async: 1
-  poll: 0
-  when: ansible_facts['os_family'] == "Archlinux" and arch_kernel_check.stdout == "reboot_needed"
-
-- name: "[Reboot] Ожидание поднятия сервера после перезагрузки"
-  ansible.builtin.wait_for_connection:
-    connect_timeout: 10
-    timeout: 300
-    delay: 10
-  vars:
-    ansible_user: "{{ deploy_user }}"
-  when: >
-    (ansible_facts['os_family'] == "Debian" and ubuntu_kernel_check.stdout == "reboot_needed") or
-    (ansible_facts['os_family'] == "Archlinux" and arch_kernel_check.stdout == "reboot_needed")
-
-# =========================================================================
-# 4. УСТАНОВКА БАЗОВЫХ ПАКЕТОВ
-# =========================================================================
-- name: "[Pacman] Arch: установка базовых пакетов"
-  pacman:
-    name:
-      [
-        docker,
-        docker-compose,
-        linux-headers,
-        dkms,
-        git,
-        fail2ban,
-        fakeroot,
-        binutils,
-        make,
-        gcc,
-        patch,
-        sudo,
-        debugedit,
-        borg,
-        borgmatic,
-        gettext,
-        argon2,
-        openssl,
-        curl,
-      ]
+- name: "[SSH] Установка публичного ключа до отключения password auth"
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
     state: present
-    extra_args: --noconfirm
-  when: ansible_facts['os_family'] == "Archlinux"
+    key: "{{ ssh_public_key }}"
+    manage_dir: true
 
-- name: "[AmneziaWG] Debian/Ubuntu: установка утилит сборки и заголовков актуального ядра + некоторые доп. пакеты"
-  apt:
+# Switch to the final account and deliberately test a fresh SSH connection.
+# This catches a missing/wrong private key before hardening sshd.
+- name: "[Privilege] Переключение на deploy_user для дальнейшего развёртывания"
+  ansible.builtin.set_fact:
+    ansible_user: "{{ deploy_user }}"
+    ansible_password: ""
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_become_password: ""
+
+- name: "[SSH] Сброс старого SSH-соединения для проверки ключа"
+  ansible.builtin.meta: reset_connection
+
+- name: "[SSH] Проверка входа по ключу под deploy_user"
+  ansible.builtin.command:
+    cmd: id -un
+  become: false
+  register: deploy_user_ssh_check
+  changed_when: false
+
+- name: "[SSH] Подтверждение корректной SSH-аутентификации"
+  ansible.builtin.assert:
+    that:
+      - deploy_user_ssh_check.stdout | trim == deploy_user
+    fail_msg: >-
+      Не удалось подтвердить SSH-вход как deploy_user. Проверьте, что приватный
+      ключ доступен Ansible (ssh-agent/ansible.cfg/inventory), до отключения
+      PasswordAuthentication. При необходимости задайте отдельные vps_ssh_password / vps_sudo_password
+      или local_ssh_password / local_sudo_password в vars/secrets.yml.
+
+# =========================================================================
+# 2. SSH HARDENING
+# =========================================================================
+- name: "[SSH] Создание управляемого drop-in с настройками безопасности"
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-00-servehub-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+    content: |
+      PubkeyAuthentication yes
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      MaxAuthTries 3
+      PermitEmptyPasswords no
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Restart SSH
+
+- name: "[SSH] Проверка итоговой конфигурации sshd"
+  ansible.builtin.command:
+    cmd: /usr/sbin/sshd -t
+  changed_when: false
+
+- name: "[SSH] Проверка эффективных параметров безопасности sshd"
+  ansible.builtin.command:
+    cmd: /usr/sbin/sshd -T
+  register: sshd_effective_config
+  changed_when: false
+  failed_when: >-
+    'pubkeyauthentication yes' not in sshd_effective_config.stdout or
+    'passwordauthentication no' not in sshd_effective_config.stdout or
+    'kbdinteractiveauthentication no' not in sshd_effective_config.stdout or
+    'permitrootlogin no' not in sshd_effective_config.stdout or
+    'maxauthtries 3' not in sshd_effective_config.stdout or
+    'permitemptypasswords no' not in sshd_effective_config.stdout
+
+- name: "[SSH] Применение настроек sshd до дальнейших шагов"
+  ansible.builtin.meta: flush_handlers
+
+# =========================================================================
+# 3. FULL OS UPDATE AND BASE PACKAGES
+# =========================================================================
+- name: "[APT] Ubuntu 24.04: обновление списка пакетов и полный upgrade"
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    upgrade: dist
+    dpkg_options: force-confdef,force-confold
+
+- name: "[APT] Установка базовых пакетов и зависимостей"
+  ansible.builtin.apt:
     name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - gnupg2
       - software-properties-common
       - python3-launchpadlib
-      - gnupg2
       - git
+      - build-essential
       - dkms
+      - linux-headers-generic
       - borgbackup
       - pipx
+      - python3-venv
       - gettext
       - argon2
       - openssl
       - fail2ban
-      - curl
-      - "{{ 'linux-headers-generic' if ansible_facts['distribution'] == 'Ubuntu' else 'linux-headers-amd64' }}"
+      - python3-systemd
+      - iptables
+      - openssh-server
     state: present
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: "[Backup] Debian/Ubuntu: Установка актуальной версии borgmatic через pipx"
+    update_cache: true
   environment:
-    PIPX_HOME: /opt/pipx
-    PIPX_BIN_DIR: /usr/local/bin
-  ansible.builtin.command: pipx install borgmatic
-  args:
-    creates: /usr/local/bin/borgmatic
-  when: ansible_facts['os_family'] == "Debian"
+    DEBIAN_FRONTEND: noninteractive
 
 # =========================================================================
-# 5. НАСТРОЙКА SSH И БЕЗОПАСНОСТИ
+# FAIL2BAN (enabled immediately after base packages)
 # =========================================================================
-- name: "[SSH] Добавление публичного ключа для пользователя {{ deploy_user }}"
-  authorized_key:
-    user: "{{ deploy_user }}"
-    state: present
-    key: "{{ ssh_public_key }}"
-
-- name: "[SSH] Настройка параметров безопасности в основном файле /etc/ssh/sshd_config"
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: "{{ item.regexp }}"
-    line: "{{ item.line }}"
-    state: present
-  loop:
-    - { regexp: "^#?PasswordAuthentication", line: "PasswordAuthentication no" }
-    - { regexp: "^#?PermitRootLogin", line: "PermitRootLogin no" }
-    - { regexp: "^#?MaxAuthTries", line: "MaxAuthTries 3" }
-    - { regexp: "^#?PermitEmptyPasswords", line: "PermitEmptyPasswords no" }
-  notify: Restart SSH
-
-- name: "[SSH] Проверка наличия директории /etc/ssh/sshd_config.d"
-  stat:
-    path: /etc/ssh/sshd_config.d
-  register: sshd_d_dir
-
-- name: "[SSH] Поиск дополнительных .conf-файлов в sshd_config.d"
-  find:
-    paths: /etc/ssh/sshd_config.d
-    patterns: "*.conf"
-  register: sshd_dropins
-  when: sshd_d_dir.stat.exists and sshd_d_dir.stat.isdir
-
-- name: "[SSH] Отключение PasswordAuthentication во всех файлах sshd_config.d/*.conf"
-  lineinfile:
-    path: "{{ item.path }}"
-    regexp: "^#?PasswordAuthentication"
-    line: "PasswordAuthentication no"
-    state: present
-  loop: "{{ sshd_dropins.files | default([]) }}"
-  notify: Restart SSH
-  when: >-
-    sshd_d_dir.stat.exists and 
-    sshd_d_dir.stat.isdir and 
-    sshd_dropins.matched is defined and 
-    sshd_dropins.matched > 0
-
-- name: "[Fail2ban] Копирование кастомного jail.local"
-  copy:
-    src: "../configs/fail2ban/jail.local"
-    dest: "/etc/fail2ban/jail.local"
+- name: "[Fail2ban] Установка jail.local"
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../configs/fail2ban/jail.local"
+    dest: /etc/fail2ban/jail.local
     owner: root
     group: root
     mode: "0644"
+    backup: true
   register: fail2ban_config
 
-- name: "[Fail2ban] Включение автозагрузки и контроль состояния"
-  systemd:
-    name: fail2ban
-    state: "{{ 'restarted' if fail2ban_config.changed else 'started' }}"
-    enabled: yes
-    daemon_reload: yes
-
-# =========================================================================
-# 6. УСТАНОВКА DOCKER (Debian/Ubuntu)
-# =========================================================================
-- name: "[Docker] Debian/Ubuntu: удаление старых конфликтующих пакетов"
-  apt:
-    name:
-      [
-        docker.io,
-        docker-compose,
-        docker-compose-v2,
-        docker-doc,
-        podman-docker,
-        containerd,
-        runc,
-      ]
-    state: absent
-    purge: yes
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: "[Docker] Debian/Ubuntu: установка базовых утилит"
-  apt:
-    name: [ca-certificates, curl, gnupg]
-    state: present
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: "[Docker] Debian/Ubuntu: создание /etc/apt/keyrings"
-  file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: "0755"
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: "[Docker] Debian/Ubuntu: скачивание GPG-ключа"
-  get_url:
-    url: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
-    dest: /etc/apt/keyrings/docker.asc
-    mode: "0644"
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: "[Docker] Debian/Ubuntu: добавление репозитория"
-  apt_repository:
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }} {{ ansible_facts['distribution_release'] }} stable"
-    filename: docker
-    state: present
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: "[Docker] Debian/Ubuntu: установка Engine"
-  apt:
-    name:
-      [
-        docker-ce,
-        docker-ce-cli,
-        containerd.io,
-        docker-buildx-plugin,
-        docker-compose-plugin,
-      ]
-    update_cache: yes
-    state: present
-  when: ansible_facts['os_family'] == "Debian"
-
-# =========================================================================
-# 7. ЗАПУСК DOCKER (общий для всех ОС)
-# =========================================================================
-- name: "[Docker] Запуск демона и добавление в автозагрузку"
-  systemd:
-    name: docker
-    state: started
-    enabled: yes
-  register: docker_start
-  retries: 3
-  delay: 10
-  until: docker_start is success
-
-- name: "[Docker] Проверка работоспособности"
-  shell: docker info
-  register: docker_info
+- name: "[Fail2ban] Проверка конфигурации перед перезапуском"
+  ansible.builtin.command:
+    cmd: fail2ban-client -t
   changed_when: false
-  retries: 2
-  delay: 5
-  until: docker_info.rc == 0
 
-- name: "[Docker] Добавление пользователя {{ deploy_user }} в группу docker"
-  user:
-    name: "{{ deploy_user }}"
-    groups: docker
-    append: yes
+- name: "[Fail2ban] Включение и запуск службы"
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    enabled: true
+    state: "{{ 'restarted' if fail2ban_config.changed else 'started' }}"
+
+- name: "[Fail2ban] Проверка наличия jail sshd"
+  ansible.builtin.command:
+    cmd: fail2ban-client status sshd
+  changed_when: false
 
 # =========================================================================
-# 8. УСТАНОВКА AmneziaWG
+# 4. DOCKER ENGINE FROM THE OFFICIAL DOCKER APT REPOSITORY
 # =========================================================================
-- name: "[Net] Разрешить привязку к несуществующим IP (ip_nonlocal_bind)"
-  ansible.posix.sysctl:
-    name: net.ipv4.ip_nonlocal_bind
-    value: "1"
-    state: present
-    reload: yes
-
-- name: "[Yay] Arch: проверка наличия yay"
-  stat:
-    path: /usr/bin/yay
-  when: ansible_facts['os_family'] == "Archlinux"
-  register: yay_installed
-
-- name: "[Yay] Arch: установка зависимостей для сборки"
-  pacman:
+- name: "[Docker] Удаление конфликтующих пакетов из Ubuntu"
+  ansible.builtin.apt:
     name:
-      - base-devel
-      - git
-    state: present
-  become: true
-  when: ansible_facts['os_family'] == "Archlinux" and not yay_installed.stat.exists
+      - docker.io
+      - docker-compose
+      - docker-compose-v2
+      - docker-doc
+      - podman-docker
+      - containerd
+      - runc
+    state: absent
+    purge: true
 
-- name: "[Yay] Arch: установка готового yay-bin"
-  when: ansible_facts['os_family'] == "Archlinux" and not yay_installed.stat.exists
-  block:
-    - name: "[Yay] Arch: клонирование репозитория yay-bin"
-      git:
-        repo: https://aur.archlinux.org/yay-bin.git
-        dest: "/tmp/yay-bin"
-        force: yes
-      become: true
-      become_user: "{{ deploy_user }}"
-
-    - name: "[Yay] Arch: подготовка пакета yay-bin"
-      command: makepkg -s --noconfirm
-      args:
-        chdir: "/tmp/yay-bin"
-      become: true
-      become_user: "{{ deploy_user }}"
-
-    - name: "[Yay] Arch: установка пакета через pacman"
-      shell: pacman -U --noconfirm yay-bin-*.pkg.tar.zst
-      args:
-        chdir: "/tmp/yay-bin"
-      become: true
-
-  always:
-    - name: "[Yay] Arch: очистка временных файлов сборки"
-      file:
-        path: "/tmp/yay-bin"
-        state: absent
-      become: true
-
-- name: "[AmneziaWG] Arch: установка amneziawg из AUR"
-  become: true
-  become_user: "{{ deploy_user }}"
-  shell: "yay -S --needed --noconfirm amneziawg-dkms amneziawg-tools"
-  register: yay_output
-  changed_when: "'Installing' in yay_output.stdout or 'upgraded' in yay_output.stdout"
-  when: ansible_facts['os_family'] == "Archlinux"
-
-- name: "[AmneziaWG] Ubuntu: создаем папку для ключей"
+- name: "[Docker] Создание /etc/apt/keyrings"
   ansible.builtin.file:
     path: /etc/apt/keyrings
     state: directory
+    owner: root
+    group: root
     mode: "0755"
 
-- name: "[AmneziaWG] Ubuntu: скачиваем GPG-ключ напрямую"
+- name: "[Docker] Получение официального GPG-ключа"
   ansible.builtin.get_url:
-    url: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x75C9DD72C799870E310542E24166F2C257290828"
-    dest: /etc/apt/keyrings/amnezia.asc
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
     mode: "0644"
 
-- name: "[AmneziaWG] Ubuntu: добавляем репозиторий"
-  apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/amnezia.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
+- name: "[Docker] Определение архитектуры APT"
+  ansible.builtin.command:
+    cmd: dpkg --print-architecture
+  register: dpkg_arch
+  changed_when: false
+
+- name: "[Docker] Подключение официального репозитория"
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ dpkg_arch.stdout }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
+    filename: docker
     state: present
-    update_cache: yes
-  when: ansible_facts['distribution'] == "Ubuntu"
+    update_cache: true
 
-- name: "[AmneziaWG] Debian: добавление репозитория AmneziaWG"
-  block:
-    - name: "[AmneziaWG] Debian: скачивание GPG-ключа"
-      ansible.builtin.get_url:
-        url: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x57290828"
-        dest: /etc/apt/keyrings/amnezia-ppa.asc
-        mode: "0644"
+- name: "[Docker] Установка Docker Engine и Compose plugin"
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
 
-    - name: "[AmneziaWG] Debian: добавление репозитория (deb)"
-      apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/amnezia-ppa.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
-        filename: amnezia
-        state: present
+- name: "[Docker] Запуск демона и включение автозагрузки"
+  ansible.builtin.systemd_service:
+    name: docker
+    state: started
+    enabled: true
 
-    - name: "[AmneziaWG] Debian: добавление репозитория (deb-src)"
-      apt_repository:
-        repo: "deb-src [signed-by=/etc/apt/keyrings/amnezia-ppa.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu focal main"
-        filename: amnezia
-        state: present
-  when: ansible_facts['distribution'] == "Debian"
+- name: "[Docker] Проверка работоспособности Engine"
+  ansible.builtin.command:
+    cmd: docker info
+  register: docker_info
+  changed_when: false
+  retries: 3
+  delay: 5
+  until: docker_info.rc == 0
 
-- name: "[AmneziaWG] Debian/Ubuntu: установка пакетов amneziawg и утилит"
-  apt:
+- name: "[Docker] Добавление deploy_user в группу docker"
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    groups:
+      - sudo
+      - docker
+    append: true
+    state: present
+
+# =========================================================================
+# 5. AMNEZIAWG KERNEL MODULE AND UTILITIES
+# =========================================================================
+- name: "[AmneziaWG] Скачивание GPG-ключа PPA"
+  ansible.builtin.get_url:
+    url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x75C9DD72C799870E310542E24166F2C257290828
+    dest: /etc/apt/keyrings/amnezia.asc
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "[AmneziaWG] Подключение PPA для Ubuntu 24.04"
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/amnezia.asc] https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu noble main"
+    filename: amnezia
+    state: present
+    update_cache: true
+
+- name: "[AmneziaWG] Установка модулей и утилит"
+  ansible.builtin.apt:
     name:
       - amneziawg
       - amneziawg-tools
     state: present
-    update_cache: yes
-  when: ansible_facts['os_family'] == "Debian"
+    update_cache: true
 
-- name: "[DKMS] Принудительный запуск сборки модулей"
-  ansible.builtin.shell: |
-    dkms autoinstall -k $(uname -r)
-    modprobe amneziawg
-  register: dkms_modprobe
-  failed_when: dkms_modprobe.rc != 0
+- name: "[AmneziaWG] Автозагрузка модуля ядра"
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/amneziawg.conf
+    content: "amneziawg\n"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "[Net] Включение ip_nonlocal_bind"
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+
+# =========================================================================
+# 7. BORGMATIC VIA PIPX
+# =========================================================================
+- name: "[Backup] Проверка установленной версии borgmatic"
+  ansible.builtin.command:
+    cmd: /usr/local/bin/borgmatic --version
+  register: borgmatic_version_check
+  failed_when: false
   changed_when: false
+
+- name: "[Backup] Установка/обновление до фиксированной версии borgmatic"
+  ansible.builtin.command:
+    cmd: "pipx install --force borgmatic=={{ borgmatic_version | default('2.1.10') }}"
+  when: >-
+    borgmatic_version_check.rc != 0 or
+    (borgmatic_version | default('2.1.10')) not in borgmatic_version_check.stdout
+  environment:
+    PIPX_HOME: /opt/pipx
+    PIPX_BIN_DIR: /usr/local/bin
+
+# =========================================================================
+# 8. REBOOT IF UBUNTU REQUESTS IT, THEN VERIFY AMNEZIAWG ON THE RUNNING KERNEL
+# =========================================================================
+- name: "[Reboot] Проверка флага необходимости перезагрузки"
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_required
+
+- name: "[Reboot] Перезагрузка после обновления ОС/ядра"
+  ansible.builtin.reboot:
+    msg: "ServeHub-2: reboot after Ubuntu package/kernel update"
+    connect_timeout: 10
+    reboot_timeout: 900
+    post_reboot_delay: 5
+    test_command: id -un
+  when: reboot_required.stat.exists
+
+- name: "[DKMS] Сборка AmneziaWG для работающего ядра и загрузка модуля"
+  ansible.builtin.command:
+    argv:
+      - /bin/bash
+      - -lc
+      - dkms autoinstall -k "$(uname -r)" && modprobe amneziawg
+  changed_when: false
+
+- name: "[Postflight] Проверка запуска Docker после возможной перезагрузки"
+  ansible.builtin.systemd_service:
+    name: docker
+    state: started
+    enabled: true

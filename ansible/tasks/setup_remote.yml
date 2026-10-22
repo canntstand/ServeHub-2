@@ -1,44 +1,25 @@
-- name: "[Pause] Пауза для ручного переноса apps-data и certbot на VPS"
+- name: "[Pause] Ручная миграция apps-data и сертификатов на VPS"
   ansible.builtin.pause:
     prompt: |
       ======================================================================
-      ⚙️ МИГРАЦИЯ ДАННЫХ И СЕРТИФИКАТОВ НА VPS (РУЧНОЙ ШАГ):
+      МИГРАЦИЯ ДАННЫХ НА VPS (РУЧНОЙ ШАГ)
       ======================================================================
-      Если вы заново разворачиваете проект или переезжаете на новый сервер,
-      выполните следующие действия в /home/{{ vps_user }}/ServeHub-2/ на VPS:
+      Если это перенос с действующего сервера, скопируйте старую папку
+      apps-data в /home/{{ deploy_user }}/ServeHub-2/apps-data/ и старую папку
+      certbot в /home/{{ deploy_user }}/ServeHub-2/certbot/.
+      На чистом сервере можно продолжить без копирования.
 
-      1. 📁 ДАННЫЕ ПРИЛОЖЕНИЙ (ПРИ ПЕРЕЕЗДЕ):
-          Скопируйте вашу старую папку 'apps-data' в корень репозитория.
-          Если шаг пропустить, сервисы (wg-easy, adguard) запустятся с нуля.
+      SSH-подключение: ssh {{ deploy_user }}@{{ vps_public_ip }}
+      После завершения переноса нажмите ENTER.
 
-      2. 📄 SSL-СЕРТИФИКАТЫ:
-          Если у вас остались старые рабочие сертификаты, положите папку 
-          'certbot' также в корень репозитория.
-          Если шаг пропустить, Certbot запросит новые сертификаты через DNS API 
-          самостоятельно (это может занять около 20 минут).
-
-      Для переноса файлов используйте rsync/scp или подключитесь по SSH:
-      ssh {{ vps_user }}@{{ vps_public_ip }}
-      ======================================================================
-      Как только файлы на месте (или шаги пропущены), нажмите ENTER для продолжения...
+# Не удаляем wg0 вручную: интерфейс принадлежит работающему контейнеру wg-easy.
+# Compose должен управлять его жизненным циклом, иначе повторный запуск Ansible
+# может оставить контейнер запущенным без VPN-интерфейса.
 
 # =========================================================================
-# 1. СЕТЕВАЯ ПОДГОТОВКА И ОЧИСТКА ИНТЕРФЕЙСОВ
+# FILESYSTEM AND SERVICE DATA
 # =========================================================================
-- name: "[Network] Проверка наличия старого интерфейса wg0"
-  ansible.builtin.command: ip link show wg0
-  register: wg0_check
-  failed_when: false
-  changed_when: false
-
-- name: "[Network] Удаление старого интерфейса wg0, если он существует"
-  ansible.builtin.command: ip link delete wg0
-  when: wg0_check.rc == 0
-
-# =========================================================================
-# 2. СОЗДАНИЕ ДИРЕКТОРИЙ И НАСТРОЙКА ПРАВ ДЛЯ VPS (ПОЛНЫЙ АУДИТ ПО COMPOSE)
-# =========================================================================
-- name: "[FS] Гарантия существования корня apps-data на VPS"
+- name: "[FS] Создание корневого каталога apps-data на VPS"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/apps-data"
     state: directory
@@ -46,77 +27,144 @@
     group: "{{ deploy_user }}"
     mode: "0755"
 
-- name: "[FS] Настройка системных папок приложений VPS (владелец deploy_user)"
+- name: "[FS] Создание каталогов wg-easy и AdGuard Home с ограниченными правами"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/{{ item }}"
     state: directory
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
-    mode: "0777"
+    mode: "0750"
   loop:
     - wg-easy
     - adguard/work
 
+- name: "[FS] Создание каталогов Certbot"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0750"
+  loop:
+    - certbot/certs
+    - certbot/certs-data
+    - certbot/www
+
 # =========================================================================
-# 3. НАСТРОЙКА ПЛАГИНА WEBNAMES DNS ДЛЯ CERTBOT
+# CERTBOT + WEBNAMES DNS-01
 # =========================================================================
-- name: "[Certbot] Клонирование плагина certbot-dns-webnames"
+- name: "[Certbot] Клонирование Webnames DNS hook scripts"
   ansible.builtin.git:
-    repo: "https://github.com/regtime-ltd/certbot-dns-webnames.git"
+    repo: https://github.com/regtime-ltd/certbot-dns-webnames.git
     dest: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames"
     version: master
-    update: no
+    update: false
+  become_user: "{{ deploy_user }}"
 
-- name: "[Certbot] Скачивание конфигурации Certbot через API Webnames"
+- name: "[Certbot] Получение секретной конфигурации Webnames API"
   ansible.builtin.get_url:
-    url: "https://www.webnames.ru/scripts/json_domain_zone_manager.pl?action=get_config_certbot&domain={{ server_name }}&apikey={{ webnames_apikey }}"
+    url: "https://www.webnames.ru/scripts/json_domain_zone_manager.pl?action=get_config_certbot&domain={{ server_name | urlencode }}&apikey={{ webnames_apikey | urlencode }}"
     dest: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
-    mode: "0755"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+  no_log: true
 
-- name: "[Certbot] Валидация: Проверка, что полученный файл конфигурации не пустой"
+- name: "[Certbot] Проверка файла конфигурации Webnames"
   ansible.builtin.stat:
     path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
   register: webnames_config_stat
-  failed_when: webnames_config_stat.stat.size == 0
 
-- name: "[Certbot] Установка прав на исполнение для всех скриптов плагина"
-  ansible.builtin.shell:
-    cmd: "chmod +x *.sh"
-    chdir: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames"
-  changed_when: true
+- name: "[Certbot] Проверка, что конфигурация Webnames существует и непуста"
+  ansible.builtin.assert:
+    that:
+      - webnames_config_stat.stat.exists
+      - webnames_config_stat.stat.size | default(0) | int > 0
+    fail_msg: "Webnames API вернул пустой или отсутствующий config.sh. Проверьте домен и API-ключ."
 
-# =========================================================================
-# 4. ПРОВЕРКА И КЛИЕНТСКИЙ ЗАПУСК CERTBOT
-# =========================================================================
-- name: "[Certbot] Проверка наличия текущего SSL-сертификата проекта"
+- name: "[Certbot] Проверка синтаксиса config.sh без вывода секретов"
+  ansible.builtin.command:
+    argv:
+      - /bin/bash
+      - -n
+      - "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
+  changed_when: false
+  no_log: true
+
+- name: "[Certbot] Проверка наличия API_KEY в конфигурации Webnames"
+  ansible.builtin.command:
+    argv:
+      - /bin/grep
+      - -Eq
+      - '^[[:space:]]*(export[[:space:]]+)?API_KEY='
+      - "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
+  changed_when: false
+  no_log: true
+
+- name: "[Certbot] Выдача execute-bit только hook-скриптам"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/{{ item }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0750"
+  loop:
+    - authenticator.sh
+    - cleanup.sh
+
+- name: "[Certbot] Сборка образа до первого выпуска/обновления сертификата"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.remote.yaml build certbot
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  changed_when: false
+
+- name: "[Docker Compose] Проверка конфигурации remote-стека до выпуска сертификата"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.remote.yaml config --quiet
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  changed_when: false
+  no_log: true
+
+- name: "[Certbot] Проверка наличия текущего сертификата"
   ansible.builtin.stat:
     path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ server_name }}/fullchain.pem"
   register: current_cert_stat
 
-- name: "[Certbot] Проверка срока действия сертификата (истекает ли в ближайшие 30 дней)"
+- name: "[Certbot] Проверка срока действия сертификата (30 дней)"
   ansible.builtin.command:
-    cmd: "openssl x509 -checkend 2592000 -noout -in /home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ server_name }}/fullchain.pem"
+    argv:
+      - openssl
+      - x509
+      - -checkend
+      - "2592000"
+      - -noout
+      - -in
+      - "/home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ server_name }}/fullchain.pem"
   register: cert_expiry_check
   when: current_cert_stat.stat.exists
   failed_when: false
   changed_when: false
 
-- name: "[Certbot] Первичный запрос НОВОГО SSL-сертификата через Docker"
+- name: "[Certbot] Первый выпуск сертификата через DNS-01"
   ansible.builtin.command:
-    cmd: "docker compose -f docker-compose.remote.yaml run --rm certbot"
+    cmd: docker compose -f docker-compose.remote.yaml run --rm certbot
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   when: not current_cert_stat.stat.exists
+  register: certbot_initial_issue
 
-- name: "[Certbot] Принудительное ОБНОВЛЕНИЕ старого SSL-сертификата"
+- name: "[Certbot] Обновление сертификата, если он истекает в течение 30 дней"
   ansible.builtin.command:
-    cmd: "docker compose -f docker-compose.remote.yaml run --rm certbot renew --non-interactive"
+    cmd: docker compose -f docker-compose.remote.yaml run --rm certbot renew --non-interactive
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
-  when: current_cert_stat.stat.exists and (cert_expiry_check.rc is defined and cert_expiry_check.rc != 0)
+  when:
+    - current_cert_stat.stat.exists
+    - cert_expiry_check.rc is defined
+    - cert_expiry_check.rc != 0
+  register: certbot_renewal
 
 # =========================================================================
-# 5. НАСТРОЙКА АВТООБНОВЛЕНИЯ СЕРТИФИКАТОВ (SYSTEMD СЕРВИС & TIMER)
+# AUTOMATIC CERTIFICATE RENEWAL
 # =========================================================================
-- name: "[Systemd] Создание сервиса certbot-renew.service"
+- name: "[Systemd] Установка сервиса certbot-renew.service"
   ansible.builtin.copy:
     dest: /etc/systemd/system/certbot-renew.service
     owner: root
@@ -124,19 +172,19 @@
     mode: "0644"
     content: |
       [Unit]
-      Description=Автоматическое обновление сертификатов Certbot/Webnames в Docker
+      Description=Renew ServeHub-2 TLS certificates using Webnames DNS-01
+      Wants=docker.service
       After=docker.service
 
       [Service]
       Type=oneshot
+      User=root
       WorkingDirectory=/home/{{ deploy_user }}/ServeHub-2
-      ExecStart=/bin/bash ./scripts/renew_certs.sh
-
-      [Install]
-      WantedBy=multi-user.target
+      ExecStart=/bin/bash /home/{{ deploy_user }}/ServeHub-2/scripts/renew_certs.sh
+      TimeoutStartSec=30min
   register: certbot_service_file
 
-- name: "[Systemd] Создание таймера certbot-renew.timer"
+- name: "[Systemd] Установка таймера certbot-renew.timer"
   ansible.builtin.copy:
     dest: /etc/systemd/system/certbot-renew.timer
     owner: root
@@ -144,7 +192,7 @@
     mode: "0644"
     content: |
       [Unit]
-      Description=Таймер для обновления сертификатов Certbot
+      Description=Twice-daily ServeHub-2 TLS certificate renewal check
 
       [Timer]
       OnCalendar=*-*-* 03,15:00:00
@@ -155,195 +203,189 @@
       WantedBy=timers.target
   register: certbot_timer_file
 
-- name: "[Systemd] Перезапуск daemon-reload и активация таймера certbot-renew"
+- name: "[Systemd] Перечитывание unit-файлов при изменениях"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: certbot_service_file.changed or certbot_timer_file.changed
+
+- name: "[Systemd] Включение таймера Certbot"
   ansible.builtin.systemd_service:
     name: certbot-renew.timer
-    enabled: yes
+    enabled: true
     state: started
-    daemon_reload: "{{ 'yes' if certbot_service_file.changed or certbot_timer_file.changed else 'no' }}"
 
 # =========================================================================
-# 6. СИСТЕМНЫЕ НАСТРОЙКИ ЯДРА И СЕТЕВОЙ БРАНДМАУЭР (IPTABLES)
+# KERNEL / IP FORWARDING / FIREWALL
 # =========================================================================
-- name: "[Kernel] Загрузка модуля ядра AmneziaWG"
-  ansible.builtin.modprobe:
-    name: amneziawg
-    state: present
+- name: "[Kernel] Загрузка модуля AmneziaWG"
+  ansible.builtin.command:
+    cmd: modprobe amneziawg
+  changed_when: false
 
-- name: "[Kernel] Применение параметров sysctl для маршрутизации трафика"
-  ansible.builtin.sysctl:
+- name: "[Kernel] Настройка параметров маршрутизации"
+  ansible.posix.sysctl:
     name: "{{ item.name }}"
     value: "{{ item.value }}"
     state: present
-    sysctl_set: yes
-    reload: yes
+    sysctl_set: true
+    reload: true
   loop:
     - { name: "net.ipv4.ip_forward", value: "1" }
     - { name: "net.ipv4.conf.all.src_valid_mark", value: "1" }
-    - { name: "net.ipv6.conf.all.disable_ipv6", value: "0" }
-    - { name: "net.ipv6.conf.all.forwarding", value: "1" }
-    - { name: "net.ipv6.conf.default.forwarding", value: "1" }
 
-- name: "[Firewall] Установка утилит сохранения iptables (Debian/Ubuntu)"
+- name: "[Firewall] Удаление iptables-persistent, не сохраняем динамические цепочки Docker"
   ansible.builtin.apt:
-    name: iptables-persistent
-    state: present
-    update_cache: yes
-  environment:
-    DEBIAN_FRONTEND: noninteractive
-  when: ansible_facts['os_family'] == "Debian"
+    name:
+      - iptables-persistent
+      - netfilter-persistent
+    state: absent
+    purge: false
 
-- name: "[Firewall] Активация и запуск сервиса iptables (Arch Linux)"
-  ansible.builtin.systemd:
-    name: iptables
-    enabled: yes
-    state: started
-  when: ansible_facts['os_family'] == "Archlinux"
+- name: "[Firewall] Создание скрипта правил ServeHub и изоляции панели wg-easy"
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/servehub-firewall-vps.sh
+    owner: root
+    group: root
+    mode: "0750"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      IPT=/usr/sbin/iptables
+      IP6T=/usr/sbin/ip6tables
+      OUT_IFACE={{ ansible_facts['default_ipv4']['interface'] | quote }}
 
-- name: "[Firewall] Настройка FORWARD для входящего трафика wg0"
-  ansible.builtin.iptables:
-    chain: FORWARD
-    in_interface: wg0
-    jump: ACCEPT
-    state: present
-  register: iptables_forward_in
+      # VPN forwarding and NAT.
+      $IPT -C FORWARD -i wg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -i wg0 -j ACCEPT
+      $IPT -C FORWARD -o wg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -o wg0 -j ACCEPT
+      $IPT -t nat -C POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE 2>/dev/null || \
+        $IPT -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE
 
-- name: "[Firewall] Настройка FORWARD для исходящего трафика wg0"
-  ansible.builtin.iptables:
-    chain: FORWARD
-    out_interface: wg0
-    jump: ACCEPT
-    state: present
-  register: iptables_forward_out
+      # Put a single jump at the start of INPUT so unrelated rules cannot expose wg-easy UI.
+      $IPT -N SERVEHUB_WGEASY 2>/dev/null || true
+      $IPT -F SERVEHUB_WGEASY
+      $IPT -A SERVEHUB_WGEASY -s 127.0.0.1/32 -j ACCEPT
+      $IPT -A SERVEHUB_WGEASY -s 10.8.0.0/24 -j ACCEPT
+      $IPT -A SERVEHUB_WGEASY -j DROP
+      while $IPT -C INPUT -p tcp --dport 51821 -j SERVEHUB_WGEASY 2>/dev/null; do
+        $IPT -D INPUT -p tcp --dport 51821 -j SERVEHUB_WGEASY
+      done
+      $IPT -I INPUT 1 -p tcp --dport 51821 -j SERVEHUB_WGEASY
 
-- name: "[Firewall] Статус изменений FORWARD"
-  ansible.builtin.set_fact:
-    iptables_forward_rules:
-      changed: "{{ iptables_forward_in.changed or iptables_forward_out.changed }}"
+      # wg-easy has IPv6 disabled, so only permit local IPv6 loopback to the UI.
+      if command -v "$IP6T" >/dev/null 2>&1; then
+        $IP6T -N SERVEHUB_WGEASY_V6 2>/dev/null || true
+        $IP6T -F SERVEHUB_WGEASY_V6
+        $IP6T -A SERVEHUB_WGEASY_V6 -s ::1/128 -j ACCEPT
+        $IP6T -A SERVEHUB_WGEASY_V6 -j DROP
+        while $IP6T -C INPUT -p tcp --dport 51821 -j SERVEHUB_WGEASY_V6 2>/dev/null; do
+          $IP6T -D INPUT -p tcp --dport 51821 -j SERVEHUB_WGEASY_V6
+        done
+        $IP6T -I INPUT 1 -p tcp --dport 51821 -j SERVEHUB_WGEASY_V6
+      fi
+  register: vps_firewall_script
 
-- name: "[Firewall] Настройка NAT MASQUERADE для подсети VPN"
-  ansible.builtin.iptables:
-    table: nat
-    chain: POSTROUTING
-    source: 10.8.0.0/24
-    out_interface: "{{ ansible_facts['default_ipv4']['interface'] }}"
-    jump: MASQUERADE
-  register: iptables_nat_rule
+- name: "[Firewall] Создание systemd-сервиса восстановления правил ServeHub"
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/servehub-firewall.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Restore ServeHub VPN firewall and restrict wg-easy UI
+      Wants=network-online.target
+      After=network-online.target docker.service
+      PartOf=docker.service
 
-- name: "[Firewall] wg-easy UI: разрешить доступ с loopback (IPv4)"
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "51821"
-    source: "127.0.0.1"
-    jump: ACCEPT
-    state: present
-  register: iptables_wgeasy_loopback_v4
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/sbin/servehub-firewall-vps.sh
 
-- name: "[Firewall] wg-easy UI: разрешить доступ из VPN-подсети (IPv4)"
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "51821"
-    source: "10.8.0.0/24"
-    jump: ACCEPT
-    state: present
-  register: iptables_wgeasy_vpn_v4
+      [Install]
+      WantedBy=multi-user.target
+  register: vps_firewall_unit
 
-- name: "[Firewall] wg-easy UI: запретить доступ отовсюду ещё (IPv4)"
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "51821"
-    jump: DROP
-    state: present
-  register: iptables_wgeasy_drop_v4
+- name: "[Firewall] Перечитывание systemd при изменении unit"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: vps_firewall_unit.changed
 
-- name: "[Firewall] wg-easy UI: разрешить доступ с loopback (IPv6)"
-  ansible.builtin.iptables:
-    ip_version: ipv6
-    chain: INPUT
-    protocol: tcp
-    destination_port: "51821"
-    source: "::1"
-    jump: ACCEPT
-    state: present
-  register: iptables_wgeasy_loopback_v6
-
-- name: "[Firewall] wg-easy UI: запретить доступ отовсюду ещё (IPv6)"
-  ansible.builtin.iptables:
-    ip_version: ipv6
-    chain: INPUT
-    protocol: tcp
-    destination_port: "51821"
-    jump: DROP
-    state: present
-  register: iptables_wgeasy_drop_v6
-
-- name: "[Firewall] Статус изменений FORWARD"
-  ansible.builtin.set_fact:
-    iptables_forward_rules:
-      changed: >-
-        {{ iptables_forward_in.changed or iptables_forward_out.changed
-           or iptables_wgeasy_loopback_v4.changed or iptables_wgeasy_vpn_v4.changed or iptables_wgeasy_drop_v4.changed
-           or iptables_wgeasy_loopback_v6.changed or iptables_wgeasy_drop_v6.changed }}
-
-- name: "[Firewall] Сохранение правил iptables (Debian/Ubuntu)"
-  ansible.builtin.command: netfilter-persistent save
-  when: >
-    ansible_facts['os_family'] == "Debian" and 
-    (iptables_forward_rules.changed or iptables_nat_rule.changed)
-  changed_when: false
-
-- name: "[Firewall] Сохранение правил iptables (Arch Linux)"
-  ansible.builtin.shell: iptables-save > /etc/iptables/iptables.rules
-  when: >
-    ansible_facts['os_family'] == "Archlinux" and 
-    (iptables_forward_rules.changed or iptables_nat_rule.changed)
-  changed_when: false
+- name: "[Firewall] Применение правил и включение автозагрузки"
+  ansible.builtin.systemd_service:
+    name: servehub-firewall.service
+    enabled: true
+    state: "{{ 'restarted' if vps_firewall_script.changed or vps_firewall_unit.changed else 'started' }}"
 
 # =========================================================================
-# 7. НАСТРОЙКА ADGUARD HOME
+# ADGUARD HOME CONFIGURATION
 # =========================================================================
-- name: "[AdGuard] Гарантия существования директории для конфигурации"
+- name: "[AdGuard] Создание каталога конфигурации"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/configs/adguard/conf"
     state: directory
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
-    mode: "0755"
+    mode: "0750"
 
-- name: "[AdGuard] Создание конфигурации AdGuardHome на основе шаблона"
+- name: "[AdGuard] Генерация AdGuardHome.yaml"
   ansible.builtin.template:
-    src: templates/AdGuardHome.yaml.j2
+    src: "{{ playbook_dir }}/templates/AdGuardHome.yaml.j2"
     dest: "/home/{{ deploy_user }}/ServeHub-2/configs/adguard/conf/AdGuardHome.yaml"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
-    mode: "0644"
+    mode: "0640"
+  register: adguard_config
+  no_log: true
 
 # =========================================================================
-# 8. ЗАПУСК УДАЛЕННОГО СТЕКА КОНТЕЙНЕРОВ И ВАЛИДАЦИЯ
+# START / VALIDATE THE VPS STACK
 # =========================================================================
-- name: "[Docker] Восстановление системных цепочек iptables для Docker"
-  ansible.builtin.systemd:
-    name: docker
-    state: restarted
-
-- name: "[Docker] Запуск основного стека контейнеров ServeHub-2"
+- name: "[Docker] Запуск стека ServeHub-2 на VPS без безусловного restart Docker"
   community.docker.docker_compose_v2:
     project_src: "/home/{{ deploy_user }}/ServeHub-2"
     files:
       - docker-compose.remote.yaml
     state: present
+    pull: missing
+    # The certbot Compose service has --force-renewal as its default command.
+    # Keep it out of normal stack startup; the tasks above and timer invoke it explicitly.
+    services:
+      - nginx
+      - wg-easy
+      - gatus
+      - nginx-exporter
+      - adguardhome
+      - adguard-exporter
+      - homepage
+      - node-exporter
+      - cadvisor
+      - portainer-agent
+      - alloy
   register: compose_start
 
-- name: "[Docker Compose] Получение финального статуса контейнеров"
+- name: "[AdGuard] Применение изменённой конфигурации"
   ansible.builtin.command:
-    cmd: "docker compose -f docker-compose.remote.yaml ps"
+    cmd: docker compose -f docker-compose.remote.yaml restart adguardhome
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  when: adguard_config.changed
+
+- name: "[Certbot] Перезапуск Nginx после обновления существующего сертификата"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.remote.yaml restart nginx
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  when:
+    - current_cert_stat.stat.exists
+    - cert_expiry_check.rc is defined
+    - cert_expiry_check.rc != 0
+
+- name: "[Docker Compose] Проверка статуса контейнеров VPS"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.remote.yaml ps
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   register: docker_ps_status
   changed_when: false
 
-- name: "[Status] 📊 ТЕКУЩИЙ СТАТУС ЗАПУЩЕННЫХ СЕРВИСОВ 📊"
+- name: "[Status] Текущий статус контейнеров VPS"
   ansible.builtin.debug:
     var: docker_ps_status.stdout_lines

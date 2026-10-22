@@ -383,19 +383,6 @@
                         </details>
 
                         <details class="guide-section">
-                            <summary>🐳 Настройка Portainer</summary>
-                            <div class="guide-content">
-                                <p><strong>Добавление контейнеров удалённого сервера к Portainer:</strong></p>
-                                <ol>
-                                    <li>Выберите пункт <strong>Environments</strong>.</li>
-                                    <li>Нажмите <strong>Add environment</strong> (Docker Standalone).</li>
-                                    <li>Выберите вариант подключения: <strong>Agent</strong>.</li>
-                                    <li>В поле <strong>Environment URL</strong> укажите: <code>10.8.0.1:9001</code>.</li>
-                                </ol>
-                            </div>
-                        </details>
-
-                        <details class="guide-section">
                             <summary>🔌 Автономность локального сервера</summary>
                             <div class="guide-content">
                                 <ol>
@@ -414,7 +401,7 @@
                             <div class="guide-content">
                                 <ol>
                                     <li><strong>Вход на портал:</strong> после успешного запуска перейдите по вашему домену на главную страницу (веб-портал), предварительно включив VPN-клиент AmneziaWG на вашем устройстве.</li>
-                                    <li><strong>Первичная настройка приложений:</strong> для сервисов Navidrome, Audiobookshelf, Vaultwarden, Portainer, Gitea при первом открытии необходимо пройти быструю процедуру создания аккаунта администратора. Для доступа к системной панели администрирования Vaultwarden используется токен, заданный в переменной <code>secret_vaultwarden_password</code>.</li>
+                                    <li><strong>Первичная настройка приложений:</strong> для сервисов Navidrome, Audiobookshelf, Vaultwarden, Gitea при первом открытии необходимо пройти быструю процедуру создания аккаунта администратора. Для доступа к системной панели администрирования Vaultwarden используется токен, заданный в переменной <code>secret_vaultwarden_password</code>.</li>
                                     <li><strong>Автоматическое развёртывание:</strong> сервисы Nextcloud, Grafana и другие настраиваются автоматически. Данные для первого входа в них соответствуют глобальным переменным <code>admin_user</code> и <code>admin_password</code> из вашего <code>secrets.yml</code>.</li>
                                     <li><strong>Рекомендованные приложения для повседневного использования:</strong>
                                         <ul>

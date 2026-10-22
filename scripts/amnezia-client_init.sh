@@ -1,24 +1,51 @@
-#!/bin/bash
-find /etc/amnezia/amneziawg -mindepth 1 -delete
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-COUNTER=0
-for s in $(find /config -name "*.conf")
-do
-  if test -f ${s}
-  then
-    COUNTER=$(( COUNTER + 1 ))
-    basename=$(basename ${s})
-    name=${basename%.conf}
-    echo awg interface "${name}" will be created from config file "${basename}"
-    cp ${s} /etc/amnezia/amneziawg/${name}.conf
-    chmod 600 /etc/amnezia/amneziawg/${name}.conf
-    awg-quick up ${name}
-  fi
-done
+CONFIG_DIR=/config
+AWG_DIR=/etc/amnezia/amneziawg
+declare -a ACTIVE_INTERFACES=()
 
-if [[ $COUNTER -lt 1 ]]
-then
-  echo "There are no config files in the /config folder"
+cleanup() {
+    local i
+    for ((i=${#ACTIVE_INTERFACES[@]}-1; i>=0; i--)); do
+        awg-quick down "${ACTIVE_INTERFACES[$i]}" || true
+    done
+}
+
+trap cleanup EXIT
+trap 'exit 0' INT TERM
+
+install -d -m 0700 "$AWG_DIR"
+
+while IFS= read -r -d '' src; do
+    name="$(basename "$src" .conf)"
+
+    if [[ ! "$name" =~ ^[a-zA-Z0-9_=+.-]{1,15}$ ]]; then
+        echo "Invalid interface name: $name" >&2
+        exit 1
+    fi
+
+    if [[ -e "$AWG_DIR/$name.conf" ]]; then
+        echo "Duplicate interface config: $name" >&2
+        exit 1
+    fi
+
+    install -m 0600 "$src" "$AWG_DIR/$name.conf"
+
+    if ! awg-quick up "$name"; then
+        echo "Failed to start interface: $name" >&2
+        exit 1
+    fi
+
+    ACTIVE_INTERFACES+=("$name")
+done < <(find "$CONFIG_DIR" -type f -name '*.conf' -print0)
+
+if ((${#ACTIVE_INTERFACES[@]} == 0)); then
+    echo "No .conf files found in $CONFIG_DIR" >&2
+    exit 1
 fi
 
-sleep infinity
+while true; do
+    sleep 3600 &
+    wait "$!" || true
+done

@@ -60,3 +60,21 @@ groups:
         annotations:
           summary: "Ошибка бэкапа Borg"
           description: "Последнее задание бэкапа для репозитория {{ $labels.repository }} завершилось неудачей."
+
+      - alert: BorgmaticBackupFailed
+        expr: borgmatic_backup_last_run_success == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Последний запуск Borgmatic завершился ошибкой"
+          description: "Проверь журнал резервного копирования на {{ $labels.instance }}."
+
+      - alert: BorgmaticBackupTooOld
+        expr: time() - borgmatic_backup_last_success_timestamp_seconds > 108000
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Давно не было успешного бэкапа"
+          description: "Последняя успешная копия старше 30 часов на {{ $labels.instance }}."

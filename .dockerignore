@@ -7,7 +7,6 @@ certs/
 certs-data/
 prometheus/
 nginx/
-portainer/
 apps-data/
 PersonalData/
 .git/

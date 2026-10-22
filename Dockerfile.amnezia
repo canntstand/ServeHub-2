@@ -1,23 +1,37 @@
-FROM alpine:3.22.1
+FROM alpine:3.24.2
 
-RUN apk --no-cache add \
-    iproute2 \
-    iptables \
-    bash \
-    openresolv \
-    dumb-init \
-    && apk --no-cache add --virtual .build-deps \
-    git \
-    build-base \
-    linux-headers
+ARG AWG_TOOLS_VERSION=v3.1.20260812
 
-RUN git clone https://github.com/amnezia-vpn/amneziawg-tools.git /tmp/amneziawg-tools --depth=1 \
+RUN apk add --no-cache \
+        iproute2 \
+        iptables \
+        bash \
+        openresolv \
+        dumb-init \
+    && apk add --no-cache --virtual .build-deps \
+        git \
+        build-base \
+        linux-headers \
+    && git clone \
+        --depth 1 \
+        --branch "${AWG_TOOLS_VERSION}" \
+        https://github.com/amnezia-vpn/amneziawg-tools.git \
+        /tmp/amneziawg-tools \
     && make -C /tmp/amneziawg-tools/src \
-    && make -C /tmp/amneziawg-tools/src install \
+    && install -Dm0755 \
+        /tmp/amneziawg-tools/src/wg \
+        /usr/bin/awg \
+    && install -Dm0755 \
+        /tmp/amneziawg-tools/src/wg-quick/linux.bash \
+        /usr/bin/awg-quick \
+    && ln -s /usr/bin/awg /usr/bin/wg \
+    && ln -s /usr/bin/awg-quick /usr/bin/wg-quick \
     && rm -rf /tmp/amneziawg-tools \
-    && apk del .build-deps
+    && apk del .build-deps \
+    && mkdir -p /etc/amnezia/amneziawg
 
 COPY scripts/amnezia-client_init.sh /init.sh
-RUN chmod +x /init.sh
 
-ENTRYPOINT ["/usr/bin/dumb-init", "/init.sh"]
+RUN chmod 0755 /init.sh
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/init.sh"]
