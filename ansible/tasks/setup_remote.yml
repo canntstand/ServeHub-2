@@ -1,11 +1,5 @@
 
-# Не удаляем wg0 вручную: интерфейс принадлежит работающему контейнеру wg-easy.
-# Compose должен управлять его жизненным циклом, иначе повторный запуск Ansible
-# может оставить контейнер запущенным без VPN-интерфейса.
 
-# =========================================================================
-# FILESYSTEM AND SERVICE DATA
-# =========================================================================
 - name: "[FS] Создание корневого каталога apps-data на VPS"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/apps-data"
@@ -40,9 +34,6 @@
     - { path: "grafana/data", owner: "472", group: "472", mode: "0700" }
     - { path: "alloy", owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0750" }
 
-# =========================================================================
-# KERNEL / IP FORWARDING / FIREWALL
-# =========================================================================
 - name: "[Kernel] Загрузка модуля AmneziaWG"
   ansible.builtin.command:
     cmd: modprobe amneziawg
@@ -80,13 +71,11 @@
       IP6T=/usr/sbin/ip6tables
       OUT_IFACE={{ ansible_facts['default_ipv4']['interface'] | quote }}
 
-      # VPN forwarding and NAT.
       $IPT -C FORWARD -i wg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -i wg0 -j ACCEPT
       $IPT -C FORWARD -o wg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -o wg0 -j ACCEPT
       $IPT -t nat -C POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE 2>/dev/null || \
         $IPT -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE
 
-      # Put a single jump at the start of INPUT so unrelated rules cannot expose wg-easy UI.
       $IPT -N SERVEHUB_WGEASY 2>/dev/null || true
       $IPT -F SERVEHUB_WGEASY
       $IPT -A SERVEHUB_WGEASY -s 127.0.0.1/32 -j ACCEPT
@@ -97,7 +86,6 @@
       done
       $IPT -I INPUT 1 -p tcp --dport 51821 -j SERVEHUB_WGEASY
 
-      # wg-easy has IPv6 disabled, so only permit local IPv6 loopback to the UI.
       if command -v "$IP6T" >/dev/null 2>&1; then
         $IP6T -N SERVEHUB_WGEASY_V6 2>/dev/null || true
         $IP6T -F SERVEHUB_WGEASY_V6
@@ -143,9 +131,6 @@
     enabled: true
     state: "{{ 'restarted' if vps_firewall_script.changed or vps_firewall_unit.changed else 'started' }}"
 
-# =========================================================================
-# ADGUARD HOME CONFIGURATION
-# =========================================================================
 - name: "[AdGuard] Создание каталога конфигурации"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/configs/adguard/conf"
@@ -174,9 +159,6 @@
   register: alertmanager_config
   no_log: true
 
-# =========================================================================
-# START / VALIDATE THE VPS STACK
-# =========================================================================
 - name: "[Docker Compose] Проверка конфигурации Edge"
   ansible.builtin.command:
     cmd: docker compose -f docker-compose.remote.yaml config --quiet

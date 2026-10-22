@@ -12,7 +12,7 @@ receivers:
   - name: 'telegram-notifications'
     telegram_configs:
       - bot_token: '{{ telegram_token }}'
-        chat_id: {{ telegram_chat_id }}
+        chat_id: {{ telegram_chat_id | int }}
         send_resolved: true
         parse_mode: 'HTML'
         message: |

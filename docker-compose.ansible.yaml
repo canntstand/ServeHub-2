@@ -1,6 +1,9 @@
 services:
   ansible:
-    image: alpine/ansible:2.21.0
+    build:
+      context: ./ansible/container
+      dockerfile: Dockerfile
+    image: servehub-ansible:2.21.0
     container_name: ansible
     environment:
       - ANSIBLE_HOST_KEY_CHECKING=True
@@ -8,6 +11,7 @@ services:
     volumes:
       - .:/ansible:ro
       - ssh-data:/root/.ssh:rw
+      - ansible-collections:/root/.ansible/collections:rw
     entrypoint: ["/bin/sh", "/ansible/scripts/ansible-entrypoint.sh"]
     working_dir: /ansible
     tty: true

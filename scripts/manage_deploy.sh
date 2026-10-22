@@ -38,7 +38,7 @@ DEBUG_ARGS=""
 
 run_ansible() {
     local args="$@"
-    docker compose -f docker-compose.ansible.yaml run --rm ansible sh -c "ansible-playbook ${args} ${DEBUG_ARGS}"
+    docker compose -f docker-compose.ansible.yaml run --build --rm ansible sh -c "ansible-playbook ${args} ${DEBUG_ARGS}"
 }
 
 check_secrets() {
@@ -47,6 +47,8 @@ check_secrets() {
         print_warning "Создайте файл из примера: cp ansible/vars/secrets.yml.example ansible/vars/secrets.yml"
         exit 1
     fi
+
+    chmod 600 "ansible/vars/secrets.yml"
 }
 
 show_header() {

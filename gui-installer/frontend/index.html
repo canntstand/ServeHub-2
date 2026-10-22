@@ -358,26 +358,13 @@
 
                     <div class="guide-scroll">
                         <details class="guide-section">
-                            <summary>📦 Настройка удобного просмотра бэкапов</summary>
+                            <summary>📦 Проверка резервных копий</summary>
                             <div class="guide-content">
                                 <ol>
-                                    <li>Убедитесь, что диск для бэкапов подключён к серверу.</li>
-                                    <li>Укажите UUID диска в <code>secrets.yml</code> (можно посмотреть с помощью <code>sudo blkid</code>).</li>
-                                    <li>После разворачивания локальной архитектуры зайдите в Borg UI (имя пользователя всегда <code>admin</code>) и выполните следующие шаги:
-                                        <ol>
-                                            <li>Выберите импорт репозитория (укажите имя <code>/mnt/backup_storage/server_backup.borg</code>).</li>
-                                            <li>Выберите <strong>Observability Only</strong> и <strong>Read-only storage access</strong> (бэкапами занимается borgmatic, Borg UI — только для просмотра).</li>
-                                            <li>Укажите passphrase, которая была задана в <code>secrets.yml</code>.</li>
-                                            <li>Выберите тип сжатия <code>lz4</code>.</li>
-                                            <li>Импортируйте репозиторий.</li>
-                                        </ol>
-                                    </li>
-                                </ol>
-                                <div class="guide-warning">
-                                    ⚠ <span><strong>Напоминалка:</strong> бэкапы через Borg UI настраивать ни в коем случае нельзя!</span>
-                                </div>
-                                <ol start="4">
-                                    <li>Для включения метрик перейдите в <strong>Settings → System → Metrics Access</strong> и выключите параметр «Enable /metrics endpoint».</li>
+                                    <li>Проверьте расписание резервного копирования: <code>systemctl status borgmatic.timer</code>.</li>
+                                    <li>Проверьте журнал последнего запуска: <code>sudo journalctl -u borgmatic.service --since today</code>.</li>
+                                    <li>Экспортируйте ключ репозитория на внешний носитель: <code>sudo borg key export /mnt/backup_storage/server_backup.borg /путь/на/внешнем/носителе/server_backup.key</code>.</li>
+                                    <li>Не храните единственную копию ключа на этом сервере или на диске с репозиторием.</li>
                                 </ol>
                             </div>
                         </details>

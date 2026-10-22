@@ -1,13 +1,9 @@
-# Credentials for the initial connection to the local server.
 ansible_host: "{{ local_private_ip }}"
 ansible_user: "{{ local_user }}"
 deploy_user: "{{ local_user }}"
 
-# Root SSH probe: can be empty when root SSH is unavailable and a normal user is used.
 root_ssh_password: "{{ local_root_password | default('', true) }}"
 
-# Initial connection and sudo credentials. If the optional per-user password is
-# omitted, fall back to local_root_password for compatibility with the old setup.
 bootstrap_ssh_password: "{{ local_ssh_password | default(local_root_password | default('', true), true) }}"
 bootstrap_sudo_password: "{{ local_sudo_password | default(local_root_password | default('', true), true) }}"
 ansible_password: "{{ bootstrap_ssh_password }}"

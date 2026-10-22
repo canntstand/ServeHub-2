@@ -1,6 +1,3 @@
-# =========================================================================
-# 1. USER, SUDO AND SSH KEY
-# =========================================================================
 - name: "[User] Создание пользователя {{ deploy_user }} и добавление в sudo"
   ansible.builtin.user:
     name: "{{ deploy_user }}"
@@ -29,8 +26,6 @@
     key: "{{ ssh_public_key }}"
     manage_dir: true
 
-# Switch to the final account and deliberately test a fresh SSH connection.
-# This catches a missing/wrong private key before hardening sshd.
 - name: "[Privilege] Переключение на deploy_user для дальнейшего развёртывания"
   ansible.builtin.set_fact:
     ansible_user: "{{ deploy_user }}"
@@ -59,9 +54,6 @@
       PasswordAuthentication. При необходимости задайте отдельные vps_ssh_password / vps_sudo_password
       или local_ssh_password / local_sudo_password в vars/secrets.yml.
 
-# =========================================================================
-# 2. SSH HARDENING
-# =========================================================================
 - name: "[SSH] Создание управляемого drop-in с настройками безопасности"
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/00-00-servehub-hardening.conf
@@ -100,9 +92,6 @@
 - name: "[SSH] Применение настроек sshd до дальнейших шагов"
   ansible.builtin.meta: flush_handlers
 
-# =========================================================================
-# 3. FULL OS UPDATE AND BASE PACKAGES
-# =========================================================================
 - name: "[APT] Ubuntu 24.04: обновление списка пакетов и полный upgrade"
   ansible.builtin.apt:
     update_cache: true
@@ -138,9 +127,6 @@
   environment:
     DEBIAN_FRONTEND: noninteractive
 
-# =========================================================================
-# FAIL2BAN (enabled immediately after base packages)
-# =========================================================================
 - name: "[Fail2ban] Установка jail.local"
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../configs/fail2ban/jail.local"
@@ -167,9 +153,6 @@
     cmd: fail2ban-client status sshd
   changed_when: false
 
-# =========================================================================
-# 4. DOCKER ENGINE FROM THE OFFICIAL DOCKER APT REPOSITORY
-# =========================================================================
 - name: "[Docker] Удаление конфликтующих пакетов из Ubuntu"
   ansible.builtin.apt:
     name:
@@ -247,9 +230,6 @@
     append: true
     state: present
 
-# =========================================================================
-# 5. AMNEZIAWG KERNEL MODULE AND UTILITIES
-# =========================================================================
 - name: "[AmneziaWG] Скачивание GPG-ключа PPA"
   ansible.builtin.get_url:
     url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x75C9DD72C799870E310542E24166F2C257290828
@@ -289,9 +269,6 @@
     sysctl_set: true
     reload: true
 
-# =========================================================================
-# 7. BORGMATIC VIA PIPX
-# =========================================================================
 - name: "[Backup] Проверка установленной версии borgmatic"
   ansible.builtin.command:
     cmd: /usr/local/bin/borgmatic --version
@@ -309,9 +286,6 @@
     PIPX_HOME: /opt/pipx
     PIPX_BIN_DIR: /usr/local/bin
 
-# =========================================================================
-# 8. REBOOT IF UBUNTU REQUESTS IT, THEN VERIFY AMNEZIAWG ON THE RUNNING KERNEL
-# =========================================================================
 - name: "[Reboot] Проверка флага необходимости перезагрузки"
   ansible.builtin.stat:
     path: /var/run/reboot-required

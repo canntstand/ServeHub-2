@@ -12,6 +12,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
+	"time"
 
 	pty "github.com/aymanbagabas/go-pty"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -95,16 +97,25 @@ func (a *App) CheckDocker() CheckResult {
 }
 
 func (a *App) InstallProject() CheckResult {
-	if _, err := os.Stat("ServeHub-2-dev"); err == nil {
-		return CheckResult{
-			Success: true,
-			Message: "Проект уже был развернут ранее (папка ServeHub-2-dev существует).",
+	targetDir := "ServeHub-2-dev"
+	if info, err := os.Stat(targetDir); err == nil {
+		if !info.IsDir() {
+			return CheckResult{Success: false, Message: "Путь ServeHub-2-dev существует, но не является каталогом."}
 		}
+		for _, path := range []string{"docker-compose.ansible.yaml", "ansible/deploy.yml", "ansible/requirements.yml"} {
+			if _, statErr := os.Stat(filepath.Join(targetDir, path)); statErr != nil {
+				return CheckResult{Success: false, Message: "Каталог проекта неполный: отсутствует " + path + ". Переместите или удалите неполный каталог и повторите установку."}
+			}
+		}
+		return CheckResult{Success: true, Message: "Проект уже установлен (папка ServeHub-2-dev существует)."}
+	} else if !os.IsNotExist(err) {
+		return CheckResult{Success: false, Message: "Не удалось проверить каталог проекта: " + err.Error()}
 	}
 
 	url := "https://github.com/canntstand/ServeHub-2/archive/refs/heads/dev.zip"
 
-	resp, err := http.Get(url)
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Get(url)
 	if err != nil {
 		return CheckResult{Success: false, Message: "Не удалось подключиться к GitHub: " + err.Error()}
 	}
@@ -114,9 +125,13 @@ func (a *App) InstallProject() CheckResult {
 		return CheckResult{Success: false, Message: "GitHub вернул ошибку: " + resp.Status}
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	const maxArchiveSize = 256 << 20
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxArchiveSize+1))
 	if err != nil {
 		return CheckResult{Success: false, Message: "Ошибка при чтении данных архива: " + err.Error()}
+	}
+	if len(bodyBytes) > maxArchiveSize {
+		return CheckResult{Success: false, Message: "Архив проекта превышает допустимый размер 256 МиБ."}
 	}
 
 	zipReader, err := zip.NewReader(bytes.NewReader(bodyBytes), int64(len(bodyBytes)))
@@ -127,10 +142,17 @@ func (a *App) InstallProject() CheckResult {
 	destFolder := "."
 
 	for _, f := range zipReader.File {
-		fpath := filepath.Join(destFolder, f.Name)
+		name := filepath.Clean(filepath.FromSlash(f.Name))
+		root := "ServeHub-2-dev"
+		if !filepath.IsLocal(name) || name == "." || name == ".." || !(name == root || strings.HasPrefix(name, root+string(os.PathSeparator))) {
+			return CheckResult{Success: false, Message: "Архив содержит небезопасный путь: " + f.Name}
+		}
+		fpath := filepath.Join(destFolder, name)
 
 		if f.FileInfo().IsDir() {
-			os.MkdirAll(fpath, os.ModePerm)
+			if err = os.MkdirAll(fpath, 0755); err != nil {
+				return CheckResult{Success: false, Message: "Не удалось создать каталог из архива: " + err.Error()}
+			}
 			continue
 		}
 
@@ -138,7 +160,11 @@ func (a *App) InstallProject() CheckResult {
 			return CheckResult{Success: false, Message: "Не удалось создать структуру папок: " + err.Error()}
 		}
 
-		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		mode := f.Mode().Perm()
+		if mode == 0 {
+			mode = 0644
+		}
+		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
 		if err != nil {
 			return CheckResult{Success: false, Message: "Не удалось создать файл на диске: " + err.Error()}
 		}

@@ -41,11 +41,11 @@ It is worth clarifying that hosting everything on one powerful VPS would be easi
 ## Monitoring and Control
 - **Prometheus & Exporters:** Collection of host metrics (Node Exporter), container metrics (cAdvisor), and web server metrics (Nginx Exporter).
 - **Grafana:** Visualization of system state and service performance.
-- **Gatus:** Uptime monitoring of the local server via minute-by-minute `healthcheck` endpoint polling.
+- **Gatus:** Uptime monitoring of the local server by polling the `healthcheck` endpoint every five minutes.
 - **Loki + Grafana Alloy:** Unified log collection from all containers.
 
 ## Alerting and Communication
-- **Alertmanager:** Alerting for critical events on the local server.
+- **Alertmanager:** Routing critical-event notifications on the Edge/VPS server.
 - **Gatus:** Monitoring and alerting for local/remote server health, as well as SSL certificate expiration checks.
 - **TG Bot Integration:** Telegram bot for receiving notifications from Alertmanager and Gatus.
 
@@ -78,53 +78,12 @@ Hermes is deployed separately from the core ServeHub-2 components and is not req
 
 Hermes's VPN access should be restricted to the IP addresses and ports it actually needs. Connecting to the VPN should not grant the agent unrestricted access to all devices and services.
 
-## Server Setup for Hermes Agent and Installation
+## Deploying Hermes Agent
 
-1. Install Docker + Docker Compose
-2. Install amneziawg-dkms: https://github.com/amnezia-vpn/amneziawg-linux-kernel-module
-3. git clone https://github.com/canntstand/ServeHub-2
-4. Download the config and place it at ./apps-data/amnezia/awg0.conf on the server where Hermes will be installed.
-5. Run the commands below:
-    ```bash
-    cat > /etc/sysctl.d/99-servehub-vpn.conf <<'EOF'
-    net.ipv4.ip_forward=1
-    net.ipv4.conf.all.src_valid_mark=1
-    net.ipv6.conf.all.disable_ipv6=0
-    net.ipv6.conf.all.forwarding=1
-    net.ipv6.conf.default.forwarding=1
-    EOF
-
-    sysctl --system
-    ```
-
-6. Start the VPN client:
-    ```bash
-    docker compose -f docker-compose.hermes.yaml up -d
-    ```
-
-7. Configure DNS for the awg0 interface:
-    ```bash
-    cat << 'EOF' | sudo tee /etc/systemd/system/amnezia-dns.service > /dev/null && sudo systemctl daemon-reload && sudo systemctl enable --now amnezia-dns.service
-    [Unit]
-    Description=Fix Amnezia DNS for awg0
-    After=docker.service
-    BindsTo=docker.service
-
-    [Service]
-    Type=oneshot
-    RemainAfterExit=yes
-    ExecStartPre=/bin/sh -c 'until ip link show awg0; do sleep 1; done'
-    ExecStart=/usr/bin/resolvectl dns awg0 10.8.0.1
-    ExecStartPost=/usr/bin/resolvectl domain awg0 ~.
-
-    [Install]
-    WantedBy=multi-user.target
-    EOF
-    ```
-8. Install Hermes Agent using the standard method (official website: https://hermes-agent.nousresearch.com):
+Hermes Agent is deployed separately from the current ServeHub-2 stack. This branch does not contain `docker-compose.hermes.yaml`, so the old VPN-client startup command is not applicable. Create a dedicated wg-easy client with its own address, restrict VPN access to the required IP addresses and ports, and install the agent using the [official Hermes documentation](https://hermes-agent.nousresearch.com).
 
 # Important Information Before Deployment
-1. **Supported OS:** The project is designed to run on Ubuntu, Debian, and Arch Linux (7.1.3-arch1-2).
+1. **Supported OS:** Ubuntu 24.04 LTS.
 2. **DNS Configuration:** In the registrar's DNS panel (e.g., Webnames), you must point the primary domain A-record and the wildcard record (`*`) to the internal VPN IP address — **`10.8.0.1`**. This is critical: all traffic to your services must travel inside the secure AmneziaWG tunnel. If you point the domain to the public IP of the VPS, Nginx will block external requests due to the `deny all` rule.
 3. **VPN for Vagrant:** HashiCorp is currently inaccessible from Russia, so a VPN is required to run tests. (After setting up the machines, you can turn off the VPN or configure split-tunneling to ignore the `192.168.0.0/24` range; otherwise, you will be unable to connect to the test VMs via SSH).
 4. **Backup Preservation:** After setting up the local server, save the Borg key (if backups were configured): `borg key export /mnt/backup_storage/server_backup.borg /home/USER/borg_key_backup.txt`. (It is best to move this file elsewhere; do not keep it on the same server).

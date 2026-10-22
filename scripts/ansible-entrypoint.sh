@@ -59,4 +59,6 @@ Host *
 SSH_CONFIG
 chmod 600 "$SSH_DIR/config"
 
+ansible-galaxy collection install -r /ansible/ansible/requirements.yml
+
 exec "$@"

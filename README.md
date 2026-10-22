@@ -42,11 +42,11 @@
 ## Мониторинг и контроль
 - **Prometheus & Exporters:** Сбор метрик хоста (Node Exporter), контейнеров (cAdvisor) и самого веб-сервера (Nginx Exporter).
 - **Grafana:** Визуализация состояния системы и производительности сервисов.
-- **Gatus:** Мониторинг аптайма локального сервера через ежеминутное опрашивание `healthcheck` эндпоинта.
+- **Gatus:** Мониторинг аптайма локального сервера через опрос эндпоинта `healthcheck` каждые пять минут.
 - **Loki + Grafana Alloy:** Сбор логов со всех контейнеров в одно место.
 
 ## Алертинг и коммуникация
-- **Alertmanager:** Алертинг критических событий на локальном сервере.
+- **Alertmanager:** Маршрутизация уведомлений о критических событиях на Edge/VPS.
 - **Gatus:** Мониторинг и алертинг работы локального и удаленного серверов, а также проверка SSL сертификатов.
 - **TG Bot Integration:** Использование TG бота для получения уведомлений от Alertmanager и Gatus.
 
@@ -79,51 +79,12 @@ Hermes разворачивается отдельно от основных к�
 
 Доступ Hermes к VPN-сети следует ограничивать необходимыми IP-адресами и портами. Само подключение к VPN не должно предоставлять агенту неограниченный доступ ко всем устройствам и сервисам.
 
-## Настройка сервера для Hermes Agent и установка
-1. Установите Docker + Docker Compose
-2. Установите [amneziawg-dkms](https://github.com/amnezia-vpn/amneziawg-linux-kernel-module)
-3. git clone https://github.com/canntstand/ServeHub-2
-4. Скачайте конфиг и поместите по пути `./apps-data/amnezia/awg0.conf` на сервере, где будет установлен Hermes.
-5. Выполнить команды ниже
-    ```bash
-    sudo tee /etc/sysctl.d/99-servehub-vpn.conf <<'EOF'
-    net.ipv4.ip_forward=1
-    net.ipv4.conf.all.src_valid_mark=1
-    net.ipv6.conf.all.disable_ipv6=0
-    net.ipv6.conf.all.forwarding=1
-    net.ipv6.conf.default.forwarding=1
-    EOF
+## Развёртывание Hermes Agent
 
-
-    sudo sysctl --system
-    ```
-6. Запустите VPN клиент:
-    ```bash
-    docker compose -f docker-compose.hermes.yaml up -d
-    ```
-7. Настройте DNS для awg0 интерфейса:
-    ```bash
-    cat << 'EOF' | sudo tee /etc/systemd/system/amnezia-dns.service > /dev/null && sudo systemctl daemon-reload && sudo systemctl enable --now amnezia-dns.service
-    [Unit]
-    Description=Fix Amnezia DNS for awg0
-    After=docker.service
-    BindsTo=docker.service
-
-    [Service]
-    Type=oneshot
-    RemainAfterExit=yes
-    ExecStartPre=/bin/sh -c 'until ip link show awg0; do sleep 1; done'
-    ExecStart=/usr/bin/resolvectl dns awg0 10.8.0.1
-    ExecStartPost=/usr/bin/resolvectl domain awg0 ~.
-
-    [Install]
-    WantedBy=multi-user.target
-    EOF
-    ```
-8. Установка Hermes Agent стандартным способом, выбор настроек в зависимости от потребностей (официальный сайт: https://hermes-agent.nousresearch.com)
+Hermes Agent разворачивается отдельно от текущего комплекта ServeHub-2. В этой ветке нет файла `docker-compose.hermes.yaml`, поэтому команда запуска VPN-клиента из старой инструкции неприменима. Для подключения Hermes создайте отдельного клиента в wg-easy с выделенным адресом и ограничьте доступ к VPN-узлам необходимыми IP-адресами и портами. Сам агент устанавливайте по [официальной документации Hermes](https://hermes-agent.nousresearch.com).
 
 # Важная информация перед развертыванием проекта
-1. **Поддерживаемые ОС:** Проект рассчитан на работу на Ubuntu, Debian, Arch Linux (как минимум 7.1.8-arch1-3).
+1. **Поддерживаемая ОС:** Ubuntu 24.04 LTS.
 2. **Настройка DNS:** В DNS-панели регистратора (например, на Webnames) необходимо направить A-запись основного домена и wildcard-запись (`*`) на внутренний IP-адрес VPN — **`10.8.0.1`**. Это критически важно: весь трафик к вашим сервисам должен идти внутри защищённого туннеля AmneziaWG. Если направить домен на публичный IP-адрес сервера VPS, Nginx заблокирует внешние запросы из-за правила `deny all`.
 3. **VPN для Vagrant:** HashiCorp в данный момент не работает в России, поэтому для запуска тестирования понадобится VPN. (После установки машин VPN следует выключить, либо можно включить split-tunneling на игнорирование диапазона `192.168.0.0/24`, так как иначе к тестовым виртуалкам не получится подключиться по SSH.)
 4. **Сохранность бэкапов:** После настройки локального сервера стоит сохранить ключ Borg (если настраивалась система бэкапов): `borg key export /mnt/backup_storage/server_backup.borg /home/USER/borg_key_backup.txt`. (Лучше перенести этот файл в другое место, не стоит хранить его на том же сервере.)

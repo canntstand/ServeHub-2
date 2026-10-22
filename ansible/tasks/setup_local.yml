@@ -1,4 +1,3 @@
-# Create the target directories before pausing so a clean host can receive awg0.conf.
 - name: "[FS] Подготовка каталога для конфигурации AmneziaWG до ручного шага"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/amnezia"
@@ -48,10 +47,6 @@
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: "0600"
-
-# =========================================================================
-# CERTBOT + WEBNAMES DNS-01 — WORKLOAD ONLY
-# =========================================================================
 
 - name: "[Certbot] Создание каталогов на Workload"
   ansible.builtin.file:
@@ -121,9 +116,6 @@
   changed_when: false
   no_log: true
 
-# The current local Compose file always bind-mounts /mnt/backup_storage into the
-# privileged Borg UI container. Never let Docker silently create this directory
-# on the root filesystem when no dedicated backup UUID was configured.
 - name: "[Backup] Проверка уже смонтированного диска, если backup_disk_uuid не задан"
   ansible.builtin.command:
     argv:
@@ -147,13 +139,6 @@
       Задайте backup_disk_uuid для автоматического монтирования отдельного диска
       или заранее смонтируйте отдельную файловую систему в /mnt/backup_storage.
   when: backup_disk_uuid | default('') | string | trim | length == 0
-
-# Не удаляем awg0 вручную: интерфейс создаёт контейнер amnezia-client.
-# Удаление без перезапуска контейнера ломает VPN при повторном запуске playbook.
-
-# =========================================================================
-# BUILD CERTBOT AND ENSURE CERTIFICATE EXISTS BEFORE NGINX STARTS
-# =========================================================================
 
 - name: "[Certbot] Установка прав на DNS hook-скрипты"
   ansible.builtin.file:
@@ -210,9 +195,6 @@
   register: certbot_renewal
   no_log: true
 
-# =========================================================================
-# DATA DIRECTORIES AND LEAST-PRIVILEGE OWNERSHIP
-# =========================================================================
 - name: "[FS] Создание корня apps-data"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/apps-data"
@@ -233,12 +215,9 @@
     - { path: "navidrome/data", owner: "1000", group: "1000", mode: "0700" }
     - { path: "audiobookshelf/config", owner: "1000", group: "1000", mode: "0700" }
     - { path: "audiobookshelf/metadata", owner: "1000", group: "1000", mode: "0700" }
-    - { path: "portainer/data", owner: "0", group: "0", mode: "0700" }
     - { path: "postgres/nextcloud", owner: "999", group: "999", mode: "0700" }
     - { path: "postgres/vaultwarden", owner: "999", group: "999", mode: "0700" }
     - { path: "postgres/homebox", owner: "999", group: "999", mode: "0700" }
-    - { path: "borg-ui", owner: "1001", group: "1001", mode: "0700" }
-    - { path: "borg-ui-cache", owner: "1001", group: "1001", mode: "0700" }
     - { path: "homebox", owner: "1000", group: "1000", mode: "0700" }
     - { path: "gitea", owner: "1000", group: "1000", mode: "0700" }
     - { path: "habitica-db", owner: "999", group: "999", mode: "0700" }
@@ -257,12 +236,9 @@
     - { path: "navidrome/data", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
     - { path: "audiobookshelf/config", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
     - { path: "audiobookshelf/metadata", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
-    - { path: "portainer/data", owner: "0", group: "0", mode: "u=rwX,g=,o=" }
     - { path: "postgres/nextcloud", owner: "999", group: "999", mode: "u=rwX,g=,o=" }
     - { path: "postgres/vaultwarden", owner: "999", group: "999", mode: "u=rwX,g=,o=" }
     - { path: "postgres/homebox", owner: "999", group: "999", mode: "u=rwX,g=,o=" }
-    - { path: "borg-ui", owner: "1001", group: "1001", mode: "u=rwX,g=,o=" }
-    - { path: "borg-ui-cache", owner: "1001", group: "1001", mode: "u=rwX,g=,o=" }
     - { path: "homebox", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
     - { path: "gitea", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
     - { path: "habitica-db", owner: "999", group: "999", mode: "u=rwX,g=,o=" }
@@ -315,9 +291,6 @@
     group: "{{ deploy_user }}"
     mode: "u=rwX,g=rwX,o="
 
-# =========================================================================
-# BACKUP STORAGE + BORGMATIC SYSTEMD TIMER
-# =========================================================================
 - name: "[Backup] Проверка UUID заданного диска"
   ansible.builtin.command:
     argv:
@@ -478,9 +451,6 @@
         enabled: true
         state: started
 
-# =========================================================================
-# KERNEL, FORWARDING AND FIREWALL
-# =========================================================================
 - name: "[Kernel] Проверка/загрузка модуля AmneziaWG"
   ansible.builtin.command:
     cmd: modprobe amneziawg
@@ -556,9 +526,6 @@
     enabled: true
     state: "{{ 'restarted' if local_firewall_script.changed or local_firewall_unit.changed else 'started' }}"
 
-# =========================================================================
-# START LOCAL COMPOSE STACK
-# =========================================================================
 - name: "[Docker] Запуск локального стека без безусловного restart Docker"
   community.docker.docker_compose_v2:
     project_src: "/home/{{ deploy_user }}/ServeHub-2"
@@ -567,7 +534,6 @@
     state: present
     pull: missing
   register: compose_start
-
 
 - name: "[Nginx] Проверка конфигурации и перечитывание сертификата на Workload"
   ansible.builtin.command:
@@ -587,10 +553,6 @@
 - name: "[Status] Текущий статус локальных контейнеров"
   ansible.builtin.debug:
     var: compose_ps_output.stdout_lines
-
-# =========================================================================
-# CERTBOT RENEWAL TIMER — WORKLOAD ONLY
-# =========================================================================
 
 - name: "[Certbot] Установка certbot-renew.service на Workload"
   ansible.builtin.copy:
@@ -644,9 +606,6 @@
     enabled: true
     state: started
 
-# =========================================================================
-# SYSTEMD-RESOLVED DNS FOR awg0
-# =========================================================================
 - name: "[Network] Включение systemd-resolved"
   ansible.builtin.systemd_service:
     name: systemd-resolved

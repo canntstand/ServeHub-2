@@ -4,6 +4,10 @@ import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
 let generatedYamlString = "";
 
+function yamlQuote(value) {
+    return JSON.stringify(String(value ?? ""));
+}
+
 const STEP_TITLES = {
     1: 'Добро пожаловать',
     2: 'Проверка требований',
@@ -215,7 +219,13 @@ function populateSecretsForm(yamlText) {
             const fieldId = SECRETS_FIELD_MAP[simpleMatch[1]];
             if (fieldId) {
                 const el = document.getElementById(fieldId);
-                if (el) el.value = simpleMatch[2];
+                if (el) {
+                    try {
+                        el.value = JSON.parse('"' + simpleMatch[2] + '"');
+                    } catch {
+                        el.value = simpleMatch[2];
+                    }
+                }
             }
         }
 
@@ -270,56 +280,34 @@ window.generateAndReviewYaml = function() {
         .map(line => '    ' + line)
         .join('\n');
 
-    generatedYamlString = `# ==============================================================================
-#                 ServeHub-2: СГЕНЕРИРОВАННЫЙ КОНФИГУРАЦИОННЫЙ SECRETS.YML
-# ==============================================================================
+    generatedYamlString = `vps_public_ip: ${yamlQuote(vpsIp)}
+vps_user: ${yamlQuote(vpsUser)}
+vps_root_password: ${yamlQuote(vpsRootPass)}
+local_private_ip: ${yamlQuote(localIp)}
+local_user: ${yamlQuote(localUser)}
+local_root_password: ${yamlQuote(localRootPass)}
 
-# ------------------------------------------------------------------------------
-# 1. СЕТЕВАЯ ИНФРАСТРУКТУРА И ПОЛЬЗОВАТЕЛИ
-# ------------------------------------------------------------------------------
-vps_public_ip: "${vpsIp}"
-vps_user: "${vpsUser}"
-vps_root_password: "${vpsRootPass}"
-local_private_ip: "${localIp}"
-local_user: "${localUser}"
-local_root_password: "${localRootPass}"
+server_name: ${yamlQuote(serverName)}
+admin_user: ${yamlQuote(adminUser)}
+admin_password: ${yamlQuote(adminPass)}
+email: ${yamlQuote(email)}
 
-# ------------------------------------------------------------------------------
-# 2. ГЛОБАЛЬНЫЕ НАСТРОЙКИ И АДМИНИСТРИРОВАНИЕ
-# ------------------------------------------------------------------------------
-server_name: "${serverName}"
-admin_user: "${adminUser}"
-admin_password: "${adminPass}"
-email: "${email}"
+telegram_token: ${yamlQuote(tgToken)}
+telegram_chat_id: ${yamlQuote(tgChatId)}
 
-# ------------------------------------------------------------------------------
-# 3. НАСТРОЙКИ АЛЕРТИНГА (УВЕДОМЛЕНИЯ ЧЕРЕЗ TG БОТА ДЛЯ GATUS / СЕРВИСОВ)
-# ------------------------------------------------------------------------------
-telegram_token: "${tgToken}"
-telegram_chat_id: "${tgChatId}"
+webnames_apikey: ${yamlQuote(webnamesKey)}
 
-# ------------------------------------------------------------------------------
-# 4. ИНТЕГРАЦИЯ С DNS-ПРОВАЙДЕРОМ (АВТО-SSL)
-# ------------------------------------------------------------------------------
-webnames_apikey: "${webnamesKey}"
+postgres_user: ${yamlQuote(pgUser)}
+postgres_password: ${yamlQuote(pgPass)}
+nextcloud_redis_pass: ${yamlQuote(redisPass)}
 
-# ------------------------------------------------------------------------------
-# 5. НАСТРОЙКИ СУБД POSTGRESQL
-# ------------------------------------------------------------------------------
-postgres_user: "${pgUser}"
-postgres_password: "${pgPass}"
-nextcloud_redis_pass: "${redisPass}"
-
-# ------------------------------------------------------------------------------
-# 6. СЕКРЕТЫ И КЛЮЧИ БЕЗОПАСНОСТИ СЕРВИСОВ
-# ------------------------------------------------------------------------------
-secret_vaultwarden_password: "${vwAdminPass}"
-hbox_pepper: "${hboxPepper}"
-ssh_public_key: "${publicsshKey}"
+secret_vaultwarden_password: ${yamlQuote(vwAdminPass)}
+hbox_pepper: ${yamlQuote(hboxPepper)}
+ssh_public_key: ${yamlQuote(publicsshKey)}
 ssh_private_key: |
 ${formattedPrivateKey}
-borgmatic_encryption_passphrase: "${borgPass}"
-backup_disk_uuid: "${diskUuid}"
+borgmatic_encryption_passphrase: ${yamlQuote(borgPass)}
+backup_disk_uuid: ${yamlQuote(diskUuid)}
 `;
 
     document.getElementById('yaml-preview').innerText = generatedYamlString;
