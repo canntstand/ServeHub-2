@@ -1,4 +1,4 @@
-![ServeHub-logo-violet-banner-dark.svg](icons/ServeHub-logo-2-violet-banner-dark.svg)
+![ServeHub-2-logo-violet-banner-dark.svg](icons/ServeHub-2-logo-violet-banner-dark.svg)
 ![Version](https://img.shields.io/github/v/release/canntstand/ServeHub-2?label=version)
 ![License](https://img.shields.io/github/license/canntstand/ServeHub-2)
 ![Last Commit](https://img.shields.io/github/last-commit/canntstand/ServeHub-2)
