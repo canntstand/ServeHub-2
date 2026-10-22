@@ -52,7 +52,11 @@ else
     echo "==> Использование существующего/импортированного SSH-ключа."
 fi
 
-echo "StrictHostKeyChecking no" > "$SSH_DIR/config"
+cat > "$SSH_DIR/config" <<'SSH_CONFIG'
+Host *
+    StrictHostKeyChecking accept-new
+    UserKnownHostsFile /root/.ssh/known_hosts
+SSH_CONFIG
 chmod 600 "$SSH_DIR/config"
 
 exec "$@"

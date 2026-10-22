@@ -134,12 +134,14 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
       - /run/udev:/run/udev:ro
+      - ./apps-data/node-exporter/textfile:/textfile_collector:ro
     command:
       - "--web.listen-address=10.8.0.2:9100"
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/rootfs"
-      - "--collector.filesystem.mount-points-exclude=^/rootfs/(sys|proc|dev|host|etc|var/lib/docker)($$|/)"
+      - "--collector.filesystem.mount-points-exclude=^/rootfs/(sys|proc|dev|host|etc|var/lib/docker)($|/)"
+      - "--collector.textfile.directory=/textfile_collector"
     depends_on:
       amnezia-client:
         condition: service_healthy

@@ -41,28 +41,8 @@ groups:
           summary: "Заканчивается место на диске"
           description: "Диск заполнен более чем на 85% (текущее значение: {{ $value | printf \"%.2f\" }}%)."
   
-  - name: borg_alerts
-    rules:
-      - alert: BorgBackupStale
-        expr: (time() - borg_repository_last_backup_timestamp) > 172800
-        for: 1h
-        labels:
-          severity: warning
-        annotations:
-          summary: "Бэкап не обновлялся более 48 часов"
-          description: "Последний успешный бэкап в репозитории {{ $labels.repository }} был слишком давно."
-      
-      - alert: BorgBackupFailed
-        expr: borg_backup_last_job_success == 0
-        for: 0m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Ошибка бэкапа Borg"
-          description: "Последнее задание бэкапа для репозитория {{ $labels.repository }} завершилось неудачей."
-
       - alert: BorgmaticBackupFailed
-        expr: borgmatic_backup_last_run_success == 0
+        expr: servehub_borgmatic_backup_last_run_success == 0
         for: 5m
         labels:
           severity: critical
@@ -71,7 +51,7 @@ groups:
           description: "Проверь журнал резервного копирования на {{ $labels.instance }}."
 
       - alert: BorgmaticBackupTooOld
-        expr: time() - borgmatic_backup_last_success_timestamp_seconds > 108000
+        expr: time() - servehub_borgmatic_backup_last_success_timestamp_seconds > 108000
         for: 10m
         labels:
           severity: critical

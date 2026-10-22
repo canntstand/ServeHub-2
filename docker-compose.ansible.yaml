@@ -3,7 +3,7 @@ services:
     image: alpine/ansible:2.21.0
     container_name: ansible
     environment:
-      - ANSIBLE_HOST_KEY_CHECKING=False
+      - ANSIBLE_HOST_KEY_CHECKING=True
       - ANSIBLE_CONFIG=/ansible/ansible/ansible.cfg
     volumes:
       - .:/ansible:ro

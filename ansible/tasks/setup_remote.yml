@@ -25,6 +25,21 @@
     - wg-easy
     - adguard/work
 
+- name: "[FS] Создание каталогов мониторинга на Edge с владельцами контейнеров"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "loki", owner: "10001", group: "10001", mode: "0700" }
+    - { path: "alertmanager", owner: "65534", group: "65534", mode: "0700" }
+    - { path: "prometheus", owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0755" }
+    - { path: "prometheus/data", owner: "65534", group: "65534", mode: "0700" }
+    - { path: "grafana/data", owner: "472", group: "472", mode: "0700" }
+    - { path: "alloy", owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0750" }
+
 # =========================================================================
 # KERNEL / IP FORWARDING / FIREWALL
 # =========================================================================
@@ -149,6 +164,16 @@
   register: adguard_config
   no_log: true
 
+- name: "[Alertmanager] Генерация конфигурации на Edge"
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/templates/alertmanager.yml.j2"
+    dest: "/home/{{ deploy_user }}/ServeHub-2/configs/monitoring/alertmanager.yml"
+    owner: "{{ deploy_user }}"
+    group: "65534"
+    mode: "0640"
+  register: alertmanager_config
+  no_log: true
+
 # =========================================================================
 # START / VALIDATE THE VPS STACK
 # =========================================================================
@@ -168,6 +193,12 @@
     pull: missing
     remove_orphans: true
   register: compose_start
+
+- name: "[Alertmanager] Применение изменённой конфигурации на Edge"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.remote.yaml restart alertmanager
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  when: alertmanager_config.changed
 
 - name: "[AdGuard] Применение изменённой конфигурации"
   ansible.builtin.command:

@@ -27,4 +27,4 @@ dns:
 
 users:
   - name: "{{ admin_user }}"
-     password: "{{ (admin_password | password_hash('bcrypt', adguard_password_salt | default('servehubadguardsalt22x'))) | to_json }}"
+    password: {{ (admin_password | password_hash('bcrypt', adguard_password_salt | default('servehubadguardsalt22x'))) | to_json }}

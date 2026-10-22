@@ -240,12 +240,8 @@
     - { path: "borg-ui", owner: "1001", group: "1001", mode: "0700" }
     - { path: "borg-ui-cache", owner: "1001", group: "1001", mode: "0700" }
     - { path: "homebox", owner: "1000", group: "1000", mode: "0700" }
-    - { path: "prometheus/data", owner: "65534", group: "65534", mode: "0700" }
-    - { path: "grafana/data", owner: "472", group: "472", mode: "0700" }
-    - { path: "loki", owner: "10001", group: "10001", mode: "0700" }
     - { path: "gitea", owner: "1000", group: "1000", mode: "0700" }
     - { path: "habitica-db", owner: "999", group: "999", mode: "0700" }
-    - { path: "alertmanager", owner: "65534", group: "65534", mode: "0700" }
     - { path: "amnezia", owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0700" }
 
 - name: "[FS] Рекурсивная коррекция UID/GID и ограничение прав каталогов данных"
@@ -268,13 +264,17 @@
     - { path: "borg-ui", owner: "1001", group: "1001", mode: "u=rwX,g=,o=" }
     - { path: "borg-ui-cache", owner: "1001", group: "1001", mode: "u=rwX,g=,o=" }
     - { path: "homebox", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
-    - { path: "prometheus/data", owner: "65534", group: "65534", mode: "u=rwX,g=,o=" }
-    - { path: "grafana/data", owner: "472", group: "472", mode: "u=rwX,g=,o=" }
-    - { path: "loki", owner: "10001", group: "10001", mode: "u=rwX,g=,o=" }
     - { path: "gitea", owner: "1000", group: "1000", mode: "u=rwX,g=,o=" }
     - { path: "habitica-db", owner: "999", group: "999", mode: "u=rwX,g=,o=" }
-    - { path: "alertmanager", owner: "65534", group: "65534", mode: "u=rwX,g=,o=" }
     - { path: "amnezia", owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "u=rwX,g=,o=" }
+
+- name: "[FS] Создание каталога метрик Borgmatic для textfile collector"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/node-exporter/textfile"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
 - name: "[FS] Настройка Nextcloud HTML (UID 33)"
   ansible.builtin.file:
@@ -440,7 +440,8 @@
           Type=oneshot
           User=root
           Environment=PATH=/usr/local/bin:/usr/bin:/bin
-          ExecStart=/usr/local/bin/borgmatic --config /etc/borgmatic/config.yaml --verbosity -1
+          Environment=SERVEHUB_BORGMATIC_METRICS_DIR=/home/{{ deploy_user }}/ServeHub-2/apps-data/node-exporter/textfile
+          ExecStart=/bin/bash /home/{{ deploy_user }}/ServeHub-2/scripts/borgmatic_with_metrics.sh
           Nice=19
           IOSchedulingClass=best-effort
           IOSchedulingPriority=7
@@ -476,27 +477,6 @@
         name: borgmatic.timer
         enabled: true
         state: started
-
-# =========================================================================
-# ALERTMANAGER
-# =========================================================================
-- name: "[Monitoring] Создание каталога данных Alertmanager"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/alertmanager"
-    state: directory
-    owner: "65534"
-    group: "65534"
-    mode: "0750"
-
-- name: "[Monitoring] Генерация alertmanager.yml"
-  ansible.builtin.template:
-    src: "{{ playbook_dir }}/templates/alertmanager.yml.j2"
-    dest: "/home/{{ deploy_user }}/ServeHub-2/configs/monitoring/alertmanager.yml"
-    owner: "{{ deploy_user }}"
-    group: "65534"
-    mode: "0640"
-  register: alertmanager_config
-  no_log: true
 
 # =========================================================================
 # KERNEL, FORWARDING AND FIREWALL
@@ -588,11 +568,6 @@
     pull: missing
   register: compose_start
 
-- name: "[Alertmanager] Применение изменённой конфигурации"
-  ansible.builtin.command:
-    cmd: docker compose -f docker-compose.local.yaml restart alertmanager
-    chdir: "/home/{{ deploy_user }}/ServeHub-2"
-  when: alertmanager_config.changed
 
 - name: "[Nginx] Проверка конфигурации и перечитывание сертификата на Workload"
   ansible.builtin.command:

@@ -28,7 +28,7 @@ loki.source.docker "docker_logs" {
 
 loki.write "loki_storage" {
   endpoint {
-    url        = "http://10.8.0.2:3100/loki/api/v1/push"
+    url        = "http://loki:3100/loki/api/v1/push"
     batch_wait = "10s"
     batch_size = "1MiB"
   }
