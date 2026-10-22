@@ -27,6 +27,9 @@ fi
 SERVER_NAME="$(
     awk -F= '$1 == "SERVER_NAME" { sub(/^[^=]*=/, ""); print; exit }' "$ENV_FILE"
 )"
+if [[ "$SERVER_NAME" == "'"*"'" ]]; then
+    SERVER_NAME="${SERVER_NAME:1:${#SERVER_NAME}-2}"
+fi
 
 if [[ -z "$SERVER_NAME" ]]; then
     log_error "Переменная SERVER_NAME отсутствует в .env"
