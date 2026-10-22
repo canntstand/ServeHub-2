@@ -19,3 +19,4 @@ services:
 
 volumes:
   ssh-data:
+  ansible-collections:
