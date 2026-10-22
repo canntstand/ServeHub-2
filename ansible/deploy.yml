@@ -96,6 +96,7 @@
       ansible.builtin.git:
         repo: "https://github.com/canntstand/ServeHub-2.git"
         dest: "/home/{{ deploy_user }}/ServeHub-2"
+        version: dev
         clone: true
         update: true
         force: false

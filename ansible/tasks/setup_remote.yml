@@ -1,16 +1,3 @@
-- name: "[Pause] Ручная миграция apps-data и сертификатов на VPS"
-  ansible.builtin.pause:
-    prompt: |
-      ======================================================================
-      МИГРАЦИЯ ДАННЫХ НА VPS (РУЧНОЙ ШАГ)
-      ======================================================================
-      Если это перенос с действующего сервера, скопируйте старую папку
-      apps-data в /home/{{ deploy_user }}/ServeHub-2/apps-data/ и старую папку
-      certbot в /home/{{ deploy_user }}/ServeHub-2/certbot/.
-      На чистом сервере можно продолжить без копирования.
-
-      SSH-подключение: ssh {{ deploy_user }}@{{ vps_public_ip }}
-      После завершения переноса нажмите ENTER.
 
 # Не удаляем wg0 вручную: интерфейс принадлежит работающему контейнеру wg-easy.
 # Compose должен управлять его жизненным циклом, иначе повторный запуск Ansible
@@ -37,182 +24,6 @@
   loop:
     - wg-easy
     - adguard/work
-
-- name: "[FS] Создание каталогов Certbot"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/{{ item }}"
-    state: directory
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0750"
-  loop:
-    - certbot/certs
-    - certbot/certs-data
-    - certbot/www
-
-# =========================================================================
-# CERTBOT + WEBNAMES DNS-01
-# =========================================================================
-- name: "[Certbot] Клонирование Webnames DNS hook scripts"
-  ansible.builtin.git:
-    repo: https://github.com/regtime-ltd/certbot-dns-webnames.git
-    dest: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames"
-    version: master
-    update: false
-  become_user: "{{ deploy_user }}"
-
-- name: "[Certbot] Получение секретной конфигурации Webnames API"
-  ansible.builtin.get_url:
-    url: "https://www.webnames.ru/scripts/json_domain_zone_manager.pl?action=get_config_certbot&domain={{ server_name | urlencode }}&apikey={{ webnames_apikey | urlencode }}"
-    dest: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0600"
-  no_log: true
-
-- name: "[Certbot] Проверка файла конфигурации Webnames"
-  ansible.builtin.stat:
-    path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
-  register: webnames_config_stat
-
-- name: "[Certbot] Проверка, что конфигурация Webnames существует и непуста"
-  ansible.builtin.assert:
-    that:
-      - webnames_config_stat.stat.exists
-      - webnames_config_stat.stat.size | default(0) | int > 0
-    fail_msg: "Webnames API вернул пустой или отсутствующий config.sh. Проверьте домен и API-ключ."
-
-- name: "[Certbot] Проверка синтаксиса config.sh без вывода секретов"
-  ansible.builtin.command:
-    argv:
-      - /bin/bash
-      - -n
-      - "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
-  changed_when: false
-  no_log: true
-
-- name: "[Certbot] Проверка наличия API_KEY в конфигурации Webnames"
-  ansible.builtin.command:
-    argv:
-      - /bin/grep
-      - -Eq
-      - '^[[:space:]]*(export[[:space:]]+)?API_KEY='
-      - "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
-  changed_when: false
-  no_log: true
-
-- name: "[Certbot] Выдача execute-bit только hook-скриптам"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/{{ item }}"
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0750"
-  loop:
-    - authenticator.sh
-    - cleanup.sh
-
-- name: "[Certbot] Сборка образа до первого выпуска/обновления сертификата"
-  ansible.builtin.command:
-    cmd: docker compose -f docker-compose.remote.yaml build certbot
-    chdir: "/home/{{ deploy_user }}/ServeHub-2"
-  changed_when: false
-
-- name: "[Docker Compose] Проверка конфигурации remote-стека до выпуска сертификата"
-  ansible.builtin.command:
-    cmd: docker compose -f docker-compose.remote.yaml config --quiet
-    chdir: "/home/{{ deploy_user }}/ServeHub-2"
-  changed_when: false
-  no_log: true
-
-- name: "[Certbot] Проверка наличия текущего сертификата"
-  ansible.builtin.stat:
-    path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ server_name }}/fullchain.pem"
-  register: current_cert_stat
-
-- name: "[Certbot] Проверка срока действия сертификата (30 дней)"
-  ansible.builtin.command:
-    argv:
-      - openssl
-      - x509
-      - -checkend
-      - "2592000"
-      - -noout
-      - -in
-      - "/home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ server_name }}/fullchain.pem"
-  register: cert_expiry_check
-  when: current_cert_stat.stat.exists
-  failed_when: false
-  changed_when: false
-
-- name: "[Certbot] Первый выпуск сертификата через DNS-01"
-  ansible.builtin.command:
-    cmd: docker compose -f docker-compose.remote.yaml run --rm certbot
-    chdir: "/home/{{ deploy_user }}/ServeHub-2"
-  when: not current_cert_stat.stat.exists
-  register: certbot_initial_issue
-
-- name: "[Certbot] Обновление сертификата, если он истекает в течение 30 дней"
-  ansible.builtin.command:
-    cmd: docker compose -f docker-compose.remote.yaml run --rm certbot renew --non-interactive
-    chdir: "/home/{{ deploy_user }}/ServeHub-2"
-  when:
-    - current_cert_stat.stat.exists
-    - cert_expiry_check.rc is defined
-    - cert_expiry_check.rc != 0
-  register: certbot_renewal
-
-# =========================================================================
-# AUTOMATIC CERTIFICATE RENEWAL
-# =========================================================================
-- name: "[Systemd] Установка сервиса certbot-renew.service"
-  ansible.builtin.copy:
-    dest: /etc/systemd/system/certbot-renew.service
-    owner: root
-    group: root
-    mode: "0644"
-    content: |
-      [Unit]
-      Description=Renew ServeHub-2 TLS certificates using Webnames DNS-01
-      Wants=docker.service
-      After=docker.service
-
-      [Service]
-      Type=oneshot
-      User=root
-      WorkingDirectory=/home/{{ deploy_user }}/ServeHub-2
-      ExecStart=/bin/bash /home/{{ deploy_user }}/ServeHub-2/scripts/renew_certs.sh
-      TimeoutStartSec=30min
-  register: certbot_service_file
-
-- name: "[Systemd] Установка таймера certbot-renew.timer"
-  ansible.builtin.copy:
-    dest: /etc/systemd/system/certbot-renew.timer
-    owner: root
-    group: root
-    mode: "0644"
-    content: |
-      [Unit]
-      Description=Twice-daily ServeHub-2 TLS certificate renewal check
-
-      [Timer]
-      OnCalendar=*-*-* 03,15:00:00
-      RandomizedDelaySec=900
-      Persistent=true
-
-      [Install]
-      WantedBy=timers.target
-  register: certbot_timer_file
-
-- name: "[Systemd] Перечитывание unit-файлов при изменениях"
-  ansible.builtin.systemd_service:
-    daemon_reload: true
-  when: certbot_service_file.changed or certbot_timer_file.changed
-
-- name: "[Systemd] Включение таймера Certbot"
-  ansible.builtin.systemd_service:
-    name: certbot-renew.timer
-    enabled: true
-    state: started
 
 # =========================================================================
 # KERNEL / IP FORWARDING / FIREWALL
@@ -341,27 +152,21 @@
 # =========================================================================
 # START / VALIDATE THE VPS STACK
 # =========================================================================
-- name: "[Docker] Запуск стека ServeHub-2 на VPS без безусловного restart Docker"
+- name: "[Docker Compose] Проверка конфигурации Edge"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.remote.yaml config --quiet
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  changed_when: false
+  no_log: true
+
+- name: "[Docker] Запуск стека Edge без устаревших контейнеров"
   community.docker.docker_compose_v2:
     project_src: "/home/{{ deploy_user }}/ServeHub-2"
     files:
       - docker-compose.remote.yaml
     state: present
     pull: missing
-    # The certbot Compose service has --force-renewal as its default command.
-    # Keep it out of normal stack startup; the tasks above and timer invoke it explicitly.
-    services:
-      - nginx
-      - wg-easy
-      - gatus
-      - nginx-exporter
-      - adguardhome
-      - adguard-exporter
-      - homepage
-      - node-exporter
-      - cadvisor
-      - portainer-agent
-      - alloy
+    remove_orphans: true
   register: compose_start
 
 - name: "[AdGuard] Применение изменённой конфигурации"
@@ -369,15 +174,6 @@
     cmd: docker compose -f docker-compose.remote.yaml restart adguardhome
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   when: adguard_config.changed
-
-- name: "[Certbot] Перезапуск Nginx после обновления существующего сертификата"
-  ansible.builtin.command:
-    cmd: docker compose -f docker-compose.remote.yaml restart nginx
-    chdir: "/home/{{ deploy_user }}/ServeHub-2"
-  when:
-    - current_cert_stat.stat.exists
-    - cert_expiry_check.rc is defined
-    - cert_expiry_check.rc != 0
 
 - name: "[Docker Compose] Проверка статуса контейнеров VPS"
   ansible.builtin.command:

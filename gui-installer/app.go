@@ -95,14 +95,14 @@ func (a *App) CheckDocker() CheckResult {
 }
 
 func (a *App) InstallProject() CheckResult {
-	if _, err := os.Stat("ServeHub-2-main"); err == nil {
+	if _, err := os.Stat("ServeHub-2-dev"); err == nil {
 		return CheckResult{
 			Success: true,
-			Message: "Проект уже был развернут ранее (папка ServeHub-2-main существует).",
+			Message: "Проект уже был развернут ранее (папка ServeHub-2-dev существует).",
 		}
 	}
 
-	url := "https://github.com/canntstand/ServeHub-2/archive/refs/heads/main.zip"
+	url := "https://github.com/canntstand/ServeHub-2/archive/refs/heads/dev.zip"
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -166,7 +166,7 @@ func (a *App) InstallProject() CheckResult {
 }
 
 func (a *App) SaveSecrets(yamlContent string) CheckResult {
-	targetDir := filepath.Join(".", "ServeHub-2-main", "ansible", "vars")
+	targetDir := filepath.Join(".", "ServeHub-2-dev", "ansible", "vars")
 
 	err := os.MkdirAll(targetDir, os.ModePerm)
 	if err != nil {
@@ -237,7 +237,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 
     cmdArgs := []string{
         "compose",
-        "-f", "./ServeHub-2-main/docker-compose.ansible.yaml",
+        "-f", "./ServeHub-2-dev/docker-compose.ansible.yaml",
         "run", "--rm", "ansible",
         "sh", "-c", ansibleCmd,
     }
@@ -293,7 +293,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 }
 
 func (a *App) CheckSecrets() CheckResult {
-	targetFile := filepath.Join(".", "ServeHub-2-main", "ansible", "vars", "secrets.yml")
+	targetFile := filepath.Join(".", "ServeHub-2-dev", "ansible", "vars", "secrets.yml")
 
 	if _, err := os.Stat(targetFile); err == nil {
 		return CheckResult{
@@ -309,7 +309,7 @@ func (a *App) CheckSecrets() CheckResult {
 }
 
 func (a *App) LoadSecrets() SecretsResult {
-	targetFile := filepath.Join(".", "ServeHub-2-main", "ansible", "vars", "secrets.yml")
+	targetFile := filepath.Join(".", "ServeHub-2-dev", "ansible", "vars", "secrets.yml")
 
 	data, err := os.ReadFile(targetFile)
 	if err != nil {

@@ -49,6 +49,71 @@
     group: "{{ deploy_user }}"
     mode: "0600"
 
+# =========================================================================
+# CERTBOT + WEBNAMES DNS-01 — WORKLOAD ONLY
+# =========================================================================
+
+- name: "[Certbot] Создание каталогов на Workload"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0750"
+  loop:
+    - certbot/certs
+    - certbot/certs-data
+
+- name: "[Certbot] Клонирование Webnames DNS hook scripts"
+  ansible.builtin.git:
+    repo: https://github.com/regtime-ltd/certbot-dns-webnames.git
+    dest: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames"
+    version: master
+    update: false
+  become_user: "{{ deploy_user }}"
+
+- name: "[Certbot] Получение конфигурации Webnames API"
+  ansible.builtin.get_url:
+    url: "https://www.webnames.ru/scripts/json_domain_zone_manager.pl?action=get_config_certbot&domain={{ server_name | urlencode }}&apikey={{ webnames_apikey | urlencode }}"
+    dest: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+  no_log: true
+
+- name: "[Certbot] Проверка конфигурации Webnames"
+  ansible.builtin.stat:
+    path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
+  register: webnames_config_stat
+
+- name: "[Certbot] Проверка наличия конфигурации Webnames"
+  ansible.builtin.assert:
+    that:
+      - webnames_config_stat.stat.exists
+      - webnames_config_stat.stat.size | default(0) | int > 0
+    fail_msg: >-
+      Конфигурация Webnames отсутствует или пуста.
+      Проверьте домен и API-ключ.
+
+- name: "[Certbot] Проверка синтаксиса конфигурации Webnames"
+  ansible.builtin.command:
+    argv:
+      - /bin/bash
+      - -n
+      - "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
+  changed_when: false
+  no_log: true
+
+- name: "[Certbot] Проверка наличия API_KEY"
+  ansible.builtin.command:
+    argv:
+      - /bin/grep
+      - -Eq
+      - '^[[:space:]]*(export[[:space:]]+)?API_KEY='
+      - "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
+  changed_when: false
+  no_log: true
+
 - name: "[Docker Compose] Проверка конфигурации локального стека до изменений данных"
   ansible.builtin.command:
     cmd: docker compose -f docker-compose.local.yaml config --quiet
@@ -85,6 +150,65 @@
 
 # Не удаляем awg0 вручную: интерфейс создаёт контейнер amnezia-client.
 # Удаление без перезапуска контейнера ломает VPN при повторном запуске playbook.
+
+# =========================================================================
+# BUILD CERTBOT AND ENSURE CERTIFICATE EXISTS BEFORE NGINX STARTS
+# =========================================================================
+
+- name: "[Certbot] Установка прав на DNS hook-скрипты"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/{{ item }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0750"
+  loop:
+    - authenticator.sh
+    - cleanup.sh
+
+- name: "[Certbot] Сборка образа на Workload"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.local.yaml build certbot
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  changed_when: false
+
+- name: "[Certbot] Проверка наличия сертификата"
+  ansible.builtin.stat:
+    path: "/home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ server_name }}/fullchain.pem"
+  register: current_cert_stat
+
+- name: "[Certbot] Проверка срока действия сертификата"
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -checkend
+      - "2592000"
+      - -noout
+      - -in
+      - "/home/{{ deploy_user }}/ServeHub-2/certbot/certs/live/{{ server_name }}/fullchain.pem"
+  register: cert_expiry_check
+  when: current_cert_stat.stat.exists
+  failed_when: false
+  changed_when: false
+
+- name: "[Certbot] Первоначальный выпуск wildcard-сертификата"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.local.yaml run --rm certbot
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  when: not current_cert_stat.stat.exists
+  register: certbot_initial_issue
+  no_log: true
+
+- name: "[Certbot] Продление сертификата перед истечением"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.local.yaml run --rm certbot renew --non-interactive
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  when:
+    - current_cert_stat.stat.exists
+    - cert_expiry_check.rc is defined
+    - cert_expiry_check.rc != 0
+  register: certbot_renewal
+  no_log: true
 
 # =========================================================================
 # DATA DIRECTORIES AND LEAST-PRIVILEGE OWNERSHIP
@@ -470,6 +594,14 @@
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   when: alertmanager_config.changed
 
+- name: "[Nginx] Проверка конфигурации и перечитывание сертификата на Workload"
+  ansible.builtin.command:
+    cmd: >-
+      docker compose -f docker-compose.local.yaml exec -T nginx
+      sh -ec 'nginx -t && nginx -s reload'
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  changed_when: false
+
 - name: "[Docker Compose] Проверка статуса локальных контейнеров"
   ansible.builtin.command:
     cmd: docker compose -f docker-compose.local.yaml ps
@@ -480,6 +612,62 @@
 - name: "[Status] Текущий статус локальных контейнеров"
   ansible.builtin.debug:
     var: compose_ps_output.stdout_lines
+
+# =========================================================================
+# CERTBOT RENEWAL TIMER — WORKLOAD ONLY
+# =========================================================================
+
+- name: "[Certbot] Установка certbot-renew.service на Workload"
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/certbot-renew.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Renew ServeHub TLS certificates using Webnames DNS-01
+      Wants=docker.service
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/home/{{ deploy_user }}/ServeHub-2
+      Environment=PATH=/usr/local/bin:/usr/bin:/bin
+      ExecStart=/bin/bash /home/{{ deploy_user }}/ServeHub-2/scripts/renew_certs.sh
+      TimeoutStartSec=30min
+  register: certbot_service_file
+
+- name: "[Certbot] Установка certbot-renew.timer на Workload"
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/certbot-renew.timer
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Twice-daily ServeHub TLS renewal check
+
+      [Timer]
+      OnCalendar=*-*-* 03,15:00:00
+      RandomizedDelaySec=900
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  register: certbot_timer_file
+
+- name: "[Certbot] Обновление конфигурации systemd"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: certbot_service_file.changed or certbot_timer_file.changed
+
+- name: "[Certbot] Включение таймера продления"
+  ansible.builtin.systemd_service:
+    name: certbot-renew.timer
+    enabled: true
+    state: started
 
 # =========================================================================
 # SYSTEMD-RESOLVED DNS FOR awg0

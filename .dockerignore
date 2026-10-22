@@ -5,6 +5,7 @@ navidrome/
 audiobookshelf/
 certs/
 certs-data/
+certbot/
 prometheus/
 nginx/
 apps-data/

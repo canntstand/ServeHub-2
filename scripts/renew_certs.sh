@@ -1,58 +1,57 @@
-#!/bin/bash
-set -euo pipefail
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="${PROJECT_DIR}/.env"
+COMPOSE_FILE="${PROJECT_DIR}/docker-compose.local.yaml"
 
-log_info()    { echo -e "${BLUE}[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1${NC}"; }
-log_success() { echo -e "${GREEN}[SUCCESS] $1${NC}"; }
-log_warn()    { echo -e "${YELLOW}[WARN] $1${NC}"; }
-log_error()   { echo -e "${RED}[ERROR] $1${NC}"; }
-
-print_separator() {
-    echo -e "${CYAN}--------------------------------------------------------------------------------${NC}"
+log_info() {
+    printf '[INFO] %s\n' "$*"
 }
 
-print_separator
-ENV_FILE="./.env"
-if [ ! -f "$ENV_FILE" ]; then
-    log_error "Критическая ошибка: Файл $ENV_FILE не найден в $(pwd)!"
+log_warn() {
+    printf '[WARN] %s\n' "$*" >&2
+}
+
+log_error() {
+    printf '[ERROR] %s\n' "$*" >&2
+}
+
+cd "$PROJECT_DIR"
+
+if [[ ! -r "$ENV_FILE" ]]; then
+    log_error "Не найден файл ${ENV_FILE}"
     exit 1
 fi
 
-log_info "Загрузка переменных из $ENV_FILE..."
-while IFS= read -r line || [ -n "$line" ]; do
-    line="${line#"${line%%[![:space:]]*}"}"
-    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+SERVER_NAME="$(
+    awk -F= '$1 == "SERVER_NAME" { sub(/^[^=]*=/, ""); print; exit }' "$ENV_FILE"
+)"
 
-    var_name="${line%%=*}"
-    var_value="${line#*=}"
-
-    if [[ "$var_value" =~ ^\".*\"$ || "$var_value" =~ ^\'.*\'$ ]]; then
-        var_value="${var_value:1:-1}"
-    fi
-
-    var_name_clean="$(echo -n "$var_name" | xargs)"
-    export "$var_name_clean"="$var_value"
-done < "$ENV_FILE"
-
-log_success "Переменные окружения загружены."
-
-# ==========================================
-CERT_DIR="./certbot/certs/live/${SERVER_NAME}"
-
-if ! sudo openssl x509 -checkend 2592000 -noout -in "${CERT_DIR}/fullchain.pem" 2>/dev/null; then
-    log_warn "Сертификат истекает или не найден. Запуск обновления..."
-    
-    docker compose -f docker-compose.remote.yaml run --rm certbot renew --non-interactive
-
-    log_info "Перезапуск веб-сервера Nginx..."
-    docker compose -f docker-compose.remote.yaml restart nginx
-    log_success "Сертификаты обновлены, Nginx перезапущен."
-else
-    log_info "Сертификат еще действителен (более 30 дней)."
+if [[ -z "$SERVER_NAME" ]]; then
+    log_error "Переменная SERVER_NAME отсутствует в .env"
+    exit 1
 fi
+
+CERT_FILE="${PROJECT_DIR}/certbot/certs/live/${SERVER_NAME}/fullchain.pem"
+
+if [[ ! -s "$CERT_FILE" ]]; then
+    log_error "Сертификат отсутствует: ${CERT_FILE}. Требуется первоначальный выпуск."
+    exit 1
+fi
+
+if openssl x509 -checkend 2592000 -noout -in "$CERT_FILE" >/dev/null 2>&1; then
+    log_info "Сертификат действителен более 30 дней; продление не требуется."
+    exit 0
+fi
+
+log_warn "Сертификат истекает или не проходит проверку срока действия. Запускаю Certbot."
+
+docker compose -f "$COMPOSE_FILE" run --rm certbot renew --non-interactive
+
+log_info "Проверяю конфигурацию Nginx и перечитываю сертификат."
+
+docker compose -f "$COMPOSE_FILE" exec -T nginx sh -ec \
+    'nginx -t && nginx -s reload'
+
+log_info "Продление завершено, Nginx перечитал сертификат."
