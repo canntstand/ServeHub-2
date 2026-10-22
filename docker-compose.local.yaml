@@ -184,7 +184,8 @@ services:
     image: grafana/alloy:latest
     container_name: alloy
     restart: unless-stopped
-    command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    network_mode: "host"
+    command: run --server.http.listen-addr=127.0.0.1:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     volumes:
       - ./configs/alloy/local.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

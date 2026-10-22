@@ -207,8 +207,7 @@ services:
     container_name: prometheus
     logging: *default-logging
     restart: unless-stopped
-    ports:
-      - "10.8.0.1:9090:9090"
+    network_mode: "host"
     volumes:
       - ./configs/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./configs/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
@@ -216,6 +215,7 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+      - "--web.listen-address=10.8.0.1:9090"
       - "--web.external-url=https://prometheus.${SERVER_NAME}/"
       - "--web.route-prefix=/"
     depends_on:
