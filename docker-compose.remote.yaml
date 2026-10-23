@@ -6,7 +6,7 @@ x-logging: &default-logging
 
 services:
   wg-easy:
-    image: ghcr.io/wg-easy/wg-easy:15.4
+    image: ghcr.io/wg-easy/wg-easy:15.4.0
     container_name: wg-easy
     environment:
       - LANG=en
@@ -80,7 +80,7 @@ services:
         condition: service_healthy
 
   adguard-exporter:
-    image: ghcr.io/henrywhitaker3/adguard-exporter:latest
+    image: ghcr.io/henrywhitaker3/adguard-exporter:v1.2.1
     container_name: adguard-exporter
     restart: unless-stopped
     logging: *default-logging
@@ -124,7 +124,7 @@ services:
         condition: service_healthy
 
   cadvisor:
-    image: ghcr.io/google/cadvisor:0.60.5
+    image: ghcr.io/google/cadvisor:0.60.6
     container_name: cadvisor
     logging: *default-logging
     restart: unless-stopped
@@ -134,7 +134,7 @@ services:
       - "--allow_dynamic_housekeeping=false"
       - "--housekeeping_interval=2m"
       - "--max_housekeeping_interval=2m"
-      - "--disable_metrics=disk,referenced_memory"
+      - "--disable_metrics=referenced_memory"
       - "--raw_cgroup_prefix_whitelist=/system.slice,/user.slice"
       - "--listen_ip=10.8.0.1"
       - "--port=8090"
@@ -161,7 +161,7 @@ services:
         condition: service_healthy
 
   loki:
-    image: grafana/loki:3.7
+    image: grafana/loki:3.7.8
     container_name: loki
     restart: unless-stopped
     ports:
@@ -180,7 +180,7 @@ services:
           memory: 1G
 
   alertmanager:
-    image: prom/alertmanager:v0.34.0
+    image: prom/alertmanager:v0.34.1
     container_name: alertmanager
     logging: *default-logging
     restart: unless-stopped
@@ -203,7 +203,7 @@ services:
         condition: service_healthy
 
   prometheus:
-    image: prom/prometheus:v3
+    image: prom/prometheus:v3.15.1
     container_name: prometheus
     logging: *default-logging
     restart: unless-stopped
@@ -233,7 +233,7 @@ services:
           memory: 1G
 
   grafana:
-    image: grafana/grafana:13.0-slim
+    image: grafana/grafana:13.2.4-slim
     container_name: grafana
     logging: *default-logging
     restart: unless-stopped
@@ -260,18 +260,38 @@ services:
         limits:
           memory: 1G
 
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.1.2
+    container_name: docker-socket-proxy
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      - CONTAINERS=1
+      - EVENTS=1
+      - INFO=1
+      - PING=1
+      - VERSION=1
+      - POST=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
   alloy:
-    image: grafana/alloy:latest
+    image: grafana/alloy:v1.21.2
     container_name: alloy
     restart: unless-stopped
     command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     volumes:
       - ./configs/alloy/remote.alloy:/etc/alloy/config.alloy:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./apps-data/alloy:/var/lib/alloy/data
     logging: *default-logging
     depends_on:
       loki:
+        condition: service_started
+      docker-socket-proxy:
         condition: service_started
     deploy:
       resources:
