@@ -1,0 +1,61 @@
+rule_files:
+  - alert_rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: stopped container raises ContainerDown
+    interval: 1m
+    input_series:
+      - series: 'container_last_seen{name="test-container",instance="10.8.0.2:8090"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ContainerDown
+        exp_alerts:
+          - exp_labels:
+              instance: "10.8.0.2:8090"
+              name: "test-container"
+              severity: critical
+            exp_annotations:
+              summary: "Контейнер test-container не обновляет метрику cAdvisor"
+              description: "Метрика cAdvisor для контейнера test-container не обновлялась более 5 минут."
+
+  - name: active container does not raise ContainerDown
+    interval: 1m
+    input_series:
+      - series: 'container_last_seen{name="running-container",instance="10.8.0.2:8090"}'
+        values: '0+60x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ContainerDown
+        exp_alerts: []
+
+  - name: exporter and critical target outages are detected
+    interval: 1m
+    input_series:
+      - series: 'up{job="cadvisor-local",instance="10.8.0.2:8090"}'
+        values: '0+0x10'
+      - series: 'up{job="prometheus",instance="10.8.0.1:9090"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ExporterDown
+        exp_alerts:
+          - exp_labels:
+              instance: "10.8.0.2:8090"
+              job: "cadvisor-local"
+              severity: critical
+            exp_annotations:
+              summary: "Экспортёр cadvisor-local недоступен"
+              description: "Цель 10.8.0.2:8090 не отвечает более 5 минут."
+      - eval_time: 10m
+        alertname: CriticalTargetDown
+        exp_alerts:
+          - exp_labels:
+              instance: "10.8.0.1:9090"
+              job: "prometheus"
+              severity: critical
+            exp_annotations:
+              summary: "Критичная цель prometheus недоступна"
+              description: "Цель 10.8.0.1:9090 не отвечает более 5 минут."
