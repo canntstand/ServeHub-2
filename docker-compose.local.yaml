@@ -75,6 +75,8 @@ services:
       --agree-tos
       --no-eff-email
       --non-interactive
+      --manual-public-ip-logging-ok
+      --force-renewal
       -d "${SERVER_NAME}"
       -d "*.${SERVER_NAME}"
       --email "${EMAIL}"
@@ -180,7 +182,7 @@ services:
           memory: 1G
 
   docker-socket-proxy:
-    image: tecnativa/docker-socket-proxy:0.5.0
+    image: tecnativa/docker-socket-proxy:0.1.2
     container_name: docker-socket-proxy
     restart: unless-stopped
     logging: *default-logging
