@@ -1,5 +1,5 @@
 discovery.docker "local_containers" {
-  host             = "unix:///var/run/docker.sock"
+  host             = "tcp://127.0.0.1:2375"
   refresh_interval = "2m"
 }
 
@@ -11,14 +11,20 @@ discovery.relabel "docker_logs_relabel" {
     regex         = "/(.*)"
     target_label  = "container_name"
   }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service_name"
+  }
 }
 
 loki.source.docker "docker_logs" {
-  host    = "unix:///var/run/docker.sock"
+  host    = "tcp://127.0.0.1:2375"
   targets = discovery.docker.local_containers.targets
 
   labels = {
-    "server" = "local-minipc"
+    "server"   = "local-minipc"
+    "instance" = "local-minipc"
   }
 
   relabel_rules = discovery.relabel.docker_logs_relabel.rules
