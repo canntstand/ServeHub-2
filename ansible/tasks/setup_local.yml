@@ -511,6 +511,7 @@
       - docker-compose.local.yaml
     state: present
     pull: missing
+    remove_orphans: true
   register: compose_start
 
 - name: "[Nginx] Проверка конфигурации и перечитывание сертификата на Workload"
