@@ -50,7 +50,7 @@ fi
 
 log_warn "Сертификат истекает или не проходит проверку срока действия. Запускаю Certbot."
 
-docker compose -f "$COMPOSE_FILE" run --rm certbot renew --non-interactive
+docker compose -f "$COMPOSE_FILE" run --rm certbot renew --non-interactive --force-renewal
 
 log_info "Проверяю конфигурацию Nginx и перечитываю сертификат."
 
