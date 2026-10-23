@@ -11,3 +11,11 @@ nginx/
 apps-data/
 PersonalData/
 .git/
+
+# Deployment credentials must not be sent in Docker build contexts.
+.env
+.env.*
+**/.env
+**/.env.*
+ansible/vars/secrets.yml
+**/secrets.yml
