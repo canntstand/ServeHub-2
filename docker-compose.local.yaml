@@ -380,7 +380,7 @@ services:
           memory: 512M
 
   vaultwarden-db:
-    image: postgres:18.6
+    image: postgres:18.4
     container_name: vaultwarden-db
     logging: *default-logging
     restart: unless-stopped
@@ -485,7 +485,7 @@ services:
           memory: 512M
 
   habitica-db:
-    image: docker.io/mongo:7.0.45
+    image: docker.io/mongo:7.0.31
     container_name: habitica-db
     restart: unless-stopped
     hostname: habitica-db
@@ -506,7 +506,7 @@ services:
           memory: 1G
 
   homebox-db:
-    image: postgres:18.6
+    image: postgres:18.4
     container_name: homebox-db
     restart: unless-stopped
     environment:
