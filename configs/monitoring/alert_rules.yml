@@ -2,13 +2,36 @@ groups:
   - name: container_alerts
     rules:
       - alert: ContainerDown
-        expr: (time() - container_last_seen{name!=""}) > 60
+        # cAdvisor housekeeping is configured for 2m; allow for its normal update delay.
+        expr: time() - container_last_seen{name!=""} > 300
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Контейнер {{ $labels.name }} не обновляет метрику cAdvisor"
+          description: "Метрика cAdvisor для контейнера {{ $labels.name }} не обновлялась более 5 минут."
+
+  - name: exporter_alerts
+    rules:
+      - alert: ExporterDown
+        expr: up{job=~"node-exporter-.*|cadvisor-.*|nginx-exporter-.*|adguardhome-exporter"} == 0
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "Контейнер {{ $labels.name }} упал!"
-          description: "Контейнер {{ $labels.name }} не подает признаков жизни более 1 минуты."
+          summary: "Экспортёр {{ $labels.job }} недоступен"
+          description: "Цель {{ $labels.instance }} не отвечает более 5 минут."
+
+  - name: critical_target_alerts
+    rules:
+      - alert: CriticalTargetDown
+        expr: up{job=~"prometheus|alertmanager|grafana|loki|wg-easy"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Критичная цель {{ $labels.job }} недоступна"
+          description: "Цель {{ $labels.instance }} не отвечает более 5 минут."
 
   - name: host_alerts
     rules:
@@ -40,6 +63,7 @@ groups:
         annotations:
           summary: "Заканчивается место на диске"
           description: "Диск заполнен более чем на 85% (текущее значение: {{ $value | printf \"%.2f\" }}%)."
+
   - name: borgmatic_alerts
     rules:
       - alert: BorgmaticBackupFailed
