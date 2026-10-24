@@ -115,6 +115,7 @@
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   changed_when: false
   no_log: true
+  no_log: true
 
 - name: "[Certbot] Установка прав на DNS hook-скрипты"
   ansible.builtin.file:
@@ -476,11 +477,12 @@
       $IPT -N SERVEHUB_INPUT 2>/dev/null || true
       $IPT -F SERVEHUB_INPUT
       $IPT -A SERVEHUB_INPUT -i lo -j ACCEPT
+      $IPT -A SERVEHUB_INPUT -i awg0 -s 10.8.0.1 -p tcp --dport 9100 -j ACCEPT
+      $IPT -A SERVEHUB_INPUT -i awg0 -s 10.8.0.0/24 -p tcp --dport 9100 -j DROP
       $IPT -A SERVEHUB_INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       $IPT -A SERVEHUB_INPUT -p icmp -j ACCEPT
       $IPT -A SERVEHUB_INPUT -p tcp --dport 22 -j ACCEPT
       $IPT -A SERVEHUB_INPUT -p udp --sport 67 --dport 68 -j ACCEPT
-      $IPT -A SERVEHUB_INPUT -i awg0 -s 10.8.0.0/24 -p tcp -m multiport --dports 80,443,8080,8090,9100,9113 -j ACCEPT
       $IPT -A SERVEHUB_INPUT -j DROP
       while $IPT -C INPUT -j SERVEHUB_INPUT 2>/dev/null; do
         $IPT -D INPUT -j SERVEHUB_INPUT
@@ -513,8 +515,12 @@
       fi
       $IPT -N SERVEHUB_DOCKER_USER 2>/dev/null || true
       $IPT -F SERVEHUB_DOCKER_USER
+      for port in 8090 9113; do
+        $IPT -A SERVEHUB_DOCKER_USER -i awg0 -s 10.8.0.1 -p tcp -m conntrack --ctorigdst 10.8.0.2 --ctorigdstport "$port" -j RETURN
+        $IPT -A SERVEHUB_DOCKER_USER -i awg0 -p tcp -m conntrack --ctorigdst 10.8.0.2 --ctorigdstport "$port" -j DROP
+      done
       $IPT -A SERVEHUB_DOCKER_USER -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-      for port in 80 443 8080 8090 9113; do
+      for port in 80 443 8080; do
         $IPT -A SERVEHUB_DOCKER_USER -i awg0 -s 10.8.0.0/24 -p tcp -m conntrack --ctorigdst 10.8.0.2 --ctorigdstport "$port" -j RETURN
       done
       $IPT -A SERVEHUB_DOCKER_USER -i "$OUT_IFACE" -m conntrack --ctstate NEW -j DROP
@@ -535,6 +541,7 @@
         done
         $IP6T -I DOCKER-USER 1 -j SERVEHUB_DOCKER_USER_V6
       fi
+  register: local_firewall_script
 
 - name: "[Firewall] Создание systemd-сервиса восстановления правил ServeHub"
   ansible.builtin.copy:

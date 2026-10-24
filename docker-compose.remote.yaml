@@ -32,6 +32,10 @@ services:
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "awg", "show", "wg0"]
       interval: 30s
@@ -48,6 +52,9 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     network_mode: "host"
     volumes:
       - ./configs/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
@@ -69,6 +76,8 @@ services:
     logging: *default-logging
     restart: unless-stopped
     network_mode: "host"
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ./apps-data/adguard/work:/opt/adguardhome/work
       - ./configs/adguard/conf:/opt/adguardhome/conf
@@ -88,6 +97,9 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     logging: *default-logging
     ports:
       - "10.8.0.1:9618:9618"
@@ -111,6 +123,9 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     network_mode: "host"
     pid: "host"
     volumes:
@@ -139,6 +154,9 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     network_mode: "host"
     command:
       - "--allow_dynamic_housekeeping=false"
@@ -150,7 +168,7 @@ services:
       - "--port=8090"
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev:/dev:ro
@@ -174,6 +192,13 @@ services:
     image: grafana/loki:3.7.8
     container_name: loki
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     ports:
       - "10.8.0.1:3100:3100"
     volumes:
@@ -194,6 +219,13 @@ services:
     container_name: alertmanager
     logging: *default-logging
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     ports:
       - "10.8.0.1:9093:9093"
     volumes:
@@ -217,6 +249,13 @@ services:
     container_name: prometheus
     logging: *default-logging
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     network_mode: "host"
     volumes:
       - ./configs/monitoring/prometheus.generated.yml:/etc/prometheus/prometheus.yml:ro
@@ -249,6 +288,13 @@ services:
     container_name: grafana
     logging: *default-logging
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     ports:
       - "10.8.0.1:3000:3000"
     environment:
@@ -277,6 +323,13 @@ services:
     container_name: docker-socket-proxy
     restart: unless-stopped
     logging: *default-logging
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     environment:
       - CONTAINERS=1
       - EVENTS=1
@@ -286,6 +339,8 @@ services:
       - POST=0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker_api
     deploy:
       resources:
         limits:
@@ -295,11 +350,21 @@ services:
     image: grafana/alloy:v1.21.2
     container_name: alloy
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     volumes:
       - ./configs/alloy/remote.alloy:/etc/alloy/config.alloy:ro
       - ./apps-data/alloy:/var/lib/alloy/data
     logging: *default-logging
+    networks:
+      - default
+      - docker_api
     depends_on:
       loki:
         condition: service_started
@@ -309,3 +374,7 @@ services:
       resources:
         limits:
           memory: 1G
+
+networks:
+  docker_api:
+    internal: true

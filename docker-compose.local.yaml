@@ -86,7 +86,7 @@ services:
           memory: 1G
 
   homepage:
-    image: ghcr.io/gethomepage/homepage:v2.6.0
+    image: ghcr.io/gethomepage/homepage:v2.7.0
     container_name: homepage
     restart: unless-stopped
     logging: *default-logging
@@ -113,6 +113,9 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     logging: *default-logging
     ports:
       - "10.8.0.2:9113:9113"
@@ -136,6 +139,9 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     network_mode: "host"
     pid: "host"
     volumes:
@@ -166,6 +172,9 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     ports:
       - "10.8.0.2:8090:8080"
     command:
@@ -176,7 +185,7 @@ services:
       - "--raw_cgroup_prefix_whitelist=/system.slice,/user.slice"
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev:/dev:ro
@@ -195,6 +204,13 @@ services:
     container_name: docker-socket-proxy
     restart: unless-stopped
     logging: *default-logging
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     environment:
       - CONTAINERS=1
       - EVENTS=1
@@ -217,6 +233,13 @@ services:
     image: grafana/alloy:v1.21.2
     container_name: alloy
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     network_mode: "host"
     command: run --server.http.listen-addr=127.0.0.1:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     volumes:
@@ -237,6 +260,10 @@ services:
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ./apps-data/amnezia:/config:ro
     network_mode: "host"

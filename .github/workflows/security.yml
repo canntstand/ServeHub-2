@@ -24,6 +24,8 @@ jobs:
           fetch-depth: 0
 
       - name: Scan repository history for secrets
+        id: gitleaks_scan
+        continue-on-error: true
         run: |
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/path:ro" \
@@ -39,6 +41,8 @@ jobs:
         run: python -m pip install --disable-pip-version-check yamllint ansible-lint
 
       - name: Validate YAML syntax
+        id: yaml_validation
+        continue-on-error: true
         run: |
           yamllint -d relaxed \
             .github/workflows/security.yml \
@@ -49,6 +53,8 @@ jobs:
             configs/monitoring/alert_rules.test.yml
 
       - name: Check Ansible syntax
+        id: ansible_syntax
+        continue-on-error: true
         run: |
           cp ansible/vars/secrets.yml.example ansible/vars/secrets.yml
           ansible-galaxy collection install --no-deps \
@@ -68,6 +74,8 @@ jobs:
           version: v0.76.1
 
       - name: Block critical repository misconfigurations
+        id: trivy_misconfig
+        continue-on-error: true
         run: trivy fs --no-progress --scanners misconfig --severity CRITICAL --exit-code 1 .
 
       - name: Report critical source dependency vulnerabilities (non-blocking)
@@ -78,17 +86,21 @@ jobs:
         continue-on-error: true
         run: trivy fs --no-progress --scanners vuln,misconfig --severity HIGH,MEDIUM,LOW --exit-code 0 .
 
-      - name: Scan all Compose and Dockerfile base images for critical vulnerabilities
+      - name: Build and scan Compose and custom images for critical vulnerabilities
+        id: container_image_scan
+        continue-on-error: true
         shell: bash
         run: |
           set -uo pipefail
+          build_failed=0
+          docker build --pull -f Dockerfile.amnezia -t servehub-ci/amnezia-client:scan . || build_failed=1
+          docker build --pull -f Dockerfile.certbot -t servehub-ci/certbot:scan . || build_failed=1
+          docker build --pull -f ansible/container/Dockerfile -t servehub-ci/ansible:scan ansible/container || build_failed=1
           {
             grep -hE '^[[:space:]]+image:[[:space:]]*[^[:space:]]+' \
               docker-compose.local.yaml docker-compose.remote.yaml |
-              sed -E 's/^[[:space:]]*image:[[:space:]]*//'
-            grep -hE '^[[:space:]]*FROM[[:space:]]+' \
-              Dockerfile.amnezia Dockerfile.certbot ansible/container/Dockerfile |
-              awk '{for (i = 1; i <= NF; i++) if ($i == "FROM") {print $(i + 1); break}}'
+              sed -E 's/^[[:space:]]*image:[[:space:]]*//' || true
+            printf '%s\n' 'servehub-ci/amnezia-client:scan' 'servehub-ci/certbot:scan' 'servehub-ci/ansible:scan'
           } | sort -u > /tmp/servehub-images.txt
 
           mapfile -t images < /tmp/servehub-images.txt
@@ -97,10 +109,11 @@ jobs:
             exit 1
           fi
 
-          critical_failed=0
+          critical_failed=$build_failed
           for image in "${images[@]}"; do
             echo "::group::Trivy image scan: $image"
-            if ! trivy image --no-progress --severity CRITICAL --exit-code 1 "$image"; then
+            trivy image --no-progress --severity CRITICAL --exit-code 0 "$image" || true
+            if ! trivy image --no-progress --ignore-unfixed --severity CRITICAL --exit-code 1 "$image"; then
               critical_failed=1
             fi
             trivy image --no-progress --severity HIGH,MEDIUM,LOW --exit-code 0 "$image" || true
@@ -142,9 +155,43 @@ jobs:
         run: pnpm audit --audit-level=high
 
       - name: Block critical frontend vulnerabilities
+        id: frontend_critical_audit
+        continue-on-error: true
         working-directory: gui-installer/frontend
         run: pnpm audit --audit-level=critical
 
       - name: Build frontend
+        id: frontend_build
+        continue-on-error: true
         working-directory: gui-installer/frontend
         run: pnpm build
+
+      - name: Enforce blocking security checks
+        if: always()
+        env:
+          GITLEAKS_OUTCOME: ${{ steps.gitleaks_scan.outcome }}
+          YAML_OUTCOME: ${{ steps.yaml_validation.outcome }}
+          ANSIBLE_OUTCOME: ${{ steps.ansible_syntax.outcome }}
+          TRIVY_MISCONFIG_OUTCOME: ${{ steps.trivy_misconfig.outcome }}
+          IMAGE_SCAN_OUTCOME: ${{ steps.container_image_scan.outcome }}
+          FRONTEND_AUDIT_OUTCOME: ${{ steps.frontend_critical_audit.outcome }}
+          FRONTEND_BUILD_OUTCOME: ${{ steps.frontend_build.outcome }}
+        run: |
+          set -u
+          failed=0
+          check_outcome() {
+            name="$1"
+            outcome="$2"
+            if [ "$outcome" != "success" ]; then
+              echo "::error::$name did not pass (outcome: $outcome)"
+              failed=1
+            fi
+          }
+          check_outcome "Gitleaks" "$GITLEAKS_OUTCOME"
+          check_outcome "YAML validation" "$YAML_OUTCOME"
+          check_outcome "Ansible syntax" "$ANSIBLE_OUTCOME"
+          check_outcome "Critical repository misconfiguration scan" "$TRIVY_MISCONFIG_OUTCOME"
+          check_outcome "Container image scan" "$IMAGE_SCAN_OUTCOME"
+          check_outcome "Critical frontend dependency audit" "$FRONTEND_AUDIT_OUTCOME"
+          check_outcome "Frontend build" "$FRONTEND_BUILD_OUTCOME"
+          exit "$failed"

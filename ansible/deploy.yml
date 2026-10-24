@@ -18,12 +18,14 @@
       changed_when: false
       failed_when: false
       ignore_unreachable: true
+      no_log: true
 
     - name: "[SSH] Использование root, если прямой вход доступен"
       ansible.builtin.set_fact:
         ansible_user: root
         ansible_password: "{{ root_ssh_password }}"
         ansible_become: false
+      no_log: true
       when:
         - root_auth_check.rc | default(-1) == 0
         - root_auth_check.stdout | default('') | trim == '0'
@@ -33,6 +35,7 @@
         ansible_become: true
         ansible_become_method: sudo
         ansible_become_password: "{{ bootstrap_sudo_password }}"
+      no_log: true
       when: >-
         (root_auth_check.rc | default(-1) != 0)
         or (root_auth_check.stdout | default('') | trim != '0')
