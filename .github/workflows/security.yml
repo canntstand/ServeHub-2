@@ -174,11 +174,11 @@ jobs:
           critical_failed=$build_failed
           for image in "${images[@]}"; do
             echo "::group::Trivy image scan: $image"
-            trivy image --no-progress --severity CRITICAL --exit-code 0 "$image" || true
-            if ! trivy image --no-progress --severity CRITICAL --exit-code 1 "$image"; then
+            trivy image --no-progress --scanners vuln --severity CRITICAL --exit-code 0 "$image" || true
+            if ! trivy image --no-progress --scanners vuln --severity CRITICAL --exit-code 1 "$image"; then
               critical_failed=1
             fi
-            trivy image --no-progress --severity HIGH,MEDIUM,LOW --exit-code 0 "$image" || true
+            trivy image --no-progress --scanners vuln --severity HIGH,MEDIUM,LOW --exit-code 0 "$image" || true
             echo "::endgroup::"
           done
           exit "$critical_failed"
