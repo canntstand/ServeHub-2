@@ -78,9 +78,10 @@ jobs:
         continue-on-error: true
         run: trivy fs --no-progress --scanners misconfig --severity CRITICAL --exit-code 1 .
 
-      - name: Report critical source dependency vulnerabilities (non-blocking)
+      - name: Block critical source dependency vulnerabilities
+        id: trivy_source_vulns
         continue-on-error: true
-        run: trivy fs --no-progress --scanners vuln --severity CRITICAL --exit-code 0 .
+        run: trivy fs --no-progress --scanners vuln --severity CRITICAL --exit-code 1 .
 
       - name: Report non-critical repository findings (non-blocking)
         continue-on-error: true
@@ -113,7 +114,7 @@ jobs:
           for image in "${images[@]}"; do
             echo "::group::Trivy image scan: $image"
             trivy image --no-progress --severity CRITICAL --exit-code 0 "$image" || true
-            if ! trivy image --no-progress --ignore-unfixed --severity CRITICAL --exit-code 1 "$image"; then
+            if ! trivy image --no-progress --severity CRITICAL --exit-code 1 "$image"; then
               critical_failed=1
             fi
             trivy image --no-progress --severity HIGH,MEDIUM,LOW --exit-code 0 "$image" || true
@@ -173,6 +174,7 @@ jobs:
           YAML_OUTCOME: ${{ steps.yaml_validation.outcome }}
           ANSIBLE_OUTCOME: ${{ steps.ansible_syntax.outcome }}
           TRIVY_MISCONFIG_OUTCOME: ${{ steps.trivy_misconfig.outcome }}
+          TRIVY_SOURCE_VULNS_OUTCOME: ${{ steps.trivy_source_vulns.outcome }}
           IMAGE_SCAN_OUTCOME: ${{ steps.container_image_scan.outcome }}
           FRONTEND_AUDIT_OUTCOME: ${{ steps.frontend_critical_audit.outcome }}
           FRONTEND_BUILD_OUTCOME: ${{ steps.frontend_build.outcome }}
@@ -191,6 +193,7 @@ jobs:
           check_outcome "YAML validation" "$YAML_OUTCOME"
           check_outcome "Ansible syntax" "$ANSIBLE_OUTCOME"
           check_outcome "Critical repository misconfiguration scan" "$TRIVY_MISCONFIG_OUTCOME"
+          check_outcome "Critical source dependency scan" "$TRIVY_SOURCE_VULNS_OUTCOME"
           check_outcome "Container image scan" "$IMAGE_SCAN_OUTCOME"
           check_outcome "Critical frontend dependency audit" "$FRONTEND_AUDIT_OUTCOME"
           check_outcome "Frontend build" "$FRONTEND_BUILD_OUTCOME"
