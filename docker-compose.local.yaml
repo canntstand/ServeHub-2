@@ -211,6 +211,8 @@ services:
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
+      - /run:rw,noexec,nosuid,size=16m
+      - /var/lib/haproxy:rw,noexec,nosuid,size=16m
     environment:
       - CONTAINERS=1
       - EVENTS=1
