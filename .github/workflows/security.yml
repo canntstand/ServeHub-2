@@ -189,7 +189,7 @@ jobs:
           critical_failed=$build_failed
           for image in "${images[@]}"; do
             echo "::group::Trivy image scan: $image"
-            if printf '%s\\n' "${non_blocking_critical_images[@]}" | grep -Fxq -- "$image"; then
+            if printf '%s\n' "${non_blocking_critical_images[@]}" | grep -Fxq -- "$image"; then
               echo "::warning::CRITICAL vulnerability findings are non-blocking for this explicitly allowlisted image tag: $image"
               trivy image --no-progress --scanners vuln --severity CRITICAL --exit-code 0 "$image" || true
             else
