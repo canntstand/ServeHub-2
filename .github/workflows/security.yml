@@ -51,7 +51,9 @@ jobs:
       - name: Check Ansible syntax
         run: |
           cp ansible/vars/secrets.yml.example ansible/vars/secrets.yml
-          ansible-galaxy collection install \
+          ansible-galaxy collection install --no-deps \
+            "git+https://github.com/ansible-collections/community.library_inventory_filtering.git,1.1.5"
+          ansible-galaxy collection install --no-deps \
             "git+https://github.com/ansible-collections/ansible.posix.git,2.2.2" \
             "git+https://github.com/ansible-collections/community.docker.git,5.4.0"
           ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --syntax-check
