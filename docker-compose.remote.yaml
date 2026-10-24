@@ -6,7 +6,7 @@ x-logging: &default-logging
 
 services:
   wg-easy:
-    image: ghcr.io/wg-easy/wg-easy:15.4.0
+    image: ghcr.io/wg-easy/wg-easy:15.5.0
     container_name: wg-easy
     environment:
       - LANG=en
@@ -42,7 +42,7 @@ services:
       start_period: 10s
 
   blackbox-exporter:
-    image: prom/blackbox-exporter:v0.28.0
+    image: prom/blackbox-exporter:v0.29.1
     container_name: blackbox-exporter
     logging: *default-logging
     restart: unless-stopped
