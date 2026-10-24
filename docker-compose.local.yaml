@@ -233,8 +233,6 @@ services:
     image: grafana/alloy:v1.21.2
     container_name: alloy
     restart: unless-stopped
-    cap_drop:
-      - ALL
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -260,8 +258,6 @@ services:
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
-    cap_drop:
-      - ALL
     security_opt:
       - no-new-privileges:true
     volumes:

@@ -32,8 +32,6 @@ services:
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
-    cap_drop:
-      - ALL
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -350,8 +348,6 @@ services:
     image: grafana/alloy:v1.21.2
     container_name: alloy
     restart: unless-stopped
-    cap_drop:
-      - ALL
     security_opt:
       - no-new-privileges:true
     read_only: true
