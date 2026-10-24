@@ -109,6 +109,10 @@ services:
     image: nginx/nginx-prometheus-exporter:1.5.3
     container_name: nginx-exporter
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     logging: *default-logging
     ports:
       - "10.8.0.2:9113:9113"
@@ -128,6 +132,10 @@ services:
     container_name: node-exporter
     logging: *default-logging
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     network_mode: "host"
     pid: "host"
     volumes:
@@ -156,7 +164,8 @@ services:
     container_name: cadvisor
     logging: *default-logging
     restart: unless-stopped
-    privileged: true
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "10.8.0.2:8090:8080"
     command:

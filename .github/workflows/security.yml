@@ -1,0 +1,137 @@
+name: Security checks
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repository:
+    name: Repository, dependencies and configuration
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository history for secrets
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python tooling
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install YAML and Ansible validators
+        run: python -m pip install --disable-pip-version-check yamllint ansible-lint
+
+      - name: Validate YAML syntax
+        run: |
+          yamllint -d relaxed \
+            .github/workflows/security.yml \
+            docker-compose.ansible.yaml docker-compose.local.yaml docker-compose.remote.yaml \
+            ansible/deploy.yml ansible/requirements.yml \
+            ansible/group_vars/*.yml ansible/tasks/*.yml \
+            configs/blackbox/blackbox.yml configs/monitoring/alert_rules.yml \
+            configs/monitoring/alert_rules.test.yml
+
+      - name: Check Ansible syntax
+        run: |
+          cp ansible/vars/secrets.yml.example ansible/vars/secrets.yml
+          ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --syntax-check
+
+      - name: Report Ansible lint findings (non-blocking initially)
+        continue-on-error: true
+        run: ansible-lint --profile min ansible/deploy.yml
+
+      - name: Set up Trivy
+        uses: aquasecurity/setup-trivy@v0.3.1
+
+      - name: Scan repository and configuration for critical findings (blocking)
+        run: trivy fs --no-progress --scanners vuln,misconfig --severity CRITICAL --exit-code 1 .
+
+      - name: Report non-critical repository findings (non-blocking)
+        continue-on-error: true
+        run: trivy fs --no-progress --scanners vuln,misconfig --severity HIGH,MEDIUM,LOW --exit-code 0 .
+
+      - name: Scan all Compose and Dockerfile base images for critical vulnerabilities
+        shell: bash
+        run: |
+          set -uo pipefail
+          {
+            grep -hE '^[[:space:]]+image:[[:space:]]*[^[:space:]]+' \
+              docker-compose.local.yaml docker-compose.remote.yaml |
+              sed -E 's/^[[:space:]]*image:[[:space:]]*//'
+            grep -hE '^[[:space:]]*FROM[[:space:]]+' \
+              Dockerfile.amnezia Dockerfile.certbot ansible/container/Dockerfile |
+              awk '{for (i = 1; i <= NF; i++) if ($i == "FROM") {print $(i + 1); break}}'
+          } | sort -u > /tmp/servehub-images.txt
+
+          mapfile -t images < /tmp/servehub-images.txt
+          if [ "\${#images[@]}" -eq 0 ]; then
+            echo "::error::No container images were found in the Compose files or Dockerfiles."
+            exit 1
+          fi
+
+          critical_failed=0
+          for image in "\${images[@]}"; do
+            echo "::group::Trivy image scan: $image"
+            if ! trivy image --no-progress --severity CRITICAL --exit-code 1 "$image"; then
+              critical_failed=1
+            fi
+            trivy image --no-progress --severity HIGH,MEDIUM,LOW --exit-code 0 "$image" || true
+            echo "::endgroup::"
+          done
+          exit "$critical_failed"
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: gui-installer/go.mod
+          cache-dependency-path: gui-installer/go.sum
+
+      - name: Report Go module vulnerabilities (non-blocking)
+        continue-on-error: true
+        working-directory: gui-installer
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          "$(go env GOPATH)/bin/govulncheck" ./...
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6.1.0
+        with:
+          version: 9.15.9
+
+      - name: Install frontend dependencies
+        working-directory: gui-installer/frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Report high and lower frontend vulnerabilities (non-blocking)
+        continue-on-error: true
+        working-directory: gui-installer/frontend
+        run: pnpm audit --audit-level=high
+
+      - name: Block critical frontend vulnerabilities
+        working-directory: gui-installer/frontend
+        run: pnpm audit --audit-level=critical
+
+      - name: Build frontend
+        working-directory: gui-installer/frontend
+        run: pnpm build

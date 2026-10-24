@@ -19,3 +19,9 @@ PersonalData/
 **/.env.*
 ansible/vars/secrets.yml
 **/secrets.yml
+
+# Generated runtime configs contain credentials or password hashes.
+configs/monitoring/alertmanager.yml
+configs/adguard/conf/AdGuardHome.yaml
+ansible/vars/secrets.yaml
+**/secrets.yaml

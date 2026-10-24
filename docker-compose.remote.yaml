@@ -44,6 +44,10 @@ services:
     container_name: blackbox-exporter
     logging: *default-logging
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     network_mode: "host"
     volumes:
       - ./configs/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
@@ -80,6 +84,10 @@ services:
     image: ghcr.io/henrywhitaker3/adguard-exporter:v1.2.1
     container_name: adguard-exporter
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     logging: *default-logging
     ports:
       - "10.8.0.1:9618:9618"
@@ -99,6 +107,10 @@ services:
     container_name: node-exporter
     logging: *default-logging
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     network_mode: "host"
     pid: "host"
     volumes:
@@ -125,7 +137,8 @@ services:
     container_name: cadvisor
     logging: *default-logging
     restart: unless-stopped
-    privileged: true
+    security_opt:
+      - no-new-privileges:true
     network_mode: "host"
     command:
       - "--allow_dynamic_housekeeping=false"

@@ -44,3 +44,5 @@ pnpm-debug.log*
 Thumbs.db
 Desktop.ini
 /configs/monitoring/prometheus.generated.yml
+/configs/monitoring/alertmanager.yml
+/configs/adguard/conf/AdGuardHome.yaml

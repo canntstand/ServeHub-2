@@ -52,10 +52,24 @@ else
     echo "==> Использование существующего/импортированного SSH-ключа."
 fi
 
+# Do not trust keys learned automatically by the previous accept-new setup.
+# Deployment is blocked until independently verified fingerprints are pinned.
+VERIFIED_HOSTS="$SSH_DIR/known_hosts.verified"
+if [ ! -s "$VERIFIED_HOSTS" ]; then
+    cat >&2 <<'HOST_KEY_ERROR'
+==> SSH host keys are not pinned in /root/.ssh/known_hosts.verified.
+Read docs/SSH-HOST-KEYS.md, verify fingerprints through the server console/provider,
+then add the verified keys to that file. ssh-keyscan output alone is not verification.
+HOST_KEY_ERROR
+    exit 1
+fi
+chmod 600 "$VERIFIED_HOSTS"
+
 cat > "$SSH_DIR/config" <<'SSH_CONFIG'
 Host *
-    StrictHostKeyChecking accept-new
-    UserKnownHostsFile /root/.ssh/known_hosts
+    StrictHostKeyChecking yes
+    CheckHostIP yes
+    UserKnownHostsFile /root/.ssh/known_hosts.verified
 SSH_CONFIG
 chmod 600 "$SSH_DIR/config"
 
