@@ -480,6 +480,10 @@
       $IPT -A SERVEHUB_INPUT -i awg0 -s 10.8.0.0/24 -p tcp --dport 9100 -j DROP
       $IPT -A SERVEHUB_INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       $IPT -A SERVEHUB_INPUT -p icmp -j ACCEPT
+      # Keep Fail2ban effective even though this chain is inserted before other INPUT rules.
+      if $IPT -nL f2b-sshd >/dev/null 2>&1; then
+        $IPT -A SERVEHUB_INPUT -p tcp --dport 22 -j f2b-sshd
+      fi
       $IPT -A SERVEHUB_INPUT -p tcp --dport 22 -j ACCEPT
       $IPT -A SERVEHUB_INPUT -p udp --sport 67 --dport 68 -j ACCEPT
       $IPT -A SERVEHUB_INPUT -j DROP
@@ -494,6 +498,9 @@
         $IP6T -A SERVEHUB_INPUT_V6 -i lo -j ACCEPT
         $IP6T -A SERVEHUB_INPUT_V6 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
         $IP6T -A SERVEHUB_INPUT_V6 -p ipv6-icmp -j ACCEPT
+        if $IP6T -nL f2b-sshd >/dev/null 2>&1; then
+          $IP6T -A SERVEHUB_INPUT_V6 -p tcp --dport 22 -j f2b-sshd
+        fi
         $IP6T -A SERVEHUB_INPUT_V6 -p tcp --dport 22 -j ACCEPT
         $IP6T -A SERVEHUB_INPUT_V6 -p udp --sport 547 --dport 546 -j ACCEPT
         $IP6T -A SERVEHUB_INPUT_V6 -j DROP
