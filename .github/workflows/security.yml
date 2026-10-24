@@ -64,6 +64,67 @@ jobs:
             "git+https://github.com/ansible-collections/community.docker.git,5.4.0"
           ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --syntax-check
 
+
+      - name: Validate Docker Compose configuration
+        id: compose_validation
+        continue-on-error: true
+        run: |
+          docker compose -f docker-compose.local.yaml config --quiet
+          docker compose -f docker-compose.remote.yaml config --quiet
+
+      - name: Validate shell and embedded firewall syntax
+        id: shell_syntax
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh -n scripts/ansible-entrypoint.sh
+          python - <<'PY'
+          import re
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          import yaml
+
+          paths = (
+              "ansible/tasks/setup_local.yml",
+              "ansible/tasks/setup_remote.yml",
+          )
+          for filename in paths:
+              tasks = yaml.safe_load(Path(filename).read_text(encoding="utf-8"))
+              found = 0
+              for task in tasks:
+                  copy_task = task.get("ansible.builtin.copy", task.get("copy", {}))
+                  if not isinstance(copy_task, dict):
+                      continue
+                  content = copy_task.get("content")
+                  if not isinstance(content, str):
+                      continue
+                  if "SERVEHUB_INPUT" not in content or "SERVEHUB_DOCKER_USER" not in content:
+                      continue
+                  content = re.sub(
+                      r"(?m)^([ \t]*OUT_IFACE=)\{\{[^\n]*\}\}[ \t]*$",
+                      r'\1"eth0"',
+                      content,
+                  )
+                  if "{{" in content or "}}" in content:
+                      raise SystemExit(f"{filename}: unexpanded Jinja expression in firewall script")
+                  result = subprocess.run(
+                      ["bash", "-n"],
+                      input=content,
+                      text=True,
+                      capture_output=True,
+                      check=False,
+                  )
+                  if result.returncode:
+                      raise SystemExit(f"{filename}: bash -n failed:\\n{result.stderr}")
+                  found += 1
+              if found != 1:
+                  raise SystemExit(f"{filename}: expected one firewall script, found {found}")
+              print(f"{filename}: firewall script syntax OK")
+          PY
+
       - name: Report Ansible lint findings (non-blocking initially)
         continue-on-error: true
         run: ansible-lint --profile min ansible/deploy.yml
@@ -167,6 +228,8 @@ jobs:
           GITLEAKS_OUTCOME: ${{ steps.gitleaks_scan.outcome }}
           YAML_OUTCOME: ${{ steps.yaml_validation.outcome }}
           ANSIBLE_OUTCOME: ${{ steps.ansible_syntax.outcome }}
+          COMPOSE_OUTCOME: ${{ steps.compose_validation.outcome }}
+          SHELL_SYNTAX_OUTCOME: ${{ steps.shell_syntax.outcome }}
           TRIVY_MISCONFIG_OUTCOME: ${{ steps.trivy_misconfig.outcome }}
           TRIVY_SOURCE_VULNS_OUTCOME: ${{ steps.trivy_source_vulns.outcome }}
           IMAGE_SCAN_OUTCOME: ${{ steps.container_image_scan.outcome }}
@@ -185,6 +248,8 @@ jobs:
           check_outcome "Gitleaks" "$GITLEAKS_OUTCOME"
           check_outcome "YAML validation" "$YAML_OUTCOME"
           check_outcome "Ansible syntax" "$ANSIBLE_OUTCOME"
+          check_outcome "Docker Compose validation" "$COMPOSE_OUTCOME"
+          check_outcome "Shell and firewall syntax" "$SHELL_SYNTAX_OUTCOME"
           check_outcome "Critical repository misconfiguration scan" "$TRIVY_MISCONFIG_OUTCOME"
           check_outcome "Critical source dependency scan" "$TRIVY_SOURCE_VULNS_OUTCOME"
           check_outcome "Container image scan" "$IMAGE_SCAN_OUTCOME"
