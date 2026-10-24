@@ -106,7 +106,7 @@ Hermes Agent разворачивается отдельно от текущег
 # Сборка установщика из кода
 ## 1. Требования к окружению
 Установите зависимости перед началом сборки:
-- **[Go 1.21+](https://go.dev/doc/install)**
+- **[Go 1.27.3 (minimum Go version: 1.26.0; toolchain specified in go.mod)](https://go.dev/doc/install)**
 - **[NPM (PNPM) / Node.js (15+)](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)**
 - **[Wails v2](https://wails.io/docs/gettingstarted/installation)**
 - **libwebkit2gtk-4.1-dev** — *только для Linux* (необходим для работы графического движка Wails)

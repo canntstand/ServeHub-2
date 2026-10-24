@@ -112,7 +112,7 @@ Hermes Agent is deployed separately from the current ServeHub-2 stack. This bran
 # Building the installer from code
 ## 1. Environmental requirements
 Install dependencies before starting the build:
-- **[Go 1.21+](https://go.dev/doc/install)**
+- **[Go 1.27.3 (minimum module version: Go 1.26.0; toolchain specified in go.mod)](https://go.dev/doc/install)**
 - **[NPM (PNPM) / Node.js (15+)](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)**
 - **[Wails v2](https://wails.io/docs/gettingstarted/installation)**
 - **libwebkit2gtk-4.1-dev** — *Linux only* (required for Wails rendering engine)
