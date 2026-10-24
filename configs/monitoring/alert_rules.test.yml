@@ -59,3 +59,41 @@ tests:
             exp_annotations:
               summary: "Критичная цель prometheus недоступна"
               description: "Цель 10.8.0.1:9090 не отвечает более 5 минут."
+
+  - name: Blackbox probe failure raises ProbeFailed
+    interval: 1m
+    input_series:
+      - series: 'probe_success{job="blackbox-http",instance="http://10.8.0.2:8080/health-check",check_name="Local server health endpoint"}'
+        values: '0+0x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ProbeFailed
+        exp_alerts:
+          - exp_labels:
+              check_name: "Local server health endpoint"
+              instance: "http://10.8.0.2:8080/health-check"
+              job: "blackbox-http"
+              severity: critical
+            exp_annotations:
+              summary: "Проверка доступности не пройдена: Local server health endpoint"
+              description: "Цель http://10.8.0.2:8080/health-check не проходит HTTP(S)-проверку более 10 минут."
+
+  - name: Blackbox certificate expiration raises warning
+    interval: 1h
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-tls",instance="https://grafana.example.com/",check_name="Wildcard TLS certificate"}'
+        values: '2000000+0x5'
+      - series: 'probe_success{job="blackbox-tls",instance="https://grafana.example.com/",check_name="Wildcard TLS certificate"}'
+        values: '1+0x5'
+    alert_rule_test:
+      - eval_time: 3h
+        alertname: CertificateExpiringSoon
+        exp_alerts:
+          - exp_labels:
+              check_name: "Wildcard TLS certificate"
+              instance: "https://grafana.example.com/"
+              job: "blackbox-tls"
+              severity: warning
+            exp_annotations:
+              summary: "TLS-сертификат скоро истекает"
+              description: "На https://grafana.example.com/ до окончания срока TLS-сертификата менее 30 дней."

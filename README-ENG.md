@@ -41,13 +41,13 @@ It is worth clarifying that hosting everything on one powerful VPS would be easi
 ## Monitoring and Control
 - **Prometheus & Exporters:** Collection of host metrics (Node Exporter), container metrics (cAdvisor), and web server metrics (Nginx Exporter).
 - **Grafana:** Visualization of system state and service performance.
-- **Gatus:** Uptime monitoring of the local server by polling the `healthcheck` endpoint every five minutes.
+- **Blackbox Exporter:** HTTP(S) probes for the local health-check, Node Exporter, and Grafana/Prometheus/Alertmanager web endpoints; Prometheus collects the results.
 - **Loki + Grafana Alloy:** Unified log collection from all containers.
 
 ## Alerting and Communication
 - **Alertmanager:** Routing critical-event notifications on the Edge/VPS server.
-- **Gatus:** Monitoring and alerting for local/remote server health, as well as SSL certificate expiration checks.
-- **TG Bot Integration:** Telegram bot for receiving notifications from Alertmanager and Gatus.
+- **Prometheus + Alertmanager:** Alerts for failed service probes and TLS certificates approaching expiration.
+- **TG Bot Integration:** Telegram bot for receiving notifications from Alertmanager.
 
 ## Backup
 - **BorgBackup + Borgmatic:** Encrypted automated backups to disk with `lz4` compression.

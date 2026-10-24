@@ -149,6 +149,15 @@
   register: adguard_config
   no_log: true
 
+- name: "[Prometheus] Генерация конфигурации с целями Blackbox Exporter"
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../configs/monitoring/prometheus.yml.j2"
+    dest: "/home/{{ deploy_user }}/ServeHub-2/configs/monitoring/prometheus.generated.yml"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
+  register: prometheus_config
+
 - name: "[Alertmanager] Генерация конфигурации на Edge"
   ansible.builtin.template:
     src: "{{ playbook_dir }}/templates/alertmanager.yml.j2"
@@ -181,6 +190,12 @@
     cmd: docker compose -f docker-compose.remote.yaml restart alertmanager
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   when: alertmanager_config.changed
+
+- name: "[Prometheus] Применение изменённой конфигурации"
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.remote.yaml restart prometheus
+    chdir: "/home/{{ deploy_user }}/ServeHub-2"
+  when: prometheus_config.changed
 
 - name: "[AdGuard] Применение изменённой конфигурации"
   ansible.builtin.command:

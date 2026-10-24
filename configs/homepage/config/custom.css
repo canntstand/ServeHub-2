@@ -47,8 +47,7 @@ div[class*="calendar-container"] {
 }
 
 a[href*="/adguard-home"]::after,
-a[href*="/wg-easy"]::after,
-a[href*="/gatus"]::after {
+a[href*="/wg-easy"]::after {
     content: "• VPS" !important;
     position: absolute !important;
     top: 14px !important;

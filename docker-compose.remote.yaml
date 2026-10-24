@@ -39,28 +39,25 @@ services:
       retries: 3
       start_period: 10s
 
-  gatus:
-    image: twinproduction/gatus:stable
-    container_name: gatus
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.28.0
+    container_name: blackbox-exporter
     logging: *default-logging
     restart: unless-stopped
-    network_mode: host
+    network_mode: "host"
     volumes:
-      - ./configs/gatus:/config:ro
-    environment:
-      - TZ=Europe/Moscow
-      - ADMIN_USER=${ADMIN_USER}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - SERVER_NAME=${SERVER_NAME}
-      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - ./configs/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    command:
+      - "--config.file=/etc/blackbox_exporter/config.yml"
+      - "--web.listen-address=127.0.0.1:9115"
     depends_on:
       wg-easy:
         condition: service_healthy
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 128M
+
 
   adguardhome:
     image: adguard/adguardhome:v0.107.79
@@ -209,7 +206,7 @@ services:
     restart: unless-stopped
     network_mode: "host"
     volumes:
-      - ./configs/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./configs/monitoring/prometheus.generated.yml:/etc/prometheus/prometheus.yml:ro
       - ./configs/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - ./apps-data/prometheus/data:/prometheus
     command:
@@ -227,6 +224,8 @@ services:
         condition: service_started
       wg-easy:
         condition: service_healthy
+      blackbox-exporter:
+        condition: service_started
     deploy:
       resources:
         limits:

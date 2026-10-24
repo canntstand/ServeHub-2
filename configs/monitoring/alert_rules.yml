@@ -1,4 +1,27 @@
 groups:
+  - name: blackbox_probe_alerts
+    rules:
+      - alert: ProbeFailed
+        expr: probe_success{job=~"blackbox-http|blackbox-tls"} == 0
+        for: 10m
+        keep_firing_for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Проверка доступности не пройдена: {{ $labels.check_name }}"
+          description: "Цель {{ $labels.instance }} не проходит HTTP(S)-проверку более 10 минут."
+
+      - alert: CertificateExpiringSoon
+        expr: |
+          (probe_ssl_earliest_cert_expiry{job="blackbox-tls"} - time() < 2592000)
+          and on(instance) (probe_success{job="blackbox-tls"} == 1)
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "TLS-сертификат скоро истекает"
+          description: "На {{ $labels.instance }} до окончания срока TLS-сертификата менее 30 дней."
+
   - name: container_alerts
     rules:
       - alert: ContainerDown
@@ -14,7 +37,7 @@ groups:
   - name: exporter_alerts
     rules:
       - alert: ExporterDown
-        expr: up{job=~"node-exporter-.*|cadvisor-.*|nginx-exporter-.*|adguardhome-exporter"} == 0
+        expr: up{job=~"node-exporter-.*|cadvisor-.*|nginx-exporter-.*|adguardhome-exporter|blackbox-exporter"} == 0
         for: 5m
         labels:
           severity: critical

@@ -49,7 +49,7 @@
         icon: si-adguard
         href: https://adguard.{{HOMEPAGE_VAR_SERVER_NAME}}/
         description: DNS и блокировка рекламы
-    - Gatus:
+    - Uptime и TLS:
         icon: mdi-check-network
-        href: https://gatus.{{HOMEPAGE_VAR_SERVER_NAME}}/
-        description: Доступность сервисов
+        href: https://grafana.{{HOMEPAGE_VAR_SERVER_NAME}}/d/servehub-uptime/uptime
+        description: Доступность сервисов и срок действия TLS-сертификата
