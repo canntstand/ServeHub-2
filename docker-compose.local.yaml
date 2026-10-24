@@ -230,7 +230,7 @@ services:
       - NET_ADMIN
     volumes:
       - ./apps-data/amnezia:/config:ro
-    network_mode: host
+    network_mode: "host"
     logging: *default-logging
     stop_grace_period: 30s
     healthcheck:
