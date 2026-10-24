@@ -51,6 +51,7 @@ jobs:
       - name: Check Ansible syntax
         run: |
           cp ansible/vars/secrets.yml.example ansible/vars/secrets.yml
+          ansible-galaxy collection install -r ansible/requirements.yml
           ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --syntax-check
 
       - name: Report Ansible lint findings (non-blocking initially)
