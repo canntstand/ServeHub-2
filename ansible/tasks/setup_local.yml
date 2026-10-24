@@ -514,12 +514,12 @@
       fi
       $IPT -N SERVEHUB_DOCKER_USER 2>/dev/null || true
       $IPT -F SERVEHUB_DOCKER_USER
-      for port in 8090 9113; do
+      for port in 8080 8090 9113; do
         $IPT -A SERVEHUB_DOCKER_USER -i awg0 -s 10.8.0.1 -p tcp -m conntrack --ctorigdst 10.8.0.2 --ctorigdstport "$port" -j RETURN
         $IPT -A SERVEHUB_DOCKER_USER -i awg0 -p tcp -m conntrack --ctorigdst 10.8.0.2 --ctorigdstport "$port" -j DROP
       done
       $IPT -A SERVEHUB_DOCKER_USER -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-      for port in 80 443 8080; do
+      for port in 80 443; do
         $IPT -A SERVEHUB_DOCKER_USER -i awg0 -s 10.8.0.0/24 -p tcp -m conntrack --ctorigdst 10.8.0.2 --ctorigdstport "$port" -j RETURN
       done
       $IPT -A SERVEHUB_DOCKER_USER -i "$OUT_IFACE" -m conntrack --ctstate NEW -j DROP
