@@ -115,7 +115,6 @@
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   changed_when: false
   no_log: true
-  no_log: true
 
 - name: "[Certbot] Установка прав на DNS hook-скрипты"
   ansible.builtin.file:
