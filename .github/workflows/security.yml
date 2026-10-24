@@ -26,7 +26,7 @@ jobs:
       - name: Scan repository history for secrets
         uses: gitleaks/gitleaks-action@v3
         env:
-          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python tooling
         uses: actions/setup-python@v6
@@ -79,13 +79,13 @@ jobs:
           } | sort -u > /tmp/servehub-images.txt
 
           mapfile -t images < /tmp/servehub-images.txt
-          if [ "\${#images[@]}" -eq 0 ]; then
+          if [ "${#images[@]}" -eq 0 ]; then
             echo "::error::No container images were found in the Compose files or Dockerfiles."
             exit 1
           fi
 
           critical_failed=0
-          for image in "\${images[@]}"; do
+          for image in "${images[@]}"; do
             echo "::group::Trivy image scan: $image"
             if ! trivy image --no-progress --severity CRITICAL --exit-code 1 "$image"; then
               critical_failed=1
