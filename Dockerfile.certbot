@@ -1,6 +1,7 @@
 FROM certbot/certbot:v5.8.0
 
 RUN apk add --no-cache bash curl \
+    && python -m pip install --no-cache-dir --upgrade pip==26.2.2 \
     && python -m pip install --no-cache-dir --upgrade \
         certifi==2026.10.23 \
         uv==0.13.5
