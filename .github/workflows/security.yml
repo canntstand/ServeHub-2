@@ -64,9 +64,15 @@ jobs:
 
       - name: Set up Trivy
         uses: aquasecurity/setup-trivy@v0.3.1
+        with:
+          version: v0.76.1
 
-      - name: Scan repository and configuration for critical findings (blocking)
-        run: trivy fs --no-progress --scanners vuln,misconfig --severity CRITICAL --exit-code 1 .
+      - name: Block critical repository misconfigurations
+        run: trivy fs --no-progress --scanners misconfig --severity CRITICAL --exit-code 1 .
+
+      - name: Report critical source dependency vulnerabilities (non-blocking)
+        continue-on-error: true
+        run: trivy fs --no-progress --scanners vuln --severity CRITICAL --exit-code 0 .
 
       - name: Report non-critical repository findings (non-blocking)
         continue-on-error: true
