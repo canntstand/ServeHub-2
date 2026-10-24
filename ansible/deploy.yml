@@ -130,3 +130,62 @@
   tasks:
     - name: "[Local] Запуск задач настройки локального сервера"
       ansible.builtin.include_tasks: tasks/setup_local.yml
+
+- name: "Проверка восстановления AmneziaWG и связности VPN"
+  hosts: vps,local
+  gather_facts: false
+  become: true
+  tasks:
+    - name: "[VPN postflight] Ожидание healthy-контейнера wg-easy на Edge"
+      ansible.builtin.command:
+        argv:
+          - docker
+          - inspect
+          - "--format={{ '{{' }}.State.Health.Status{{ '}}' }}"
+          - wg-easy
+      register: edge_vpn_health
+      changed_when: false
+      retries: 18
+      delay: 5
+      until: edge_vpn_health.stdout | trim == 'healthy'
+      when: inventory_hostname in groups['vps']
+
+    - name: "[VPN postflight] Ожидание healthy-контейнера amnezia-client на Workload"
+      ansible.builtin.command:
+        argv:
+          - docker
+          - inspect
+          - "--format={{ '{{' }}.State.Health.Status{{ '}}' }}"
+          - amnezia-client
+      register: workload_vpn_health
+      changed_when: false
+      retries: 18
+      delay: 5
+      until: workload_vpn_health.stdout | trim == 'healthy'
+      when: inventory_hostname in groups['local']
+
+    - name: "[VPN postflight] Проверка связи Edge → Workload"
+      ansible.builtin.uri:
+        url: "http://10.8.0.2:8080/health-check"
+        method: GET
+        status_code: 200
+        timeout: 5
+        use_proxy: false
+      register: edge_to_workload_check
+      retries: 18
+      delay: 5
+      until: edge_to_workload_check.status | default(0) == 200
+      when: inventory_hostname in groups['vps']
+
+    - name: "[VPN postflight] Проверка связи Workload → Edge"
+      ansible.builtin.uri:
+        url: "http://10.8.0.1:9100/metrics"
+        method: GET
+        status_code: 200
+        timeout: 5
+        use_proxy: false
+      register: workload_to_edge_check
+      retries: 18
+      delay: 5
+      until: workload_to_edge_check.status | default(0) == 200
+      when: inventory_hostname in groups['local']

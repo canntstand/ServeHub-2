@@ -291,6 +291,36 @@
     path: /var/run/reboot-required
   register: reboot_required
 
+- name: "[DKMS] Проверка сборки AmneziaWG для ядра, которое будет загружено"
+  ansible.builtin.shell:
+    cmd: |
+      set -Eeuo pipefail
+
+      if [[ -e /var/run/reboot-required ]]; then
+        kernel_image="$(readlink -f /vmlinuz)"
+        kernel_image_name="$(basename "$kernel_image")"
+        if [[ "$kernel_image_name" != vmlinuz-* ]]; then
+          echo "Cannot determine the kernel selected for the next boot from /vmlinuz." >&2
+          exit 1
+        fi
+        target_kernel="${kernel_image_name#vmlinuz-}"
+      else
+        target_kernel="$(uname -r)"
+      fi
+
+      headers_makefile="/lib/modules/${target_kernel}/build/Makefile"
+      if [[ ! -f "$headers_makefile" ]]; then
+        echo "Missing kernel headers for target kernel ${target_kernel}: ${headers_makefile}" >&2
+        exit 1
+      fi
+
+      dkms autoinstall -k "$target_kernel"
+      depmod -a "$target_kernel"
+      modinfo -k "$target_kernel" amneziawg >/dev/null
+      printf 'AmneziaWG module is built and discoverable for kernel %s.\n' "$target_kernel"
+    executable: /bin/bash
+  changed_when: false
+
 - name: "[Reboot] Перезагрузка после обновления ОС/ядра"
   ansible.builtin.reboot:
     msg: "ServeHub-2: reboot after Ubuntu package/kernel update"
@@ -306,6 +336,14 @@
       - /bin/bash
       - -lc
       - dkms autoinstall -k "$(uname -r)" && modprobe amneziawg
+  changed_when: false
+
+- name: "[AmneziaWG] Проверка загруженного модуля для текущего ядра"
+  ansible.builtin.command:
+    argv:
+      - /bin/bash
+      - -lc
+      - modinfo -k "$(uname -r)" amneziawg >/dev/null && test -d /sys/module/amneziawg
   changed_when: false
 
 - name: "[Postflight] Проверка запуска Docker после возможной перезагрузки"
