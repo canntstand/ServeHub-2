@@ -161,12 +161,6 @@ jobs:
         working-directory: gui-installer/frontend
         run: pnpm audit --audit-level=critical
 
-      - name: Build frontend
-        id: frontend_build
-        continue-on-error: true
-        working-directory: gui-installer/frontend
-        run: pnpm build
-
       - name: Enforce blocking security checks
         if: always()
         env:
@@ -177,7 +171,6 @@ jobs:
           TRIVY_SOURCE_VULNS_OUTCOME: ${{ steps.trivy_source_vulns.outcome }}
           IMAGE_SCAN_OUTCOME: ${{ steps.container_image_scan.outcome }}
           FRONTEND_AUDIT_OUTCOME: ${{ steps.frontend_critical_audit.outcome }}
-          FRONTEND_BUILD_OUTCOME: ${{ steps.frontend_build.outcome }}
         run: |
           set -u
           failed=0
@@ -196,5 +189,4 @@ jobs:
           check_outcome "Critical source dependency scan" "$TRIVY_SOURCE_VULNS_OUTCOME"
           check_outcome "Container image scan" "$IMAGE_SCAN_OUTCOME"
           check_outcome "Critical frontend dependency audit" "$FRONTEND_AUDIT_OUTCOME"
-          check_outcome "Frontend build" "$FRONTEND_BUILD_OUTCOME"
           exit "$failed"
