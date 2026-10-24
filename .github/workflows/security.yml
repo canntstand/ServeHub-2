@@ -51,7 +51,16 @@ jobs:
       - name: Check Ansible syntax
         run: |
           cp ansible/vars/secrets.yml.example ansible/vars/secrets.yml
-          ansible-galaxy collection install -r ansible/requirements.yml
+          for attempt in 1 2 3; do
+            if ansible-galaxy collection install -r ansible/requirements.yml; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Could not install Ansible collections after 3 attempts."
+              exit 1
+            fi
+            sleep 10
+          done
           ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --syntax-check
 
       - name: Report Ansible lint findings (non-blocking initially)
