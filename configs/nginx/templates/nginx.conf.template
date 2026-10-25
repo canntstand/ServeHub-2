@@ -308,8 +308,6 @@ server {
 
 server {
     listen 443 ssl;
-    server {
-    listen 443 ssl;
     server_name hermes.${SERVER_NAME};
 
     ssl_certificate     /etc/letsencrypt/live/${SERVER_NAME}/fullchain.pem;
@@ -333,7 +331,9 @@ server {
     }
 }
 
-server_name prometheus.${SERVER_NAME};
+server {
+    listen 443 ssl;
+    server_name prometheus.${SERVER_NAME};
 
     ssl_certificate     /etc/letsencrypt/live/${SERVER_NAME}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${SERVER_NAME}/privkey.pem;
