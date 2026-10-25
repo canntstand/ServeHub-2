@@ -103,6 +103,9 @@ func (a *App) MaximizeApp() {
 }
 
 func (a *App) RunDeployment(option int, verbose bool) CheckResult {
+	if err := validateSavedSecretsForDeployment(option); err != nil {
+		return CheckResult{Success: false, Message: "Проверка конфигурации перед Ansible не пройдена: " + err.Error()}
+	}
 	metadata, err := readInstalledProjectMetadata(filepath.Join(".", projectInstallDirName))
 	if err != nil {
 		return CheckResult{Success: false, Message: "Не удалось определить закреплённую версию проекта: " + err.Error()}
