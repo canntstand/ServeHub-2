@@ -148,6 +148,7 @@
                 
                 <div class="form-container">
                     <div class="form-section-title">1. Сеть и пользователи</div>
+                    <small>IP и Linux-пользователь нужны только для тех серверов, которые входят в выбранный сценарий. Пароли bootstrap требуются при полном развёртывании; если root-пароль задан и подходит для первичного входа, SSH/sudo-поля можно оставить пустыми.</small>
                     <div class="form-group">
                         <label>Публичный IP VPS:</label>
                         <input type="text" id="sec_vps_ip" value="" placeholder="Публичный IPv4 VPS">
@@ -194,6 +195,7 @@
                     </div>
 
                     <div class="form-section-title">2. Глобальные параметры</div>
+                    <small>Домен и email обязательны для сценариев с локальным Workload/Certbot; для VPS-only можно оставить пустыми.</small>
                     <div class="form-group">
                         <label>Доменное имя проекта (например: server.ru):</label>
                         <input type="text" id="sec_server_name" value="" placeholder="server.example.org">
@@ -217,16 +219,19 @@
                     <div class="form-group">
                         <label>Telegram Бот Токен:</label>
                         <input type="password" id="sec_tg_token" value="" autocomplete="off" placeholder="Токен от @BotFather">
+                        <small>Требуется для сценариев с VPS/Edge (Alertmanager). Для local-only можно оставить пустым.</small>
                     </div>
                     <div class="form-group">
                         <label>Telegram Chat ID:</label>
                         <input type="text" id="sec_tg_chat_id" value="" inputmode="numeric" placeholder="Числовой Chat ID">
+                        <small>Требуется вместе с токеном Telegram для VPS/Edge; для local-only можно оставить пустым.</small>
                     </div>
 
                     <div class="form-section-title">4. Интеграция с DNS</div>
                     <div class="form-group">
                         <label>API-ключ Webnames.ru (для Wildcard-сертификатов):</label>
                         <input type="password" id="sec_webnames" value="" autocomplete="off" placeholder="API-ключ Webnames.ru">
+                        <small>Требуется для local-сценариев, где Certbot выпускает сертификаты через DNS-01. Для VPS-only можно оставить пустым.</small>
                     </div>
 
                     <div class="form-section-title">5. Настройки СУБД PostgreSQL и Redis</div>
