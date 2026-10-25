@@ -159,6 +159,30 @@
   when: not borg_repo_stat.stat.exists
   no_log: true
 
+- name: "[Backup] Проверка доступа к уже существующему репозиторию Borg"
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/borg
+      - info
+      - "{{ backup_repository_path }}"
+  environment:
+    BORG_PASSPHRASE: "{{ borgmatic_encryption_passphrase }}"
+  register: borg_repo_info
+  changed_when: false
+  failed_when: false
+  when: borg_repo_stat.stat.exists
+  no_log: true
+
+- name: "[Backup] Отказ от настройки, если существующий репозиторий не открывается"
+  ansible.builtin.assert:
+    that:
+      - borg_repo_info.rc | default(1) == 0
+    fail_msg: >-
+      Локальный Borg-репозиторий существует, но его не удалось открыть с текущим
+      borgmatic_encryption_passphrase. Проверьте парольную фразу и версию Borg.
+      Ansible не удаляет и не перезаписывает существующий репозиторий.
+  when: borg_repo_stat.stat.exists
+
 - name: "[Backup] Установка borgmatic.service"
   ansible.builtin.copy:
     dest: /etc/systemd/system/borgmatic.service
