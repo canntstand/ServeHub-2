@@ -11,8 +11,8 @@
       - (offsite_s3_workload_prefix | default('workload') | string | trim | length) > 0
       - (offsite_s3_edge_prefix | default('edge') | string | trim | length) > 0
       - (offsite_s3_workload_prefix | default('workload') | string | trim) != (offsite_s3_edge_prefix | default('edge') | string | trim)
-      - '/' not in (offsite_s3_workload_prefix | default('workload') | string)
-      - '/' not in (offsite_s3_edge_prefix | default('edge') | string)
+      - "'/' not in (offsite_s3_workload_prefix | default('workload') | string)"
+      - "'/' not in (offsite_s3_edge_prefix | default('edge') | string)"
     fail_msg: >-
       Задайте одну общую borgmatic_encryption_passphrase (не менее 20 символов),
       имя приватного бакета и S3 Access/Secret Key в vars/secrets.yml.
