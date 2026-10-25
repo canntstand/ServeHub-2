@@ -26,6 +26,7 @@
 - **Navidrome:** Стриминг личной музыкальной коллекции.
 - **Audiobookshelf:** Сервер для аудиокниг и подкастов с синхронизацией прогресса.
 - **Habitica:** Геймифицированный трекер привычек.
+- **Actual Budget:** Личный бюджет с синхронизацией между устройствами.
 
 ## Сеть и безопасность
 - **Webnames:** Регистратор доменных имён. Используется для владения доменом и управления DNS-записями (A-записи, Wildcard), необходимыми для работы SSL. (получение сертификатов происходит именно через Webnames, так как мой домен был куплен там, подробнее ниже)
@@ -68,6 +69,11 @@
 - **[Docker Engine](https://docs.docker.com/compose/install/)/[Docker Desktop](https://docs.docker.com/desktop/)**
 - **[Docker Compose](https://docs.docker.com/compose/install/)**
 - **SSH**
+
+# Actual Budget
+Actual Budget входит в локальный стек Workload и доступен через Homepage по адресу `https://actual.<домен>/` (только через VPN). Приложение хранит состояние и файлы бюджета в `apps-data/actual-budget/`; этот каталог входит в существующие резервные копии `apps-data/`.
+
+При первом открытии задайте пароль сервера Actual Budget. Для финансовых данных рекомендую дополнительно включить end-to-end encryption в настройках бюджета и сохранить пароль шифрования отдельно: его нельзя восстановить, если потерять. Инструкции: [официальный Docker guide](https://actualbudget.org/docs/install/docker/) и [руководство по шифрованию](https://actualbudget.org/docs/getting-started/sync/).
 
 # Hermes Agent
 Hermes Agent входит в стандартное развёртывание Edge/VPS и запускается в отдельном Docker-контейнере вместе с остальными Edge-сервисами. Отдельный третий сервер не нужен.
