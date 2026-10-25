@@ -241,6 +241,14 @@ jobs:
         working-directory: gui-installer/frontend
         run: pnpm install --frozen-lockfile
 
+      - name: Validate GUI installer frontend
+        id: frontend_build_validation
+        continue-on-error: true
+        working-directory: gui-installer/frontend
+        run: |
+          node --check src/main.js
+          pnpm run build
+
       - name: Report high and lower frontend vulnerabilities (non-blocking)
         continue-on-error: true
         working-directory: gui-installer/frontend
@@ -265,6 +273,7 @@ jobs:
           TRIVY_SOURCE_VULNS_OUTCOME: ${{ steps.trivy_source_vulns.outcome }}
           IMAGE_SCAN_OUTCOME: ${{ steps.container_image_scan.outcome }}
           FRONTEND_AUDIT_OUTCOME: ${{ steps.frontend_critical_audit.outcome }}
+          FRONTEND_BUILD_OUTCOME: ${{ steps.frontend_build_validation.outcome }}
         run: |
           set -u
           failed=0
@@ -286,4 +295,5 @@ jobs:
           check_outcome "Critical source dependency scan" "$TRIVY_SOURCE_VULNS_OUTCOME"
           check_outcome "Container image scan" "$IMAGE_SCAN_OUTCOME"
           check_outcome "Critical frontend dependency audit" "$FRONTEND_AUDIT_OUTCOME"
+          check_outcome "GUI installer frontend validation" "$FRONTEND_BUILD_OUTCOME"
           exit "$failed"
