@@ -24,6 +24,7 @@ var (
 	serviceUsernameRegexp = regexp.MustCompile("^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 	deploymentDomainRegexp = regexp.MustCompile("(?i)^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")
 	s3BucketRegexp = regexp.MustCompile("^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")
+	s3RegionRegexp = regexp.MustCompile("^[a-z0-9][a-z0-9-]{0,31}$")
 	s3PrefixRegexp = regexp.MustCompile("^[A-Za-z0-9][A-Za-z0-9_-]*$")
 	telegramTokenRegexp = regexp.MustCompile("^[0-9]{5,}:[A-Za-z0-9_-]{20,}$")
 	uuidRegexp = regexp.MustCompile("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -330,6 +331,10 @@ func validateS3Configuration(values map[string]string, usesLocal, usesVPS bool) 
 			return fmt.Errorf("резервное копирование включено для всех сценариев: заполните %s", field.label)
 		}
 	}
+	region := strings.TrimSpace(values["offsite_s3_region"])
+	if !s3RegionRegexp.MatchString(region) {
+		return errors.New("offsite_s3_region: укажите регион S3 в формате наподобие ru-1 или us-east-1")
+	}
 	if err := validateStrongSecret(values, "offsite_s3_access_key_id", "offsite_s3_access_key_id", 16); err != nil {
 		return err
 	}
@@ -372,6 +377,9 @@ func validateHermesConfiguration(values map[string]string) error {
 	apiKey := strings.TrimSpace(values["hermes_api_key"])
 	if len(apiKey) < 16 || isUnsafeDefaultValue(apiKey) || strings.ContainsAny(apiKey, "\r\n\x00") {
 		return errors.New("hermes_api_key: нужен настоящий API-ключ провайдера Hermes длиной не менее 16 символов; его нельзя сгенерировать локально")
+	}
+	if hasLowEntropySecret(apiKey, 16) {
+		return errors.New("hermes_api_key: указан слишком простой или повторяющийся ключ; используйте настоящий ключ провайдера")
 	}
 	model := strings.TrimSpace(values["hermes_model"])
 	if model == "" || isUnsafeDefaultValue(model) || strings.ContainsAny(model, "\r\n\x00") {

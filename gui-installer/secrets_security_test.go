@@ -291,3 +291,16 @@ func TestValidateDomainAndEmailRejectsReservedExampleValues(t *testing.T) {
 		t.Fatal("template username should be rejected")
 	}
 }
+
+func TestValidateBackupAndHermesCredentialsRejectInvalidRegionAndWeakAPIKey(t *testing.T) {
+	values := validTestDeploymentValues(t)
+	values["offsite_s3_region"] = "ru/1"
+	if err := validateDeploymentValues(values, 4); err == nil || !strings.Contains(err.Error(), "offsite_s3_region") {
+		t.Fatalf("malformed S3 region should be rejected, got %v", err)
+	}
+	values = validTestDeploymentValues(t)
+	values["hermes_api_key"] = strings.Repeat("a", 32)
+	if err := validateDeploymentValues(values, 6); err == nil || !strings.Contains(err.Error(), "hermes_api_key") {
+		t.Fatalf("low-entropy Hermes provider key should be rejected, got %v", err)
+	}
+}
