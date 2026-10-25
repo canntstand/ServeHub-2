@@ -219,6 +219,12 @@ jobs:
           go-version-file: gui-installer/go.mod
           cache-dependency-path: gui-installer/go.sum
 
+      - name: Generate Wails frontend bindings
+        working-directory: gui-installer
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+          "$(go env GOPATH)/bin/wails" generate module
+
       - name: Report Go module vulnerabilities (non-blocking)
         continue-on-error: true
         working-directory: gui-installer
