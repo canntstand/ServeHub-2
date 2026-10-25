@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sync"
 
 	pty "github.com/aymanbagabas/go-pty"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -22,10 +23,12 @@ var ansiEscape = regexp.MustCompile(
 )
 
 type App struct {
-	ctx       context.Context
-	cmdStdin  io.Writer
-	ptty      pty.Pty
-	activeCmd *pty.Cmd
+	ctx              context.Context
+	cmdStdin         io.Writer
+	ptty             pty.Pty
+	activeCmd        *pty.Cmd
+	installContextMu sync.Mutex
+	installCancel    context.CancelFunc
 }
 
 func stripAnsi(s string) string {
@@ -111,7 +114,11 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 		message := "Проверка конфигурации перед Ansible не пройдена: " + redactSensitiveText(err.Error(), logSensitiveValues)
 		return CheckResult{Success: false, Message: message}
 	}
-	metadata, err := readInstalledProjectMetadata(filepath.Join(".", projectInstallDirName))
+	projectDir, err := configuredProjectInstallDirectory()
+	if err != nil {
+		return CheckResult{Success: false, Message: "Не удалось определить каталог установки: " + err.Error()}
+	}
+	metadata, err := readInstalledProjectMetadata(projectDir)
 	if err != nil {
 		return CheckResult{Success: false, Message: redactSensitiveText("Не удалось определить закреплённую версию проекта: "+err.Error(), logSensitiveValues)}
 	}
@@ -119,7 +126,6 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 		return CheckResult{Success: false, Message: "В метаданных установленного проекта отсутствует корректный commit SHA. Повторный деплой заблокирован."}
 	}
 
-	projectDir := filepath.Join(".", projectInstallDirName)
 	composeFile := filepath.Join(projectDir, "docker-compose.ansible.yaml")
 	needsBuild, err := ansibleComposeNeedsBuild(composeFile)
 	if err != nil {
@@ -170,7 +176,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 	for _, ansibleCmd := range steps {
 		wailsRuntime.EventsEmit(a.ctx, "deploy-log", fmt.Sprintf("Закреплённая версия ServeHub-2: %s\n", metadata.CommitSHA))
 
-		cmdArgs := []string{"compose", "-f", "./" + filepath.ToSlash(composeFile), "run"}
+		cmdArgs := []string{"compose", "-f", filepath.ToSlash(composeFile), "run"}
 		if needsBuild {
 			cmdArgs = append(cmdArgs, "--build")
 		}

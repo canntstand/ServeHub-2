@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +14,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
+
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const (
@@ -53,19 +57,36 @@ type ProjectVersionMetadata struct {
 }
 
 type ProjectInstallState struct {
+	Directory    string                 `json:"directory"`
 	Exists       bool                   `json:"exists"`
+	Complete     bool                   `json:"complete"`
+	Partial      bool                   `json:"partial"`
 	KnownVersion bool                   `json:"knownVersion"`
 	Metadata     ProjectVersionMetadata `json:"metadata"`
 	Message      string                 `json:"message"`
 }
 
+type ProjectInstallDirectoryResult struct {
+	Success   bool                `json:"success"`
+	Directory string              `json:"directory"`
+	Installed ProjectInstallState `json:"installed"`
+	Message   string              `json:"message"`
+}
+
+type installerPreferences struct {
+	ProjectDirectory string `json:"project_directory"`
+}
+
+var projectInstallMu sync.Mutex
+
 type ProjectVersionsResult struct {
-	Success       bool                 `json:"success"`
-	Message       string               `json:"message"`
-	LatestRelease ProjectVersionChoice `json:"latestRelease"`
-	Tags          []ProjectVersionChoice `json:"tags"`
-	Dev           ProjectVersionChoice `json:"dev"`
-	Installed     ProjectInstallState  `json:"installed"`
+	Success          bool                   `json:"success"`
+	Message          string                 `json:"message"`
+	InstallDirectory string                 `json:"installDirectory"`
+	LatestRelease    ProjectVersionChoice   `json:"latestRelease"`
+	Tags             []ProjectVersionChoice `json:"tags"`
+	Dev              ProjectVersionChoice   `json:"dev"`
+	Installed        ProjectInstallState    `json:"installed"`
 }
 
 type ProjectVersionResolution struct {
@@ -100,6 +121,210 @@ type githubBranch struct {
 
 type githubCommit struct {
 	SHA string `json:"sha"`
+}
+
+func preferencesFilePath() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("не удалось определить каталог настроек пользователя: %w", err)
+	}
+	if strings.TrimSpace(configDir) == "" {
+		return "", errors.New("системный каталог настроек пользователя пуст")
+	}
+	return filepath.Join(configDir, "ServeHub-2", "installer.json"), nil
+}
+
+func defaultProjectInstallDirectory() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("не удалось определить домашний каталог пользователя: %w", err)
+	}
+	if strings.TrimSpace(home) == "" {
+		return "", errors.New("домашний каталог пользователя пуст")
+	}
+	return filepath.Join(home, "ServeHub-2"), nil
+}
+
+func normalizeProjectInstallDirectory(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", errors.New("укажите каталог установки ServeHub-2")
+	}
+	if value == "~" || strings.HasPrefix(value, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		if value == "~" {
+			value = home
+		} else {
+			value = filepath.Join(home, filepath.FromSlash(strings.TrimPrefix(value, "~/")))
+		}
+	}
+	absolute, err := filepath.Abs(value)
+	if err != nil {
+		return "", fmt.Errorf("не удалось разрешить путь установки: %w", err)
+	}
+	absolute = filepath.Clean(absolute)
+	if filepath.Dir(absolute) == absolute {
+		return "", errors.New("корень файловой системы нельзя использовать как каталог установки")
+	}
+	if _, err := os.Lstat(filepath.Join(absolute, "gui-installer", "go.mod")); err == nil {
+		if _, gitErr := os.Lstat(filepath.Join(absolute, ".git")); gitErr == nil {
+			return "", errors.New("нельзя использовать корень исходного Git-репозитория как каталог установки")
+		}
+	}
+	info, err := os.Lstat(absolute)
+	if err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", errors.New("каталог установки не должен быть символической ссылкой")
+		}
+		if !info.IsDir() {
+			return "", errors.New("путь установки уже существует, но не является каталогом")
+		}
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("не удалось проверить путь установки: %w", err)
+	}
+	return absolute, nil
+}
+
+func saveProjectInstallDirectory(value string) error {
+	absolute, err := normalizeProjectInstallDirectory(value)
+	if err != nil {
+		return err
+	}
+	configPath, err := preferencesFilePath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
+		return fmt.Errorf("не удалось создать каталог настроек установщика: %w", err)
+	}
+	content, err := json.MarshalIndent(installerPreferences{ProjectDirectory: absolute}, "", "  ")
+	if err != nil {
+		return fmt.Errorf("не удалось сериализовать настройки установщика: %w", err)
+	}
+	content = append(content, '\n')
+	temporary := configPath + ".tmp"
+	_ = os.Remove(temporary)
+	if err := os.WriteFile(temporary, content, 0600); err != nil {
+		return fmt.Errorf("не удалось записать временные настройки установщика: %w", err)
+	}
+	if err := os.Chmod(temporary, 0600); err != nil {
+		_ = os.Remove(temporary)
+		return fmt.Errorf("не удалось ограничить права настроек установщика: %w", err)
+	}
+	if err := os.Rename(temporary, configPath); err != nil {
+		_ = os.Remove(temporary)
+		return fmt.Errorf("не удалось сохранить настройки установщика: %w", err)
+	}
+	return nil
+}
+
+// configuredProjectInstallDirectory reads the persisted path first. A cwd-based
+// path is only a one-time compatibility fallback for older installer versions.
+func configuredProjectInstallDirectory() (string, error) {
+	configPath, err := preferencesFilePath()
+	if err != nil {
+		return "", err
+	}
+	content, err := os.ReadFile(configPath)
+	if err == nil {
+		if len(content) > 64<<10 {
+			return "", errors.New("файл настроек установщика превышает допустимый размер")
+		}
+		var prefs installerPreferences
+		if err := json.Unmarshal(content, &prefs); err != nil {
+			return "", errors.New("файл настроек установщика повреждён; выберите каталог установки заново")
+		}
+		return normalizeProjectInstallDirectory(prefs.ProjectDirectory)
+	}
+	if !os.IsNotExist(err) {
+		return "", fmt.Errorf("не удалось прочитать настройки установщика: %w", err)
+	}
+
+	candidates := []string{}
+	if cwd, cwdErr := os.Getwd(); cwdErr == nil {
+		candidates = append(candidates, filepath.Join(cwd, projectInstallDirName))
+	}
+	if home, homeErr := os.UserHomeDir(); homeErr == nil {
+		candidates = append(candidates, filepath.Join(home, projectInstallDirName))
+	}
+	for _, candidate := range candidates {
+		info, statErr := os.Lstat(candidate)
+		if statErr == nil && info.Mode()&os.ModeSymlink == 0 && info.IsDir() {
+			absolute, absErr := filepath.Abs(candidate)
+			if absErr == nil {
+				return filepath.Clean(absolute), nil
+			}
+		}
+	}
+	return defaultProjectInstallDirectory()
+}
+
+func projectInstallDirectoryResult(directory string) ProjectInstallDirectoryResult {
+	state := getProjectInstallState(directory)
+	state.Directory = directory
+	return ProjectInstallDirectoryResult{
+		Success: true, Directory: directory, Installed: state, Message: state.Message,
+	}
+}
+
+func (a *App) GetProjectInstallDirectory() ProjectInstallDirectoryResult {
+	directory, err := configuredProjectInstallDirectory()
+	if err != nil {
+		return ProjectInstallDirectoryResult{Success: false, Message: err.Error()}
+	}
+	configPath, pathErr := preferencesFilePath()
+	if pathErr == nil {
+		if _, statErr := os.Lstat(configPath); os.IsNotExist(statErr) {
+			if saveErr := saveProjectInstallDirectory(directory); saveErr != nil {
+				return ProjectInstallDirectoryResult{Success: false, Directory: directory, Installed: getProjectInstallState(directory), Message: saveErr.Error()}
+			}
+		}
+	}
+	return projectInstallDirectoryResult(directory)
+}
+
+func (a *App) InspectProjectInstallDirectory(directory string) ProjectInstallDirectoryResult {
+	absolute, err := normalizeProjectInstallDirectory(directory)
+	if err != nil {
+		return ProjectInstallDirectoryResult{Success: false, Message: err.Error()}
+	}
+	result := projectInstallDirectoryResult(absolute)
+	if !result.Installed.Exists {
+		result.Message = "Каталог доступен для новой установки: " + absolute
+	} else {
+		result.Message = result.Installed.Message + " Путь: " + absolute
+	}
+	return result
+}
+
+func (a *App) SetProjectInstallDirectory(directory string) ProjectInstallDirectoryResult {
+	absolute, err := normalizeProjectInstallDirectory(directory)
+	if err != nil {
+		return ProjectInstallDirectoryResult{Success: false, Message: err.Error()}
+	}
+	if err := saveProjectInstallDirectory(absolute); err != nil {
+		return ProjectInstallDirectoryResult{Success: false, Directory: absolute, Installed: getProjectInstallState(absolute), Message: err.Error()}
+	}
+	return projectInstallDirectoryResult(absolute)
+}
+
+func (a *App) ChooseProjectInstallDirectory() ProjectInstallDirectoryResult {
+	current, _ := configuredProjectInstallDirectory()
+	options := wailsRuntime.OpenDialogOptions{
+		Title: "Выберите каталог установки ServeHub-2",
+		DefaultDirectory: current,
+	}
+	selected, err := wailsRuntime.OpenDirectoryDialog(a.ctx, options)
+	if err != nil {
+		return ProjectInstallDirectoryResult{Success: false, Message: "Не удалось открыть выбор каталога: " + err.Error()}
+	}
+	if strings.TrimSpace(selected) == "" {
+		return ProjectInstallDirectoryResult{Success: false, Message: "Выбор каталога отменён."}
+	}
+	return a.SetProjectInstallDirectory(selected)
 }
 
 func isFullCommitSHA(value string) bool {
@@ -264,9 +489,14 @@ func resolveProjectVersion(mode, ref, enteredSHA string) (ProjectVersionResoluti
 // GetProjectVersions returns published releases, Git tags, the current dev tip,
 // and the locally installed version without changing any files.
 func (a *App) GetProjectVersions() ProjectVersionsResult {
+	directory, directoryErr := configuredProjectInstallDirectory()
+	if directoryErr != nil {
+		return ProjectVersionsResult{Success: false, Message: directoryErr.Error(), Tags: []ProjectVersionChoice{}}
+	}
 	result := ProjectVersionsResult{
-		Tags:      []ProjectVersionChoice{},
-		Installed: getProjectInstallState(projectInstallDirName),
+		Tags: []ProjectVersionChoice{},
+		InstallDirectory: directory,
+		Installed: getProjectInstallState(directory),
 	}
 	var release githubRelease
 	if err := githubJSON("/releases/latest", &release); err != nil {
@@ -346,39 +576,160 @@ func (a *App) ResolveProjectVersion(mode, ref, expectedSHA string) ProjectVersio
 
 // InstallProject downloads a resolved commit into a staging directory, verifies
 // the archive and Ansible Git task, then switches the project directory with rollback.
-func (a *App) InstallProject(mode, ref, expectedSHA string, replaceLegacy bool) CheckResult {
-	targetDir, err := filepath.Abs(projectInstallDirName)
+func (a *App) PerformProjectAction(action, mode, ref, expectedSHA string, confirmReplace, replaceLegacy bool) CheckResult {
+	targetDir, err := configuredProjectInstallDirectory()
 	if err != nil {
-		return CheckResult{Success: false, Message: "Не удалось определить каталог проекта: " + err.Error()}
-	}
-	state := getProjectInstallState(targetDir)
-	legacyReplacement := state.Exists && !state.KnownVersion
-	if legacyReplacement {
-		info, statErr := os.Lstat(targetDir)
-		if statErr != nil {
-			return CheckResult{Success: false, Message: "Не удалось безопасно проверить старый каталог проекта: " + statErr.Error()}
-		}
-		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-			return CheckResult{Success: false, Message: "Путь установки не является обычным каталогом. Автоматическое переключение запрещено."}
-		}
-		if err := verifyProjectDirectory(targetDir); err != nil {
-			return CheckResult{Success: false, Message: "Существующий каталог без метаданных не похож на полноценную установку ServeHub-2 и не будет заменён автоматически: " + err.Error()}
-		}
-		if !replaceLegacy {
-			return CheckResult{Success: false, Message: "Найдена старая установка без метаданных версии. Подтвердите её миграцию в интерфейсе: прежний каталог будет сохранён в резервную копию, а выбранный commit установлен отдельно."}
-		}
+		return CheckResult{Success: false, Message: "Не удалось определить каталог установки: " + err.Error()}
 	}
 
-	// A repeat launch with the already recorded full SHA is a no-op and works
-	// even when GitHub is temporarily unavailable.
-	if mode == "commit" && state.KnownVersion &&
-		isFullCommitSHA(ref) && isFullCommitSHA(expectedSHA) &&
-		strings.EqualFold(ref, state.Metadata.CommitSHA) &&
-		strings.EqualFold(expectedSHA, state.Metadata.CommitSHA) {
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "use":
+		projectInstallMu.Lock()
+		defer projectInstallMu.Unlock()
+		state := getProjectInstallState(targetDir)
+		if !state.Exists || !state.Complete || !state.KnownVersion {
+			return CheckResult{Success: false, Message: "Текущая установка не подтверждена как полная версия ServeHub-2. Выберите установку или восстановление неполной установки."}
+		}
+		if err := verifyProjectDirectory(targetDir); err != nil {
+			return CheckResult{Success: false, Message: "Текущая установка не прошла повторную проверку: " + err.Error()}
+		}
+		return CheckResult{
+			Success: true, Exists: true,
+			Message: fmt.Sprintf("Используется текущая версия %s (commit %s). Каталог и версия не изменялись: %s", state.Metadata.DisplayName, state.Metadata.CommitSHA, targetDir),
+		}
+	case "recover":
+		return a.RecoverProjectInstallation()
+	case "install", "update":
+		ctx, finish, err := a.beginProjectInstallContext()
+		if err != nil {
+			return CheckResult{Success: false, Message: err.Error()}
+		}
+		defer finish()
+		return installProjectVersion(ctx, targetDir, action, mode, ref, expectedSHA, confirmReplace, replaceLegacy)
+	default:
+		return CheckResult{Success: false, Message: "Неизвестное действие с установкой проекта."}
+	}
+}
+
+// InstallProject remains as a compatibility wrapper for existing Wails bindings.
+// A path containing an installation is never overwritten by the install action.
+func (a *App) InstallProject(mode, ref, expectedSHA string, replaceLegacy bool) CheckResult {
+	targetDir, err := configuredProjectInstallDirectory()
+	if err != nil {
+		return CheckResult{Success: false, Message: "Не удалось определить каталог установки: " + err.Error()}
+	}
+	ctx, finish, err := a.beginProjectInstallContext()
+	if err != nil {
+		return CheckResult{Success: false, Message: err.Error()}
+	}
+	defer finish()
+	return installProjectVersion(ctx, targetDir, "install", mode, ref, expectedSHA, false, replaceLegacy)
+}
+
+func (a *App) beginProjectInstallContext() (context.Context, func(), error) {
+	base := a.ctx
+	if base == nil {
+		base = context.Background()
+	}
+	ctx, cancel := context.WithCancel(base)
+	a.installContextMu.Lock()
+	if a.installCancel != nil {
+		a.installContextMu.Unlock()
+		cancel()
+		return nil, nil, errors.New("установщик уже выполняет операцию. Дождитесь её завершения или отмените загрузку.")
+	}
+	a.installCancel = cancel
+	a.installContextMu.Unlock()
+
+	finish := func() {
+		cancel()
+		a.installContextMu.Lock()
+		a.installCancel = nil
+		a.installContextMu.Unlock()
+	}
+	return ctx, finish, nil
+}
+
+func (a *App) CancelProjectInstallation() CheckResult {
+	a.installContextMu.Lock()
+	cancel := a.installCancel
+	a.installContextMu.Unlock()
+	if cancel == nil {
+		return CheckResult{Success: false, Message: "Сейчас нет активной загрузки для отмены."}
+	}
+	cancel()
+	return CheckResult{Success: true, Message: "Запрошена отмена загрузки. Текущая установленная версия не будет изменена."}
+}
+
+func (a *App) RecoverProjectInstallation() CheckResult {
+	targetDir, err := configuredProjectInstallDirectory()
+	if err != nil {
+		return CheckResult{Success: false, Message: "Не удалось определить каталог установки: " + err.Error()}
+	}
+	projectInstallMu.Lock()
+	defer projectInstallMu.Unlock()
+
+	parentDir := filepath.Dir(targetDir)
+	cleaned, cleanupErr := removeStaleProjectStages(parentDir)
+	if cleanupErr != nil {
+		return CheckResult{Success: false, Message: "Не удалось очистить временные каталоги загрузки: " + cleanupErr.Error()}
+	}
+
+	state := getProjectInstallState(targetDir)
+	quarantined := ""
+	if state.Exists && state.Partial {
+		quarantined, err = uniqueSiblingPath(parentDir, ".servehub-incomplete-")
+		if err != nil {
+			return CheckResult{Success: false, Message: "Не удалось подготовить каталог для сохранения неполной установки: " + err.Error()}
+		}
+		if err := os.Rename(targetDir, quarantined); err != nil {
+			return CheckResult{Success: false, Message: "Не удалось переместить неполную установку в безопасный карантин: " + err.Error()}
+		}
+	}
+	message := fmt.Sprintf("Восстановление завершено. Удалено временных каталогов: %d.", cleaned)
+	if quarantined != "" {
+		message += " Неполный каталог сохранён, а не удалён: " + quarantined
+	}
+	if cleaned == 0 && quarantined == "" {
+		message += " Неполные установки и оставшиеся временные данные не обнаружены."
+	}
+	message += " Теперь можно выбрать установку версии из списка."
+	return CheckResult{Success: true, Message: message}
+}
+
+func installProjectVersion(ctx context.Context, requestedDir, action, mode, ref, expectedSHA string, confirmReplace, replaceLegacy bool) CheckResult {
+	projectInstallMu.Lock()
+	defer projectInstallMu.Unlock()
+
+	targetDir, err := normalizeProjectInstallDirectory(requestedDir)
+	if err != nil {
+		return CheckResult{Success: false, Message: "Некорректный каталог установки: " + err.Error()}
+	}
+	state := getProjectInstallState(targetDir)
+	if state.Partial {
+		return CheckResult{Success: false, Message: "В выбранном каталоге обнаружена неполная установка. Сначала выполните «Восстановить неполную установку»; каталог будет сохранён отдельно."}
+	}
+	if action == "install" && state.Exists {
+		return CheckResult{Success: false, Message: "Каталог установки уже существует. Выберите «Использовать текущую установку» или «Обновить/переключить версию»; автоматическая перезапись запрещена."}
+	}
+	if action == "update" && !state.Exists {
+		return CheckResult{Success: false, Message: "В выбранном каталоге нет установки для обновления. Выберите действие «Установить выбранную версию»."}
+	}
+
+	legacyReplacement := state.Exists && state.Complete && !state.KnownVersion
+	if legacyReplacement && !replaceLegacy {
+		return CheckResult{Success: false, Message: "В каталоге есть проект без проверяемых метаданных версии. Подтвердите сохранение всей старой папки и миграцию конфигурации перед переключением."}
+	}
+	if action == "update" && state.Exists && state.KnownVersion &&
+		isFullCommitSHA(expectedSHA) && !strings.EqualFold(state.Metadata.CommitSHA, expectedSHA) && !confirmReplace {
+		return CheckResult{Success: false, Message: "Для обновления или смены версии сначала явно подтвердите замену кода. Текущая версия и пользовательские файлы будут сохранены в резервной копии."}
+	}
+	if state.Exists && state.KnownVersion && isFullCommitSHA(expectedSHA) &&
+		strings.EqualFold(state.Metadata.CommitSHA, expectedSHA) {
 		if err := verifyProjectDirectory(targetDir); err == nil {
 			return CheckResult{
-				Success: true,
-				Message: fmt.Sprintf("Уже установлена закреплённая версия %s (commit %s). Проект не изменён.", state.Metadata.DisplayName, state.Metadata.CommitSHA),
+				Success: true, Exists: true,
+				Message: fmt.Sprintf("Выбрана уже установленная версия %s (commit %s). Повторная загрузка и замена файлов не выполнялись: %s", state.Metadata.DisplayName, state.Metadata.CommitSHA, targetDir),
 			}
 		}
 	}
@@ -388,39 +739,30 @@ func (a *App) InstallProject(mode, ref, expectedSHA string, replaceLegacy bool) 
 		return CheckResult{Success: false, Message: "Не удалось проверить выбранную версию: " + err.Error()}
 	}
 	if !isFullCommitSHA(expectedSHA) || !strings.EqualFold(expectedSHA, resolution.CommitSHA) {
-		return CheckResult{
-			Success: false,
-			Message: "Установка остановлена: выбранный источник не совпадает с показанным commit SHA. Обновите список версий и повторите выбор.",
-		}
-	}
-
-	if state.KnownVersion && strings.EqualFold(state.Metadata.CommitSHA, resolution.CommitSHA) {
-		if err := verifyProjectDirectory(targetDir); err == nil {
-			return CheckResult{
-				Success: true,
-				Message: fmt.Sprintf("Уже установлена выбранная версия %s (commit %s). Никакие файлы не заменялись.", state.Metadata.DisplayName, resolution.CommitSHA),
-			}
-		}
+		return CheckResult{Success: false, Message: "Установка остановлена: выбранный источник не совпадает с показанным commit SHA. Обновите список версий и повторите выбор."}
 	}
 
 	parentDir := filepath.Dir(targetDir)
+	if err := os.MkdirAll(parentDir, 0700); err != nil {
+		return CheckResult{Success: false, Message: installationErrorMessage("подготовка каталога", err)}
+	}
 	stageDir, err := os.MkdirTemp(parentDir, ".servehub-stage-")
 	if err != nil {
-		return CheckResult{Success: false, Message: "Не удалось создать временный каталог установки: " + err.Error()}
+		return CheckResult{Success: false, Message: installationErrorMessage("создание временного каталога", err)}
 	}
 	defer os.RemoveAll(stageDir)
 
 	archivePath := filepath.Join(stageDir, "project.zip")
-	if err := downloadProjectArchive(resolution.CommitSHA, archivePath); err != nil {
-		return CheckResult{Success: false, Message: "Не удалось загрузить архив проекта: " + err.Error()}
+	if err := downloadProjectArchiveContext(ctx, resolution.CommitSHA, archivePath); err != nil {
+		return CheckResult{Success: false, Message: "Не удалось загрузить архив проекта: " + installationErrorMessage("загрузка", err) + " Текущая установка не изменялась."}
 	}
 
 	projectDir := filepath.Join(stageDir, "project")
 	if err := os.Mkdir(projectDir, 0755); err != nil {
-		return CheckResult{Success: false, Message: "Не удалось создать временный каталог проекта: " + err.Error()}
+		return CheckResult{Success: false, Message: "Не удалось создать временный каталог проекта: " + installationErrorMessage("распаковка", err)}
 	}
 	if err := extractProjectArchive(archivePath, projectDir); err != nil {
-		return CheckResult{Success: false, Message: "Архив проекта не прошёл проверку: " + err.Error()}
+		return CheckResult{Success: false, Message: "Архив проекта не прошёл проверку: " + installationErrorMessage("распаковка", err) + " Временные данные будут очищены; текущая установка не изменялась."}
 	}
 	if err := verifyProjectDirectory(projectDir); err != nil {
 		return CheckResult{Success: false, Message: "Загруженный проект не прошёл проверку структуры: " + err.Error()}
@@ -432,11 +774,9 @@ func (a *App) InstallProject(mode, ref, expectedSHA string, replaceLegacy bool) 
 		return CheckResult{Success: false, Message: "Не удалось подтвердить закрепление версии для серверов: " + err.Error()}
 	}
 
-	if state.KnownVersion || legacyReplacement {
-		oldSecrets := filepath.Join(targetDir, "ansible", "vars", "secrets.yml")
-		newSecrets := filepath.Join(projectDir, "ansible", "vars", "secrets.yml")
-		if err := copySecretsIfPresent(oldSecrets, newSecrets); err != nil {
-			return CheckResult{Success: false, Message: "Не удалось безопасно сохранить существующий secrets.yml: " + err.Error()}
+	if state.Exists && state.Complete && (action == "update" || legacyReplacement) {
+		if err := preserveUserProjectFiles(targetDir, projectDir); err != nil {
+			return CheckResult{Success: false, Message: "Не удалось сохранить пользовательскую конфигурацию: " + err.Error() + ". Исходная установка не изменялась."}
 		}
 	}
 
@@ -460,57 +800,230 @@ func (a *App) InstallProject(mode, ref, expectedSHA string, replaceLegacy bool) 
 	if err := verifyProjectDirectory(projectDir); err != nil {
 		return CheckResult{Success: false, Message: "Финальная проверка проекта не пройдена: " + err.Error()}
 	}
+	if ctx.Err() != nil {
+		return CheckResult{Success: false, Message: installationErrorMessage("переключение версии", ctx.Err()) + " Текущая установленная версия не изменялась."}
+	}
 
 	backupDir := ""
 	if state.Exists {
-		backupPrefix := ".servehub-previous-"
-		if legacyReplacement {
-			backupPrefix = ".servehub-legacy-backup-"
-		}
-		placeholder, err := os.MkdirTemp(parentDir, backupPrefix)
+		backupDir, err = uniqueSiblingPath(parentDir, ".servehub-backup-")
 		if err != nil {
-			return CheckResult{Success: false, Message: "Не удалось подготовить безопасное переключение каталога: " + err.Error()}
+			return CheckResult{Success: false, Message: "Не удалось подготовить резервную копию текущего каталога: " + err.Error()}
 		}
-		if err := os.Remove(placeholder); err != nil {
-			return CheckResult{Success: false, Message: "Не удалось подготовить резервный путь для прежней версии: " + err.Error()}
-		}
-		backupDir = placeholder
 		if err := os.Rename(targetDir, backupDir); err != nil {
-			return CheckResult{Success: false, Message: "Не удалось переместить прежнюю версию в резервный каталог: " + err.Error()}
+			return CheckResult{Success: false, Message: "Не удалось сохранить прежнюю версию в резервную копию: " + installationErrorMessage("резервное копирование", err)}
 		}
 	}
 	if err := os.Rename(projectDir, targetDir); err != nil {
 		if backupDir != "" {
 			if restoreErr := os.Rename(backupDir, targetDir); restoreErr != nil {
-				return CheckResult{
-					Success: false,
-					Message: fmt.Sprintf("Не удалось установить новую версию (%v) и восстановить прежний каталог (%v). Прежняя версия сохранена по пути %s.", err, restoreErr, backupDir),
-				}
+				return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось переключить каталог на проверенную версию (%v) и восстановить прежний каталог (%v). Прежняя версия сохранена в резервной копии: %s", err, restoreErr, backupDir)}
 			}
 		}
-		return CheckResult{Success: false, Message: "Не удалось переключить каталог на проверенную версию: " + err.Error()}
+		return CheckResult{Success: false, Message: "Не удалось переключить каталог на проверенную версию: " + installationErrorMessage("переключение каталога", err)}
 	}
 
-	message := fmt.Sprintf("Установлен источник: %s. Закреплённый commit SHA: %s.", resolution.Label, resolution.CommitSHA)
+	installedState := getProjectInstallState(targetDir)
+	if !installedState.Complete || !installedState.KnownVersion ||
+		!strings.EqualFold(installedState.Metadata.CommitSHA, resolution.CommitSHA) {
+		quarantine, quarantineErr := uniqueSiblingPath(parentDir, ".servehub-unverified-")
+		if quarantineErr == nil {
+			_ = os.Rename(targetDir, quarantine)
+		}
+		if backupDir != "" {
+			if restoreErr := os.Rename(backupDir, targetDir); restoreErr != nil {
+				return CheckResult{Success: false, Message: "Финальная проверка после переключения не пройдена; восстановить старую версию автоматически не удалось. Резервная копия: " + backupDir}
+			}
+		}
+		return CheckResult{Success: false, Message: "Финальная проверка установленной версии не пройдена. Предыдущая версия восстановлена, если она существовала."}
+	}
+
+	message := fmt.Sprintf("Проверенная версия %s (commit %s) установлена в %s.", resolution.Label, resolution.CommitSHA, targetDir)
 	if compatibilityPatch != "" {
-		message += " Совместимость старого Ansible playbook проверена: " + compatibilityPatch
+		message += " Закрепление версии в Ansible проверено: " + compatibilityPatch
 	}
 	if backupDir != "" {
-		if legacyReplacement {
-			message += " Предыдущая установка без метаданных сохранена в резервной копии: " + backupDir
-		} else if err := os.RemoveAll(backupDir); err != nil {
-			message += " Предыдущий каталог сохранён для ручного удаления: " + backupDir
+		message += " Предыдущий каталог целиком сохранён в резервной копии: " + backupDir + ". Он не удаляется автоматически."
+	}
+	return CheckResult{Success: true, Exists: true, Message: message}
+}
+
+func uniqueSiblingPath(parentDir, prefix string) (string, error) {
+	if err := os.MkdirAll(parentDir, 0700); err != nil {
+		return "", err
+	}
+	placeholder, err := os.MkdirTemp(parentDir, prefix)
+	if err != nil {
+		return "", err
+	}
+	if err := os.Remove(placeholder); err != nil {
+		return "", err
+	}
+	return placeholder, nil
+}
+
+func removeStaleProjectStages(parentDir string) (int, error) {
+	entries, err := os.ReadDir(parentDir)
+	if os.IsNotExist(err) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), ".servehub-stage-") || entry.Type()&os.ModeSymlink != 0 {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return removed, err
+		}
+		if !info.IsDir() {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(parentDir, entry.Name())); err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	return removed, nil
+}
+
+func installationErrorMessage(stage string, err error) string {
+	lower := strings.ToLower(err.Error())
+	switch {
+	case errors.Is(err, context.Canceled) || strings.Contains(lower, "context canceled"):
+		return "Операция отменена пользователем или закрытием установщика; временные данные будут очищены."
+	case strings.Contains(lower, "no space left on device") || strings.Contains(lower, "not enough space") ||
+		strings.Contains(lower, "disk full") || strings.Contains(lower, "there is not enough space"):
+		return "Недостаточно свободного места для " + stage + ". Освободите место и повторите попытку."
+	case strings.Contains(lower, "timeout") || strings.Contains(lower, "deadline exceeded") ||
+		strings.Contains(lower, "i/o timeout"):
+		return "Истекло время ожидания при " + stage + ". Проверьте подключение к GitHub и повторите попытку."
+	case strings.Contains(lower, "no such host") || strings.Contains(lower, "connection refused") ||
+		strings.Contains(lower, "connection reset") || strings.Contains(lower, "network is unreachable") ||
+		strings.Contains(lower, "unexpected eof") || strings.Contains(lower, "eof"):
+		return "Соединение было прервано при " + stage + ". Проверьте сеть и доступность GitHub; текущая установленная версия не изменялась."
+	default:
+		return err.Error()
+	}
+}
+
+func preserveUserProjectFiles(sourceDir, destinationDir string) error {
+	for _, relative := range []string{
+		"ansible/vars/secrets.yml",
+		"ansible/inventory.ini",
+		".env",
+		"docker-compose.override.yaml",
+	} {
+		if err := copyRegularUserFile(sourceDir, destinationDir, relative, true); err != nil {
+			return err
 		}
 	}
-	return CheckResult{Success: true, Message: message}
+
+	return filepath.WalkDir(sourceDir, func(sourcePath string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(sourceDir, sourcePath)
+		if err != nil {
+			return err
+		}
+		if relative == "." {
+			return nil
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" || strings.HasPrefix(entry.Name(), ".servehub-stage-") ||
+				strings.HasPrefix(entry.Name(), ".servehub-backup-") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() || relative == ".servehub-version.json" {
+			return nil
+		}
+		for _, preserved := range []string{
+			filepath.Join("ansible", "vars", "secrets.yml"),
+			filepath.Join("ansible", "inventory.ini"),
+			".env",
+			"docker-compose.override.yaml",
+		} {
+			if relative == preserved {
+				return nil
+			}
+		}
+		destinationPath := filepath.Join(destinationDir, relative)
+		if _, err := os.Lstat(destinationPath); err == nil {
+			return nil
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+		return copyRegularUserFile(sourceDir, destinationDir, relative, false)
+	})
+}
+
+func copyRegularUserFile(sourceDir, destinationDir, relative string, replace bool) error {
+	source := filepath.Join(sourceDir, relative)
+	info, err := os.Lstat(source)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("не удалось проверить %s: %w", relative, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return fmt.Errorf("пользовательский файл %s не является обычным файлом", relative)
+	}
+	destination := filepath.Join(destinationDir, relative)
+	if !replace {
+		if _, err := os.Lstat(destination); err == nil {
+			return nil
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	content, err := os.ReadFile(source)
+	if err != nil {
+		return fmt.Errorf("не удалось прочитать %s: %w", relative, err)
+	}
+	mode := info.Mode().Perm() & 0755
+	if relative == filepath.Join("ansible", "vars", "secrets.yml") ||
+		relative == filepath.Join("ansible", "inventory.ini") ||
+		relative == ".env" || relative == "docker-compose.override.yaml" {
+		mode = 0600
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
+		return fmt.Errorf("не удалось создать каталог для %s: %w", relative, err)
+	}
+	if err := os.WriteFile(destination, content, mode); err != nil {
+		return fmt.Errorf("не удалось перенести %s: %w", relative, err)
+	}
+	if mode == 0600 {
+		if err := os.Chmod(destination, 0600); err != nil {
+			return fmt.Errorf("не удалось ограничить права %s: %w", relative, err)
+		}
+	}
+	return nil
 }
 
 func downloadProjectArchive(commitSHA, destination string) error {
+	return downloadProjectArchiveContext(context.Background(), commitSHA, destination)
+}
+
+func downloadProjectArchiveContext(ctx context.Context, commitSHA, destination string) error {
 	if !isFullCommitSHA(commitSHA) {
 		return errors.New("попытка загрузки с некорректным commit SHA заблокирована")
 	}
 	requestURL := "https://codeload.github.com/canntstand/ServeHub-2/zip/" + commitSHA
-	request, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
 		return err
 	}
@@ -882,7 +1395,7 @@ func readInstalledProjectMetadata(projectDir string) (ProjectVersionMetadata, er
 }
 
 func getProjectInstallState(projectDir string) ProjectInstallState {
-	state := ProjectInstallState{}
+	state := ProjectInstallState{Directory: projectDir}
 	info, err := os.Lstat(projectDir)
 	if os.IsNotExist(err) {
 		state.Message = "Проект ещё не установлен."
@@ -890,17 +1403,30 @@ func getProjectInstallState(projectDir string) ProjectInstallState {
 	}
 	state.Exists = true
 	if err != nil {
+		state.Partial = true
 		state.Message = "Не удалось проверить каталог проекта: " + err.Error()
 		return state
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-		state.Message = "Путь установки существует, но не является обычным каталогом."
+		state.Partial = true
+		state.Message = "Путь установки существует, но не является обычным каталогом. Для безопасности он не будет изменён автоматически."
 		return state
 	}
+	if err := verifyProjectDirectory(projectDir); err != nil {
+		state.Partial = true
+		state.Message = "Найдена неполная установка: " + err.Error()
+		return state
+	}
+	state.Complete = true
+
 	metadataPath := filepath.Join(projectDir, ".servehub-version.json")
 	metadataInfo, err := os.Lstat(metadataPath)
+	if os.IsNotExist(err) {
+		state.Message = "Каталог содержит структуру ServeHub-2, но не содержит метаданных версии. Фактический commit установить нельзя."
+		return state
+	}
 	if err != nil {
-		state.Message = "Каталог проекта не содержит метаданных закреплённой версии. Автоматическое переключение запрещено."
+		state.Message = "Не удалось проверить метаданные версии: " + err.Error()
 		return state
 	}
 	if metadataInfo.Mode()&os.ModeSymlink != 0 || !metadataInfo.Mode().IsRegular() || metadataInfo.Size() > 64<<10 {
@@ -914,19 +1440,19 @@ func getProjectInstallState(projectDir string) ProjectInstallState {
 	}
 	var metadata ProjectVersionMetadata
 	if err := json.Unmarshal(content, &metadata); err != nil {
-		state.Message = "Файл метаданных версии повреждён. Автоматическое переключение запрещено."
+		state.Message = "Файл метаданных версии повреждён. Фактический commit установить нельзя."
 		return state
 	}
 	if metadata.SchemaVersion != 1 || !isFullCommitSHA(metadata.CommitSHA) ||
 		strings.TrimSpace(metadata.DisplayName) == "" ||
 		!validSourceMode(metadata.SourceMode) {
-		state.Message = "Метаданные версии не прошли проверку. Автоматическое переключение запрещено."
+		state.Message = "Метаданные версии не прошли проверку. Фактический commit установить нельзя."
 		return state
 	}
 	metadata.CommitSHA = strings.ToLower(metadata.CommitSHA)
 	state.KnownVersion = true
 	state.Metadata = metadata
-	state.Message = fmt.Sprintf("Установлена версия %s, commit %s.", metadata.DisplayName, metadata.CommitSHA)
+	state.Message = fmt.Sprintf("Структура проекта проверена. В метаданных указан источник %s, commit %s.", metadata.DisplayName, metadata.CommitSHA)
 	return state
 }
 
