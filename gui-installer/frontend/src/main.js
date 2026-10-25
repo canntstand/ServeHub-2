@@ -255,6 +255,8 @@ function isTemplatePlaceholder(value) {
         text.includes('of_the_bot_you_created') ||
         text.includes('where_ansible_is_installed') ||
         text.startsWith('change_this_to_') ||
+        text.endsWith('_secure_password') ||
+        text === 'hbox_key_pepper' ||
         text === 'ssh-ed25519 replace_with_your_public_key';
 }
 
