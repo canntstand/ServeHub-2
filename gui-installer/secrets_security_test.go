@@ -210,3 +210,11 @@ func TestDeploymentValidationRejectsExampleDomainAndWeakS3Keys(t *testing.T) {
 		t.Fatalf("weak S3 access key should be rejected, got %v", err)
 	}
 }
+
+func TestValidateFullBootstrapRejectsWeakRootPassword(t *testing.T) {
+	values := validTestDeploymentValues(t)
+	values["vps_root_password"] = "password"
+	if err := validateDeploymentValues(values, 1); err == nil || !strings.Contains(err.Error(), "vps_root_password") {
+		t.Fatalf("weak root password should be rejected for full bootstrap, got %v", err)
+	}
+}

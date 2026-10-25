@@ -220,8 +220,14 @@ func validateBootstrapCredentials(values map[string]string, prefix, label string
 	sshAvailable := usableCredential(values, sshKey)
 	sudoAvailable := usableCredential(values, sudoKey)
 	for _, key := range []string{rootKey, sshKey, sudoKey} {
-		if strings.TrimSpace(values[key]) != "" && isUnsafeDefaultValue(values[key]) {
+		value := strings.TrimSpace(values[key])
+		if value != "" && isUnsafeDefaultValue(value) {
 			return fmt.Errorf("%s: %s содержит шаблонное значение; оставьте поле пустым или введите настоящий пароль", label, key)
+		}
+		if value != "" {
+			if err := validateStrongSecret(values, key, label+" "+key, 12); err != nil {
+				return err
+			}
 		}
 	}
 	if !rootAvailable && !(sshAvailable && sudoAvailable) {
