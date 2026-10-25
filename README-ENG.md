@@ -8,7 +8,7 @@
 
 # Table of Contents
 - [Brief Overview](#brief-overview)
-- [Hermes Agent (optional)](#hermes-agent-optional)
+- [Hermes Agent](#hermes-agent)
 - [Main dependencies](#main-dependencies)
 - [Important Information Before Deployment](#important-information-before-deployment)
 - [Testing with Vagrant](#testing-with-vagrant)
@@ -68,22 +68,14 @@ It is worth clarifying that hosting everything on one powerful VPS would be easi
 - **[Docker Compose](https://docs.docker.com/compose/install/)**
 - **SSH**
 
-# Hermes Agent (Optional)
-Hermes Agent can be deployed as an optional third server in ServeHub-2. It is an AI agent designed to automate everyday tasks and interact with infrastructure.
+# Hermes Agent
+Hermes Agent is included in the standard Edge/VPS deployment and runs in its own Docker container alongside the other Edge services. No third server is required.
 
-Possible use cases:
-- **Monitoring and diagnostics:** analyzing server metrics and logs, generating reports, and sending notifications to Telegram.
-- **Gitea integration:** interacting with repositories (for example, my Obsidian vault), reviewing changes, and assisting with development.
-- **Automation:** running scheduled tasks and interacting with external service APIs, such as Habitica.
+The installer collects an OpenAI-compatible API Base URL, API key, and model ID. On first deployment, Ansible creates the initial Hermes configuration automatically. The API key is stored in `apps-data/hermes/.env` and model settings in `apps-data/hermes/config.yaml`. These files are not overwritten on subsequent deployments, preserving changes made from the Dashboard.
 
-Hermes is deployed separately from the core ServeHub-2 components and is not required for the project to function. It can run on a separate VPS connected to the existing VPN network as an independent client. This allows it to interact with Gitea and other internal services without running the agent on the main server.
+After deployment, open the **Hermes Agent** card on Homepage. The panel is available at `https://hermes.<domain>/` over VPN and HTTPS only. Sign in with the administrator username and password provided by the installer.
 
-Hermes's VPN access should be restricted to the IP addresses and ports it actually needs. Connecting to the VPN should not grant the agent unrestricted access to all devices and services.
-
-## Deploying Hermes Agent
-
-Hermes Agent is deployed separately from the current ServeHub-2 stack. This branch does not contain `docker-compose.hermes.yaml`, so the old VPN-client startup command is not applicable. Create a dedicated wg-easy client with its own address, restrict VPN access to the required IP addresses and ports, and install the agent using the [official Hermes documentation](https://hermes-agent.nousresearch.com).
-
+Agent data, session history, memory, and skills are stored in `apps-data/hermes/`. Do not grant Hermes access to the Docker socket, VPN configuration, or server SSH keys unless specifically required.
 # Important Information Before Deployment
 1. **Supported OS:** Ubuntu 24.04 LTS.
 2. **DNS Configuration:** In the registrar's DNS panel (e.g., Webnames), you must point the primary domain A-record and the wildcard record (`*`) to the internal IP address of the Workload server running Nginx — **`10.8.0.2`**. This is critical: all traffic to your services must travel inside the secure AmneziaWG tunnel. If you point the domain to the public IP of the VPS, Nginx will block external requests due to the `deny all` rule.
