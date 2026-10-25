@@ -145,16 +145,12 @@ func redactSensitiveText(text string, values map[string]string) string {
 	return text
 }
 
-func secretsPaths() (string, string, string, error) {
-	projectDir, err := configuredProjectInstallDirectory()
-	if err != nil {
-		return "", "", "", err
-	}
+func secretsPaths() (string, string, string) {
+	projectDir := filepath.Join(".", projectInstallDirName)
 	dir := filepath.Join(projectDir, "ansible", "vars")
 	return dir,
 		filepath.Join(dir, "secrets.yml"),
-		filepath.Join(dir, "secrets.yml.example"),
-		nil
+		filepath.Join(dir, "secrets.yml.example")
 }
 
 func parseSecretsYAML(content []byte) (*yaml.Node, error) {
@@ -254,10 +250,7 @@ func secretScalarValues(document *yaml.Node) map[string]string {
 }
 
 func loadSecretsSource() ([]byte, *yaml.Node, map[string]string, bool, error) {
-	_, targetPath, templatePath, pathErr := secretsPaths()
-	if pathErr != nil {
-		return nil, nil, nil, false, fmt.Errorf("не удалось определить каталог secrets.yml: %w", pathErr)
-	}
+	_, targetPath, templatePath := secretsPaths()
 	targetInfo, err := os.Lstat(targetPath)
 	if err == nil {
 		if targetInfo.Mode()&os.ModeSymlink != 0 || !targetInfo.Mode().IsRegular() {
@@ -421,10 +414,7 @@ func secretYAMLEquivalent(left, right *yaml.Node) bool {
 }
 
 func (a *App) CheckSecrets() CheckResult {
-	_, targetPath, _, pathErr := secretsPaths()
-	if pathErr != nil {
-		return CheckResult{Success: false, Message: "Не удалось определить каталог secrets.yml: " + pathErr.Error()}
-	}
+	_, targetPath, _ := secretsPaths()
 	info, err := os.Lstat(targetPath)
 	if os.IsNotExist(err) {
 		return CheckResult{Success: false, Exists: false, Message: "Файл secrets.yml не найден; будет использован шаблон secrets.yml.example."}
@@ -494,10 +484,7 @@ func (a *App) PreviewSecrets(updates map[string]string) SecretsResult {
 
 
 func (a *App) SaveSecrets(updates map[string]string, expectedYAML string) CheckResult {
-	dir, targetPath, _, pathErr := secretsPaths()
-	if pathErr != nil {
-		return CheckResult{Success: false, Message: "Файл не сохранён: не удалось определить каталог secrets.yml: " + pathErr.Error()}
-	}
+	dir, targetPath, _ := secretsPaths()
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return CheckResult{Success: false, Message: "Не удалось создать каталог конфигурации: " + err.Error()}
 	}

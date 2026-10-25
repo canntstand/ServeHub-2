@@ -1,5 +1,5 @@
 import './style.css';
-import { CheckDocker, InstallProject, GetProjectVersions, ResolveProjectVersion, SaveSecrets, PreviewSecrets, GenerateSecretDefaults, ValidateDeploymentSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
+import { CheckDocker, GetProjectVersions, ResolveProjectVersion, GetProjectInstallDirectory, InspectProjectInstallDirectory, SetProjectInstallDirectory, ChooseProjectInstallDirectory, PerformProjectAction, RecoverProjectInstallation, CancelProjectInstallation, SaveSecrets, PreviewSecrets, GenerateSecretDefaults, ValidateDeploymentSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
 import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
 let generatedYamlString = "";
@@ -10,6 +10,7 @@ let sourceSecretIsTemplate = true;
 let generatedSecretDefaultsPending = false;
 let secretFormInitialized = false;
 let secretFormProjectSHA = "";
+let secretFormProjectDirectory = "";
 let privateSSHKeyValue = "";
 let privateSSHKeyVisible = false;
 let privateSSHKeyToggleButton = null;
@@ -120,20 +121,54 @@ window.runInstallation = async function() {
     btnEditSecrets.style.display = 'none';
 
     try {
-        const selection = getSelectedProjectVersion();
-        if (!selection.valid) {
+        const action = selectedProjectAction();
+        let selection = null;
+        if (action === 'recover') {
+            const recovery = await RecoverProjectInstallation();
             spinner.style.display = 'none';
-            installText.innerText = selection.message || 'Сначала выберите и проверьте версию проекта.';
-            installText.style.color = 'var(--danger)';
-            btnFinish.style.display = 'none';
-            btnRetry.style.display = 'inline-block';
+            installText.innerText = recovery.message || 'Восстановление завершено.';
+            installText.style.color = recovery.success ? 'var(--accent-bright)' : 'var(--danger)';
+            btnFinish.innerText = 'Вернуться к выбору версии';
+            btnFinish.disabled = false;
+            btnFinish.setAttribute('onclick', 'goToStep(1)');
+            btnRetry.style.display = 'none';
             return;
         }
-        const migrationConsent = document.getElementById('replace-legacy-project');
-        const replaceLegacy = Boolean(migrationConsent && migrationConsent.checked);
-        const result = await InstallProject(selection.mode, selection.ref, selection.expectedSHA, replaceLegacy);
+        if (action !== 'use') {
+            selection = getSelectedProjectVersion();
+            if (!selection.valid) {
+                spinner.style.display = 'none';
+                installText.innerText = selection.message || 'Сначала выберите и проверьте версию проекта.';
+                installText.style.color = 'var(--danger)';
+                btnFinish.style.display = 'none';
+                btnRetry.style.display = 'inline-block';
+                return;
+            }
+        }
+        const directoryInput = document.getElementById('project-install-directory');
+        const directoryResult = await SetProjectInstallDirectory(String(directoryInput?.value ?? '').trim());
+        if (!directoryResult.success) throw new Error(directoryResult.message || 'Не удалось сохранить каталог установки.');
+        projectInstallDirectory = directoryResult.directory;
+        projectInstallState = directoryResult.installed;
+        projectInstallDirectoryVerified = true;
+        const confirmReplace = Boolean(document.getElementById('confirm-replace-install')?.checked);
+        const replaceLegacy = Boolean(document.getElementById('replace-legacy-project')?.checked);
+        const cancelButton = document.getElementById('btn-install-cancel');
+        if (cancelButton) cancelButton.style.display = action === 'install' || action === 'update' ? 'inline-block' : 'none';
+        const result = await PerformProjectAction(action, selection?.mode ?? '', selection?.ref ?? '', selection?.expectedSHA ?? '', confirmReplace, replaceLegacy);
+        if (cancelButton) cancelButton.style.display = 'none';
         
         if (result.success) {
+            const refreshedInstall = await GetProjectInstallDirectory();
+            if (refreshedInstall.success) {
+                projectInstallDirectory = refreshedInstall.directory;
+                projectInstallState = refreshedInstall.installed;
+                projectInstallDirectoryVerified = true;
+                const pathInput = document.getElementById('project-install-directory');
+                if (pathInput) pathInput.value = projectInstallDirectory;
+                renderInstalledProjectState(projectInstallState, false);
+                window.updateProjectActionUI();
+            }
             const secretsCheck = await CheckSecrets();
             const existingSecrets = await LoadSecrets();
             if (!existingSecrets.success) {
@@ -141,11 +176,14 @@ window.runInstallation = async function() {
             }
             // Navigation back to this step must not overwrite unsaved form edits.
             // Reload only when the selected project commit has actually changed.
-            if (!secretFormInitialized || secretFormProjectSHA !== selection.expectedSHA) {
+            const selectedCommitSHA = selection?.expectedSHA ?? String(projectInstallState?.metadata?.commit_sha ?? '');
+            if (!secretFormInitialized || secretFormProjectSHA !== selectedCommitSHA ||
+                secretFormProjectDirectory !== projectInstallDirectory) {
                 populateSecretsForm(existingSecrets.values, existingSecrets.isTemplate);
                 await applyGeneratedSecretDefaults();
                 secretFormInitialized = true;
-                secretFormProjectSHA = selection.expectedSHA;
+                secretFormProjectSHA = selectedCommitSHA;
+                secretFormProjectDirectory = projectInstallDirectory;
             }
 
             spinner.style.display = 'none';
@@ -224,6 +262,8 @@ window.runInstallation = async function() {
             btnRetry.style.display = 'inline-block';
         }
     } catch (err) {
+        const cancelButton = document.getElementById('btn-install-cancel');
+        if (cancelButton) cancelButton.style.display = 'none';
         spinner.style.display = 'none';
         installText.innerText = 'Критическая ошибка в процессе установки:\n' + err;
         installText.style.color = 'var(--danger)';
@@ -962,6 +1002,8 @@ window.maximizeWindow = function() {
 
 let projectVersionCatalog = null;
 let projectInstallState = null;
+let projectInstallDirectory = "";
+let projectInstallDirectoryVerified = false;
 let projectVersionsLoaded = false;
 let legacyInstallBlocked = false;
 let resolvedProjectCommitSHA = "";
@@ -978,11 +1020,150 @@ function selectedVersionOption() {
     return select.selectedOptions[0];
 }
 
-function setProjectVersionContinueEnabled(enabled) {
+function selectedProjectAction() {
+    return document.querySelector('input[name="project-action"]:checked')?.value || 'install';
+}
+
+function updateProjectDirectoryStatus(message, isWarning = false) {
+    const status = document.getElementById('project-install-directory-status');
+    if (!status) return;
+    status.textContent = message;
+    status.classList.toggle('is-warning', Boolean(isWarning));
+}
+
+window.markProjectInstallDirectoryChanged = function() {
+    projectInstallDirectoryVerified = false;
+    projectInstallState = null;
+    updateProjectDirectoryStatus('Путь изменён. Нажмите «Проверить каталог» перед продолжением.', true);
+    window.updateProjectActionUI();
+};
+
+window.verifyProjectInstallDirectory = async function() {
+    const input = document.getElementById('project-install-directory');
+    try {
+        const result = await InspectProjectInstallDirectory(String(input?.value ?? '').trim());
+        if (!result.success) {
+            projectInstallDirectoryVerified = false;
+            projectInstallState = null;
+            updateProjectDirectoryStatus(result.message || 'Каталог не прошёл проверку.', true);
+            window.updateProjectActionUI();
+            return;
+        }
+        projectInstallDirectory = result.directory;
+        projectInstallState = result.installed;
+        projectInstallDirectoryVerified = true;
+        updateProjectDirectoryStatus(result.message || ('Каталог проверен: ' + result.directory), Boolean(result.installed?.partial));
+        renderInstalledProjectState(projectInstallState, false);
+        window.updateProjectActionUI();
+    } catch (error) {
+        projectInstallDirectoryVerified = false;
+        updateProjectDirectoryStatus('Не удалось проверить каталог: ' + String(error), true);
+        window.updateProjectActionUI();
+    }
+};
+
+window.chooseProjectInstallDirectory = async function() {
+    const button = document.getElementById('btn-choose-install-directory');
+    if (button) button.disabled = true;
+    try {
+        const result = await ChooseProjectInstallDirectory();
+        if (!result.success) {
+            if (result.message && result.message !== 'Выбор каталога отменён.') updateProjectDirectoryStatus(result.message, true);
+            return;
+        }
+        projectInstallDirectory = result.directory;
+        projectInstallState = result.installed;
+        projectInstallDirectoryVerified = true;
+        const input = document.getElementById('project-install-directory');
+        if (input) input.value = result.directory;
+        updateProjectDirectoryStatus(result.message || ('Каталог: ' + result.directory), Boolean(result.installed?.partial));
+        renderInstalledProjectState(projectInstallState, true);
+        window.updateProjectActionUI();
+    } catch (error) {
+        updateProjectDirectoryStatus('Не удалось выбрать каталог: ' + String(error), true);
+    } finally {
+        if (button) button.disabled = false;
+    }
+};
+
+window.updateProjectActionUI = function() {
+    const action = selectedProjectAction();
+    const state = projectInstallState;
+    const select = document.getElementById('project-version-select');
+    const useCommit = document.getElementById('use-project-commit-sha');
+    const commitInput = document.getElementById('project-commit-sha');
+    const advanced = document.querySelector('.version-advanced');
+    const useOption = document.querySelector('input[name="project-action"][value="use"]');
+    const installOption = document.querySelector('input[name="project-action"][value="install"]');
+    const updateOption = document.querySelector('input[name="project-action"][value="update"]');
+    const recoverOption = document.querySelector('input[name="project-action"][value="recover"]');
+    const confirmWrapper = document.getElementById('confirm-replace-install-wrapper');
+    const confirmReplace = document.getElementById('confirm-replace-install');
+    const legacyWrapper = document.getElementById('legacy-migration-consent-wrapper');
+
+    if (useOption) useOption.disabled = !(state && state.exists && state.complete && state.knownVersion);
+    if (installOption) installOption.disabled = Boolean(state && state.exists);
+    if (updateOption) updateOption.disabled = !(state && state.exists && state.complete);
+    if (recoverOption) recoverOption.disabled = !projectInstallDirectoryVerified;
+
+    if (action === 'update' && useCommit && useCommit.checked) {
+        useCommit.checked = false;
+        resolvedProjectCommitSHA = '';
+        projectCommitInputAtResolution = '';
+        if (commitInput) commitInput.disabled = true;
+    }
+    if (action === 'use' && state && state.knownVersion && useCommit) {
+        useCommit.checked = true;
+        if (commitInput) {
+            commitInput.value = state.metadata.commit_sha;
+            commitInput.disabled = true;
+        }
+        resolvedProjectCommitSHA = state.metadata.commit_sha;
+        projectCommitInputAtResolution = state.metadata.commit_sha;
+    }
+
+    const needsVersion = action === 'install' || action === 'update';
+    if (select) select.disabled = !projectVersionsLoaded || !needsVersion || Boolean(useCommit && useCommit.checked);
+    if (useCommit) useCommit.disabled = !needsVersion || !projectVersionsLoaded;
+    if (commitInput && !(useCommit && useCommit.checked)) commitInput.disabled = true;
+    if (advanced) advanced.style.display = needsVersion ? 'block' : 'none';
+    if (confirmWrapper) confirmWrapper.style.display = action === 'update' && state?.exists ? 'flex' : 'none';
+    if (legacyWrapper) legacyWrapper.style.display = action === 'update' && legacyInstallBlocked ? 'flex' : 'none';
+    if (action !== 'update' && confirmReplace) confirmReplace.checked = false;
+
     const button = document.getElementById('btn-version-continue');
-    const consent = document.getElementById('replace-legacy-project');
-    const migrationAllowed = !legacyInstallBlocked || Boolean(consent && consent.checked);
-    if (button) button.disabled = !enabled || !projectVersionsLoaded || !migrationAllowed;
+    if (button) {
+        button.textContent = ({
+            use: 'Использовать текущую установку',
+            install: 'Установить выбранную версию',
+            update: 'Обновить / переключить версию',
+            recover: 'Восстановить неполную установку',
+        })[action] || 'Продолжить';
+    }
+    window.updateProjectVersionPreview();
+};
+
+function setProjectVersionContinueEnabled(versionEnabled) {
+    const button = document.getElementById('btn-version-continue');
+    if (!button) return;
+    const action = selectedProjectAction();
+    const state = projectInstallState;
+    const pathReady = projectInstallDirectoryVerified && Boolean(document.getElementById('project-install-directory')?.value.trim());
+    const migrationConfirmed = Boolean(document.getElementById('replace-legacy-project')?.checked);
+    const replacementConfirmed = Boolean(document.getElementById('confirm-replace-install')?.checked);
+    let enabled = false;
+    if (action === 'use') {
+        enabled = pathReady && Boolean(state && state.exists && state.complete && state.knownVersion);
+    } else if (action === 'recover') {
+        enabled = pathReady;
+    } else if (action === 'install') {
+        enabled = pathReady && projectVersionsLoaded && versionEnabled && !(state && state.exists);
+    } else if (action === 'update') {
+        enabled = pathReady && projectVersionsLoaded && versionEnabled &&
+            Boolean(state && state.exists && state.complete) &&
+            replacementConfirmed && (!legacyInstallBlocked || migrationConfirmed);
+    }
+    button.disabled = !enabled;
 }
 
 function getSelectedProjectVersion() {
@@ -990,7 +1171,7 @@ function getSelectedProjectVersion() {
         return { valid: false, message: 'Список версий ещё не загружен. Обновите список и повторите.' };
     }
     const migrationConsent = document.getElementById('replace-legacy-project');
-    if (legacyInstallBlocked && !(migrationConsent && migrationConsent.checked)) {
+    if (selectedProjectAction() === 'update' && legacyInstallBlocked && !(migrationConsent && migrationConsent.checked)) {
         return { valid: false, message: 'Существующая установка не содержит метаданных. Подтвердите резервное сохранение старого каталога, прежде чем продолжить.' };
     }
     const useCommit = document.getElementById('use-project-commit-sha');
@@ -1085,10 +1266,23 @@ function renderInstalledProjectState(state, initialLoad) {
     const select = document.getElementById('project-version-select');
     if (!note) return;
 
-    legacyInstallBlocked = Boolean(state && state.exists && !state.knownVersion);
+    legacyInstallBlocked = Boolean(state && state.exists && !state.knownVersion && !state.partial);
+    if (initialLoad) {
+        const defaultAction = state && state.exists
+            ? (state.partial ? 'recover' : (state.knownVersion ? 'use' : 'update'))
+            : 'install';
+        const radio = document.querySelector('input[name="project-action"][value="' + defaultAction + '"]');
+        if (radio) radio.checked = true;
+    }
     const consentWrapper = document.getElementById('legacy-migration-consent-wrapper');
     const consentCheckbox = document.getElementById('replace-legacy-project');
-    if (legacyInstallBlocked) {
+    if (state && state.exists && state.partial) {
+        note.style.display = 'block';
+        note.classList.add('is-warning');
+        note.textContent = 'Неполная или повреждённая установка: ' + (state.message || 'структура не прошла проверку') + '. Выберите восстановление; исходный каталог будет сохранён отдельно.';
+        if (consentWrapper) consentWrapper.style.display = 'none';
+        if (consentCheckbox) consentCheckbox.checked = false;
+    } else if (legacyInstallBlocked) {
         note.style.display = 'block';
         note.classList.add('is-warning');
         note.textContent = 'Найдена прежняя папка ServeHub-2-dev без корректного .servehub-version.json. Её фактический commit определить нельзя. Для миграции нужно отдельное подтверждение: установщик сохранит всю прежнюю папку в резервной копии и перенесёт secrets.yml, если он является обычным файлом.';
@@ -1118,6 +1312,9 @@ function renderInstalledProjectState(state, initialLoad) {
     if (useCommit) useCommit.disabled = false;
     if (select) select.disabled = Boolean(useCommit && useCommit.checked);
     if (shaInput) shaInput.disabled = !(useCommit && useCommit.checked);
+    const pathStatus = state && state.directory ? ('Каталог: ' + state.directory + '. ' + (state.message || '')) : (state?.message || '');
+    if (projectInstallDirectoryVerified && pathStatus) updateProjectDirectoryStatus(pathStatus, Boolean(state?.partial));
+    window.updateProjectActionUI();
 }
 
 window.initializeProjectVersions = async function(preserveChoice = false) {
@@ -1217,6 +1414,21 @@ window.updateProjectVersionPreview = function() {
     const warning = document.getElementById('project-version-warning');
     const useCommit = document.getElementById('use-project-commit-sha');
     if (!summary || !warning) return;
+    const action = selectedProjectAction();
+    if (action === 'use') {
+        summary.textContent = projectInstallState?.metadata?.commit_sha
+            ? 'Будет использована текущая версия ' + projectInstallState.metadata.display_name + ' (commit ' + projectInstallState.metadata.commit_sha + ').'
+            : 'Нет полной установки с подтверждённой версией.';
+        warning.textContent = 'Ничего не скачивается и не заменяется. Используется текущая версия в выбранном каталоге.';
+        setProjectVersionContinueEnabled(true);
+        return;
+    }
+    if (action === 'recover') {
+        summary.textContent = 'Восстановление очистит временные загрузки и переместит неполный каталог в карантин без удаления.';
+        warning.textContent = 'Восстановление не откатывает базы данных или данные контейнеров. После этого можно заново выбрать версию.';
+        setProjectVersionContinueEnabled(true);
+        return;
+    }
     const migrationConsent = document.getElementById('replace-legacy-project');
     if (legacyInstallBlocked && !(migrationConsent && migrationConsent.checked)) {
         summary.textContent = 'Существующая папка не содержит закреплённой версии. Подтвердите её резервное сохранение, чтобы продолжить с выбранным commit.';
@@ -1251,22 +1463,98 @@ window.updateProjectVersionPreview = function() {
     } else if (option.value === 'dev') {
         warning.textContent = 'Ветка dev может быть нестабильной и содержит незавершённые изменения. SHA фиксируется до загрузки; если ветка изменится, установка остановится, а не переключится незаметно.';
     } else {
-        warning.textContent = 'Выбранный релиз или тег может отличаться от ветки dev по сервисам и архитектуре. Установщик развернёт выбранную версию и закрепит тот же commit на серверах.';
+        warning.textContent = action === 'update'
+            ? 'Новая версия сначала загружается во временный каталог и проверяется. Затем текущая папка сохраняется в резервной копии, настройки переносятся, а проверенный код активируется. ВАЖНО: резервная копия кода не откатывает данные контейнеров, схемы БД или форматы данных.'
+            : 'Выбранный релиз или тег загружается во временный каталог и проверяется до установки. Существующий каталог не перезаписывается.';
     }
     setProjectVersionContinueEnabled(isFullSHA(option.dataset.sha));
 };
 
-window.continueFromVersionSelection = function() {
+window.continueFromVersionSelection = async function() {
+    const action = selectedProjectAction();
+    if (!projectInstallDirectoryVerified) {
+        updateProjectDirectoryStatus('Сначала проверьте каталог установки.', true);
+        return;
+    }
+    if (action === 'recover') {
+        const input = document.getElementById('project-install-directory');
+        const saved = await SetProjectInstallDirectory(String(input?.value ?? '').trim());
+        if (!saved.success) {
+            updateProjectDirectoryStatus(saved.message || 'Не удалось сохранить каталог установки.', true);
+            return;
+        }
+        const summary = document.getElementById('project-version-summary');
+        if (summary) summary.textContent = 'Восстанавливаем каталог...';
+        try {
+            const result = await RecoverProjectInstallation();
+            if (summary) summary.textContent = result.message || 'Восстановление завершено.';
+            updateProjectDirectoryStatus(result.message || 'Восстановление завершено.', !result.success);
+            await window.initializeProjectVersions(true);
+        } catch (error) {
+            if (summary) summary.textContent = 'Не удалось восстановить установку: ' + String(error);
+        }
+        return;
+    }
+    if (action === 'use') {
+        if (!(projectInstallState && projectInstallState.exists && projectInstallState.complete && projectInstallState.knownVersion)) {
+            const summary = document.getElementById('project-version-summary');
+            if (summary) summary.textContent = 'Нет полной установки с проверенной версией. Выберите установку или восстановление.';
+            return;
+        }
+        window.goToStep(2);
+        return;
+    }
     const selection = getSelectedProjectVersion();
     if (!selection.valid) {
         const summary = document.getElementById('project-version-summary');
         if (summary) summary.textContent = selection.message;
         return;
     }
+    if (action === 'update' && !document.getElementById('confirm-replace-install')?.checked) {
+        const summary = document.getElementById('project-version-summary');
+        if (summary) summary.textContent = 'Подтвердите замену кода и создание резервной копии перед обновлением.';
+        return;
+    }
     window.goToStep(2);
 };
 
 
+window.initializeProjectInstallDirectory = async function() {
+    try {
+        const result = await GetProjectInstallDirectory();
+        if (!result.success) {
+            projectInstallDirectoryVerified = false;
+            updateProjectDirectoryStatus(result.message || 'Не удалось определить каталог установки.', true);
+            return;
+        }
+        projectInstallDirectory = result.directory;
+        projectInstallState = result.installed;
+        projectInstallDirectoryVerified = true;
+        const input = document.getElementById('project-install-directory');
+        if (input) input.value = projectInstallDirectory;
+        updateProjectDirectoryStatus(result.message || ('Каталог установки: ' + projectInstallDirectory), Boolean(result.installed?.partial));
+        renderInstalledProjectState(projectInstallState, true);
+    } catch (error) {
+        projectInstallDirectoryVerified = false;
+        updateProjectDirectoryStatus('Не удалось определить каталог установки: ' + String(error), true);
+    }
+};
+
+window.cancelProjectInstallation = async function() {
+    const button = document.getElementById('btn-install-cancel');
+    if (button) button.disabled = true;
+    try {
+        const result = await CancelProjectInstallation();
+        const status = document.getElementById('install-text');
+        if (status && result.message) status.innerText = result.message;
+    } catch (error) {
+        const status = document.getElementById('install-text');
+        if (status) status.innerText = 'Не удалось отменить загрузку: ' + String(error);
+    } finally {
+        if (button) button.disabled = false;
+    }
+};
+
 setupSecretVisibilityToggles();
 updateStepProgress(1);
-window.initializeProjectVersions();
+window.initializeProjectInstallDirectory().then(() => window.initializeProjectVersions());

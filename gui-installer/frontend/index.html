@@ -56,6 +56,26 @@
                 <p class="subtitle">Выберите точный источник проекта. Перед загрузкой установщик разрешит его в commit SHA и закрепит эту версию на обоих серверах.</p>
 
                 <div class="version-picker">
+                    <div class="install-directory-settings">
+                        <label for="project-install-directory">Каталог установки ServeHub-2</label>
+                        <div class="install-directory-controls">
+                            <input type="text" id="project-install-directory" autocomplete="off" spellcheck="false" placeholder="Определяется при запуске" oninput="markProjectInstallDirectoryChanged()">
+                            <button type="button" class="btn-secondary" id="btn-choose-install-directory" onclick="chooseProjectInstallDirectory()">Выбрать</button>
+                            <button type="button" class="btn-secondary" id="btn-verify-install-directory" onclick="verifyProjectInstallDirectory()">Проверить каталог</button>
+                        </div>
+                        <div id="project-install-directory-status" class="version-summary" role="status">Определяем каталог установки...</div>
+                    </div>
+                    <fieldset class="project-action-list">
+                        <legend>Что сделать с проектом</legend>
+                        <label class="project-action-option"><input type="radio" name="project-action" value="use" onchange="updateProjectActionUI()"><span><strong>Использовать текущую установку</strong><small>Ничего не скачивать и не менять установленную версию.</small></span></label>
+                        <label class="project-action-option"><input type="radio" name="project-action" value="install" onchange="updateProjectActionUI()" checked><span><strong>Установить выбранную версию</strong><small>Загрузить в пустой каталог и проверить до активации.</small></span></label>
+                        <label class="project-action-option"><input type="radio" name="project-action" value="update" onchange="updateProjectActionUI()"><span><strong>Обновить / переключить версию</strong><small>Сначала загрузить и проверить новый код; старый каталог сохранить в резервной копии.</small></span></label>
+                        <label class="project-action-option"><input type="radio" name="project-action" value="recover" onchange="updateProjectActionUI()"><span><strong>Восстановить неполную установку</strong><small>Очистить временные загрузки и сохранить повреждённый каталог отдельно.</small></span></label>
+                    </fieldset>
+                    <label class="version-sha-toggle update-replacement-consent" id="confirm-replace-install-wrapper" style="display:none;">
+                        <input type="checkbox" id="confirm-replace-install" onchange="updateProjectActionUI()">
+                        Подтверждаю замену кода. Перед переключением старая папка будет сохранена; БД и данные контейнеров этим действием не откатываются.
+                    </label>
                     <label for="project-version-select">Источник и версия ServeHub-2</label>
                     <select id="project-version-select" onchange="updateProjectVersionPreview()" disabled>
                         <option value="release">Загружаем список релизов...</option>
@@ -85,7 +105,6 @@
 
                 <button type="button" id="btn-version-continue" class="btn-primary" onclick="continueFromVersionSelection()" disabled>Продолжить</button>
                 
-                <button type="button" class="btn-primary" onclick="goToStep(2)">Продолжить</button>
                 <div style="margin-top: auto; padding-top: 30px;">
                     <a href="https://github.com/canntstand/ServeHub-2" target="_blank" 
                     class="github-link"
@@ -131,6 +150,7 @@
                 </div>
 
                 <div class="button-group">
+                    <button type="button" id="btn-install-cancel" class="btn-secondary" onclick="cancelProjectInstallation()" style="display: none;">Отменить загрузку</button>
                     <button type="button" id="btn-install-retry" class="btn-secondary" onclick="runInstallation()" style="display: none;">Повторить</button>
                     <button type="button" id="btn-edit-secrets" class="btn-secondary" onclick="editExistingSecrets()" style="display: none;">Изменить конфигурацию</button>
                     <button type="button" id="btn-finish" class="btn-primary" onclick="goToStep(4)" disabled>Продолжить</button>
