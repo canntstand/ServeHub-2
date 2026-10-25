@@ -34,6 +34,13 @@
     - { path: "grafana/data", owner: "472", group: "472", mode: "0700" }
     - { path: "alloy", owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0750" }
 
+- name: "[Backup] Каталог метрик Borgmatic для Node Exporter на Edge"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/node-exporter/textfile"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 - name: "[Kernel] Загрузка модуля AmneziaWG"
   ansible.builtin.command:
     cmd: modprobe amneziawg
@@ -283,3 +290,13 @@
 - name: "[Status] Текущий статус контейнеров VPS"
   ansible.builtin.debug:
     var: docker_ps_status.stdout_lines
+
+- name: "[Backup] Настройка Borgmatic и off-site S3 для Edge"
+  ansible.builtin.include_tasks: setup_backup.yml
+  vars:
+    backup_role: edge
+    backup_repository_path: /var/lib/servehub-backup/edge-repo
+    backup_metrics_dir: "/home/{{ deploy_user }}/ServeHub-2/apps-data/node-exporter/textfile"
+    backup_compose_file: docker-compose.remote.yaml
+    backup_compose_services: "wg-easy adguardhome loki alertmanager prometheus grafana alloy"
+    backup_schedule_time: "03:00:00"

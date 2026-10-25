@@ -267,7 +267,7 @@
     group: "{{ deploy_user }}"
     mode: "u=rwX,g=rwX,o="
 
-- name: "[Backup] Проверка UUID заданного диска"
+- name: "[Backup] Проверка UUID отдельного диска"
   ansible.builtin.command:
     argv:
       - blkid
@@ -276,18 +276,18 @@
   register: disk_check
   changed_when: false
   failed_when: false
-  when: backup_disk_uuid | default('') | string | length > 0
+  when: backup_disk_uuid | default('') | string | trim | length > 0
 
 - name: "[Backup] Ошибка, если настроенный диск не найден"
   ansible.builtin.fail:
-    msg: "backup_disk_uuid задан, но диск с этим UUID не найден. Бэкапы не будут запускаться на корневой файловой системе."
+    msg: "backup_disk_uuid задан, но диск с этим UUID не найден. Исправьте UUID или оставьте значение пустым, чтобы использовать /var/lib/servehub-backup."
   when:
-    - backup_disk_uuid | default('') | string | length > 0
+    - backup_disk_uuid | default('') | string | trim | length > 0
     - disk_check.rc | default(1) != 0
 
-- name: "[Backup] Блок настройки резервного копирования"
+- name: "[Backup] Монтирование отдельного диска для локального репозитория"
   when:
-    - backup_disk_uuid | default('') | string | length > 0
+    - backup_disk_uuid | default('') | string | trim | length > 0
     - disk_check.rc | default(1) == 0
   block:
     - name: "[Backup] Монтирование диска и запись в fstab"
@@ -306,127 +306,15 @@
         group: root
         mode: "0700"
 
-    - name: "[Backup] Создание каталога конфигурации Borgmatic"
-      ansible.builtin.file:
-        path: /etc/borgmatic
-        state: directory
-        owner: root
-        group: root
-        mode: "0700"
-
-    - name: "[Backup] Проверка наличия парольной фразы шифрования"
-      ansible.builtin.assert:
-        that:
-          - (borgmatic_encryption_passphrase | default(borg_passphrase | default('')) | string | length) >= 20
-        fail_msg: >-
-          Для включённого Borgmatic задайте borgmatic_encryption_passphrase длиной
-          не менее 20 символов в vars/secrets.yml. Не запускайте зашифрованные
-          бэкапы с пустой парольной фразой.
-      no_log: true
-
-    - name: "[Backup] Генерация конфигурации Borgmatic"
-      ansible.builtin.template:
-        src: "{{ playbook_dir }}/templates/borgmatic_config.yaml.j2"
-        dest: /etc/borgmatic/config.yaml
-        owner: root
-        group: root
-        mode: "0600"
-      no_log: true
-
-    - name: "[Backup] Валидация конфигурации Borgmatic"
-      ansible.builtin.command:
-        argv:
-          - /usr/local/bin/borgmatic
-          - --config
-          - /etc/borgmatic/config.yaml
-          - config
-          - validate
-      changed_when: false
-      no_log: true
-
-    - name: "[Backup] Проверка наличия существующего репозитория Borg"
-      ansible.builtin.stat:
-        path: /mnt/backup_storage/server_backup.borg/config
-      register: borg_repo_stat
-
-    - name: "[Backup] Инициализация репозитория только при отсутствии config"
-      ansible.builtin.command:
-        argv:
-          - /usr/local/bin/borgmatic
-          - --config
-          - /etc/borgmatic/config.yaml
-          - repo-create
-          - --encryption
-          - repokey-blake2
-          - --make-parent-dirs
-      when: not borg_repo_stat.stat.exists
-      no_log: true
-
-    - name: "[Backup] Создание приватного кэша Borg"
-      ansible.builtin.file:
-        path: /root/.cache/borg
-        state: directory
-        owner: root
-        group: root
-        mode: "0700"
-
-    - name: "[Backup] Установка borgmatic.service"
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/borgmatic.service
-        owner: root
-        group: root
-        mode: "0644"
-        content: |
-          [Unit]
-          Description= borgmatic backup
-          Documentation=https://torsion.org/borgmatic/
-          Wants=network-online.target
-          After=network-online.target local-fs.target docker.service
-          RequiresMountsFor=/mnt/backup_storage
-          ConditionPathIsMountPoint=/mnt/backup_storage
-
-          [Service]
-          Type=oneshot
-          User=root
-          Environment=PATH=/usr/local/bin:/usr/bin:/bin
-          Environment=SERVEHUB_BORGMATIC_METRICS_DIR=/home/{{ deploy_user }}/ServeHub-2/apps-data/node-exporter/textfile
-          ExecStart=/bin/bash /home/{{ deploy_user }}/ServeHub-2/scripts/borgmatic_with_metrics.sh
-          Nice=19
-          IOSchedulingClass=best-effort
-          IOSchedulingPriority=7
-          TimeoutStartSec=6h
-      register: borgmatic_service_file
-
-    - name: "[Backup] Установка borgmatic.timer"
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/borgmatic.timer
-        owner: root
-        group: root
-        mode: "0644"
-        content: |
-          [Unit]
-          Description=Run borgmatic backups daily
-
-          [Timer]
-          OnCalendar=*-*-* 04:00:00
-          RandomizedDelaySec=15m
-          Persistent=true
-
-          [Install]
-          WantedBy=timers.target
-      register: borgmatic_timer_file
-
-    - name: "[Backup] Перечитывание systemd при изменении unit-файлов"
-      ansible.builtin.systemd_service:
-        daemon_reload: true
-      when: borgmatic_service_file.changed or borgmatic_timer_file.changed
-
-    - name: "[Backup] Включение и запуск borgmatic.timer"
-      ansible.builtin.systemd_service:
-        name: borgmatic.timer
-        enabled: true
-        state: started
-
+- name: "[Backup] Настройка Borgmatic и off-site S3 для Workload"
+  ansible.builtin.include_tasks: setup_backup.yml
+  vars:
+    backup_role: workload
+    backup_repository_path: "{{ '/mnt/backup_storage/server_backup.borg' if (backup_disk_uuid | default('') | string | trim | length > 0) else '/var/lib/servehub-backup/workload-repo' }}"
+    backup_metrics_dir: "/home/{{ deploy_user }}/ServeHub-2/apps-data/node-exporter/textfile"
+    backup_compose_file: docker-compose.local.yaml
+    backup_compose_services: "alloy navidrome audiobookshelf nextcloud-db nextcloud-redis nextcloud nextcloud-cron vaultwarden-db vaultwarden gitea habitica habitica-client habitica-db homebox-db homebox"
+    backup_schedule_time: "04:00:00"
 - name: "[Kernel] Проверка/загрузка модуля AmneziaWG"
   ansible.builtin.command:
     cmd: modprobe amneziawg
