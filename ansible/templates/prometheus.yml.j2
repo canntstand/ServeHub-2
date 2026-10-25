@@ -34,7 +34,7 @@ scrape_configs:
       - targets: ["https://grafana.{{ server_name }}/api/health"]
         labels:
           check_name: "Grafana"
-      - targets: ["https://hermes.{{ server_name }}/"]
+      - targets: ["https://hermes.{{ server_name }}/health-check"]
         labels:
           check_name: "Hermes Agent"
       - targets: ["https://prometheus.{{ server_name }}/-/ready"]
