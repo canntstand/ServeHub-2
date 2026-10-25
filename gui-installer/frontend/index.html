@@ -150,16 +150,16 @@
                     <div class="form-section-title">1. Сеть и пользователи</div>
                     <div class="form-group">
                         <label>Публичный IP VPS:</label>
-                        <input type="text" id="sec_vps_ip" value="your_vps_public_ip">
+                        <input type="text" id="sec_vps_ip" value="" placeholder="Публичный IPv4 VPS">
                     </div>
                     <div class="form-group">
                         <label>Имя пользователя VPS (SSH/sudo):</label>
-                        <input type="text" id="sec_vps_user" value="your_vps_username">
+                        <input type="text" id="sec_vps_user" value="" placeholder="Пользователь Linux на VPS">
                     </div>
                     <div class="form-group">
                         <label>Пароль root VPS (для полного bootstrap):</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_vps_root_pass" value="your_vps_root_password" autocomplete="new-password">
+                            <input type="password" id="sec_vps_root_pass" value="" autocomplete="new-password" placeholder="Для полного bootstrap" autocomplete="new-password">
                         </div>
                     </div>
                     <div class="form-group">
@@ -172,16 +172,16 @@
                     </div>
                     <div class="form-group">
                         <label>Приватный IP домашнего сервера:</label>
-                        <input type="text" id="sec_local_ip" value="your_local_private_ip">
+                        <input type="text" id="sec_local_ip" value="" placeholder="IPv4 домашнего сервера">
                     </div>
                     <div class="form-group">
                         <label>Пользователь домашнего сервера:</label>
-                        <input type="text" id="sec_local_user" value="your_local_username">
+                        <input type="text" id="sec_local_user" value="" placeholder="Пользователь Linux на Workload">
                     </div>
                     <div class="form-group">
                         <label>Пароль root домашнего сервера (для полного bootstrap):</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_local_root_pass" value="your_local_root_password" autocomplete="new-password">
+                            <input type="password" id="sec_local_root_pass" value="" autocomplete="new-password" placeholder="Для полного bootstrap" autocomplete="new-password">
                         </div>
                     </div>
                     <div class="form-group">
@@ -196,7 +196,7 @@
                     <div class="form-section-title">2. Глобальные параметры</div>
                     <div class="form-group">
                         <label>Доменное имя проекта (например: server.ru):</label>
-                        <input type="text" id="sec_server_name" value="your_domain.ru">
+                        <input type="text" id="sec_server_name" value="" placeholder="server.example.org">
                     </div>
                     <div class="form-group">
                         <label>Имя учетной записи администратора:</label>
@@ -210,7 +210,7 @@
                     </div>
                     <div class="form-group">
                         <label>Email (для генерации SSL-сертификатов через Certbot):</label>
-                        <input type="text" id="sec_email" value="your_primary_email@gmail.com">
+                        <input type="text" id="sec_email" value="" placeholder="admin@example.org">
                     </div>
 
                     <div class="form-section-title">3. Уведомления Telegram</div>
@@ -220,7 +220,7 @@
                     </div>
                     <div class="form-group">
                         <label>Telegram Chat ID:</label>
-                        <input type="text" id="sec_tg_chat_id" value="telegram_chat_id_of_the_bot_you_created">
+                        <input type="text" id="sec_tg_chat_id" value="" inputmode="numeric" placeholder="Числовой Chat ID">
                     </div>
 
                     <div class="form-section-title">4. Интеграция с DNS</div>
@@ -267,7 +267,7 @@
                     </div>
                     <div class="form-group">
                         <label>Публичный SSH-ключ для установки на серверы:</label>
-                        <input type="text" id="sec_public_ssh_key" value="ssh_desktop_public_key_where_ansible_is_installed">
+                        <input type="text" id="sec_public_ssh_key" value="" placeholder="Публичный ключ из пары ниже">
                     </div>
                     <div class="form-group">
                         <label>Приватный SSH-ключ контроллера (необходим для Ansible):</label>
