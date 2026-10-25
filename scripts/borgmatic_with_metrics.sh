@@ -39,6 +39,7 @@ OFFSITE_STATUS=0
 STACK_RESTORE_STATUS=1
 PIPELINE_STATUS=1
 STACK_START_NEEDED=0
+METRICS_PUBLISHED=0
 RUNNING_SERVICES=()
 STOP_SERVICES=()
 LOCK_FILE="/run/lock/servehub-borgmatic-${BACKUP_ROLE}.lock"
@@ -79,8 +80,50 @@ restore_services() {
 
 on_exit() {
     local original_status=$?
+    local retried_restore=0
     trap - EXIT
-    restore_services >/dev/null 2>&1 || true
+
+    if (( STACK_START_NEEDED )); then
+        retried_restore=1
+        restore_services >/dev/null 2>&1 || true
+    fi
+
+    # If the safety-net retry restored services after metrics were published,
+    # reflect that recovery immediately rather than leaving a stale restore alert.
+    if (( retried_restore && METRICS_PUBLISHED )); then
+        LAST_RUN_TIMESTAMP="$(date +%s)"
+        if (( BORG_STATUS == 0 && OFFSITE_STATUS == 1 && STACK_RESTORE_STATUS == 1 )); then
+            PIPELINE_STATUS=0
+            LAST_PIPELINE_SUCCESS="$LAST_RUN_TIMESTAMP"
+        else
+            PIPELINE_STATUS=1
+        fi
+
+        local temporary_file
+        if temporary_file="$(mktemp "${METRICS_FILE}.tmp.XXXXXX")"; then
+            if awk \
+                -v stack="$STACK_RESTORE_STATUS" \
+                -v pipeline="$PIPELINE_STATUS" \
+                -v last_success="$LAST_PIPELINE_SUCCESS" '
+                $1 == "servehub_backup_stack_restore_success" { $2 = stack }
+                $1 == "servehub_backup_pipeline_last_run_success" { $2 = pipeline }
+                $1 == "servehub_backup_pipeline_last_success_timestamp_seconds" { $2 = last_success }
+                { print }
+            ' "$METRICS_FILE" > "$temporary_file" \
+                && chmod 0644 "$temporary_file" \
+                && mv -f "$temporary_file" "$METRICS_FILE"; then
+                original_status="$PIPELINE_STATUS"
+            else
+                rm -f "$temporary_file"
+                echo "[ERROR] Could not update backup metrics after the final service restoration retry." >&2
+                original_status=70
+            fi
+        else
+            echo "[ERROR] Could not create temporary metrics file after service restoration retry." >&2
+            original_status=70
+        fi
+    fi
+
     exit "$original_status"
 }
 trap on_exit EXIT
@@ -209,5 +252,6 @@ if ! chmod 0644 "$temporary_file" || ! mv -f "$temporary_file" "$METRICS_FILE"; 
     echo "[ERROR] Cannot publish Prometheus metrics." >&2
     exit 70
 fi
+METRICS_PUBLISHED=1
 
 exit "$PIPELINE_STATUS"
