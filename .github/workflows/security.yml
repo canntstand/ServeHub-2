@@ -79,6 +79,7 @@ jobs:
         run: |
           set -euo pipefail
           sh -n scripts/ansible-entrypoint.sh
+          bash -n scripts/borgmatic_with_metrics.sh
           python - <<'PY'
           import re
           import subprocess
