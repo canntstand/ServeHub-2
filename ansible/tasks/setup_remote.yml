@@ -12,7 +12,7 @@
     fail_msg: >-
       Hermes is a required Edge service. Set hermes_api_base_url, hermes_api_key, hermes_model,
       and a 64-character hexadecimal hermes_dashboard_basic_auth_secret in ansible/vars/secrets.yml.
-  no_log: true
+ 
 
 - name: "[Hermes] Создание каталога постоянных данных"
   ansible.builtin.file:
