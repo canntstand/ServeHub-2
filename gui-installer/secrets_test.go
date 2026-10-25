@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -360,5 +361,47 @@ func TestSecretFormFieldNamesAreUnique(t *testing.T) {
 	if err := yaml.Unmarshal([]byte("value: unquoted
 "), &node); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestEditableSecretFieldsCoverExampleAndFrontend(t *testing.T) {
+	template, err := os.ReadFile(filepath.Join("..", "ansible", "vars", "secrets.yml.example"))
+	if err != nil {
+		t.Fatalf("read secrets example: %v", err)
+	}
+	document, err := parseSecretsYAML(template)
+	if err != nil {
+		t.Fatalf("parse secrets example: %v", err)
+	}
+	for i := 0; i+1 < len(document.Content[0].Content); i += 2 {
+		key := document.Content[0].Content[i].Value
+		if _, exists := editableSecretFields[key]; !exists {
+			t.Errorf("supported secrets.yml.example key %q is not registered as an editable field", key)
+		}
+	}
+
+	js, err := os.ReadFile(filepath.Join("frontend", "src", "main.js"))
+	if err != nil {
+		t.Fatalf("read frontend mapping: %v", err)
+	}
+	html, err := os.ReadFile(filepath.Join("frontend", "index.html"))
+	if err != nil {
+		t.Fatalf("read frontend form: %v", err)
+	}
+	mappingPattern := regexp.MustCompile("(?m)^\\s*([a-z_][a-z0-9_]*):\\s*'([^']+)'")
+	matches := mappingPattern.FindAllSubmatch(js, -1)
+	formIDs := make(map[string]string, len(matches))
+	for _, match := range matches {
+		formIDs[string(match[1])] = string(match[2])
+	}
+	for key := range editableSecretFields {
+		fieldID, mapped := formIDs[key]
+		if !mapped {
+			t.Errorf("supported secret %q is missing from the frontend field map", key)
+			continue
+		}
+		if !strings.Contains(string(html), "id=\""+fieldID+"\"") {
+			t.Errorf("mapped frontend control id %q for %q is missing from index.html", fieldID, key)
+		}
 	}
 }
