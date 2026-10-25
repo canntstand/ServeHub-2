@@ -14,8 +14,9 @@ Borg/Borgmatic creates an encrypted local repository on each host. After Borg ha
 
 ## Initial setup
 
-1. Create a private cold-storage bucket in Timeweb Cloud. Create an additional S3 user with read/write access only to this bucket; do not use the account's main key.
-2. Set `offsite_s3_bucket`, `offsite_s3_access_key_id`, `offsite_s3_secret_access_key`, endpoint/region, and distinct `workload`/`edge` prefixes in `ansible/vars/secrets.yml`.
+1. Create a private cold-storage bucket in Timeweb Cloud.
+2. Under **Users**, create a separate S3 user with **Read and write** access only to `servehub-2-bucket`. Verify the **Access rights** tab and avoid the account's main key. Both servers will use this user's single key pair.
+3. Set `offsite_s3_bucket`, `offsite_s3_access_key_id`, `offsite_s3_secret_access_key`, endpoint/region, and distinct `workload`/`edge` prefixes in `ansible/vars/secrets.yml`.
 3. Set the same `borgmatic_encryption_passphrase` on both hosts (at least 20 characters). Store it separately: without it, encrypted backups cannot be recovered.
 4. Re-run the Ansible deployment from `dev`. Ansible installs Borgmatic and rclone, verifies S3 read/write/delete access with a small temporary object, creates root-only config files, and enables timers. `main` is not modified.
 5. After deployment, trigger the first backup on each host with `sudo systemctl start borgmatic.service`.
