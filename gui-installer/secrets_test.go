@@ -228,15 +228,22 @@ func TestPreviewSecretsPreservesConfigurationAndUsesTemplateWhenMissing(t *testi
 
 func TestSaveSecretsValidatesReadbackAndSets0600(t *testing.T) {
 	varsDir := setupSecretsTestProject(t)
-	content := strings.Join([]string{
+	template := strings.Join([]string{
 		"# preserve custom settings",
-		"server_name: example.org",
+		"server_name: template.example",
 		"telegram_chat_id: -100123",
 		"custom_setting:",
 		"  nested: yes",
 	}, string(rune(10)))
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml.example"), template, 0600)
+
 	app := &App{}
-	saved := app.SaveSecrets(content)
+	updates := map[string]string{"server_name": "example.org"}
+	preview := app.PreviewSecrets(updates)
+	if !preview.Success {
+		t.Fatalf("preview failed: %s", preview.Message)
+	}
+	saved := app.SaveSecrets(updates, preview.Content)
 	if !saved.Success {
 		t.Fatalf("save failed: %s", saved.Message)
 	}
@@ -261,9 +268,10 @@ func TestSaveSecretsValidatesReadbackAndSets0600(t *testing.T) {
 	}
 
 	before := string(readBack)
-	invalid := app.SaveSecrets(strings.Join([]string{"server_name: first", "server_name: second"}, string(rune(10))))
+	invalidPreview := strings.Join([]string{"server_name: first", "server_name: second"}, string(rune(10)))
+	invalid := app.SaveSecrets(map[string]string{"server_name": "other.example"}, invalidPreview)
 	if invalid.Success {
-		t.Fatal("invalid YAML should not be saved")
+		t.Fatal("invalid preview YAML should not be saved")
 	}
 	after, err := os.ReadFile(path)
 	if err != nil {
@@ -387,30 +395,36 @@ func TestEditableSecretFieldsCoverExampleAndFrontend(t *testing.T) {
 	}
 }
 
-func TestSaveSecretsPreservesFieldsOmittedFromSubmittedDocument(t *testing.T) {
+func TestSaveSecretsPreservesUnchangedFieldsAndExplicitlyDeletesOptionalValues(t *testing.T) {
 	varsDir := setupSecretsTestProject(t)
-	template := strings.Join([]string{
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml.example"), strings.Join([]string{
 		"server_name: template.example",
 		"telegram_chat_id: -10042",
-		"borgmatic_version: 2.1.10",
 		"template_custom: retained",
-	}, string(rune(10)))
-	writeTestFile(t, filepath.Join(varsDir, "secrets.yml.example"), template, 0600)
-
-	current := strings.Join([]string{
+	}, string(rune(10))), 0600)
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml"), strings.Join([]string{
 		"server_name: old.example",
 		"telegram_chat_id: -100123",
 		"feature_enabled: true",
 		"custom_settings:",
 		"  nested: preserved",
 		"borgmatic_version: 2.1.10",
-	}, string(rune(10)))
-	writeTestFile(t, filepath.Join(varsDir, "secrets.yml"), current, 0600)
+	}, string(rune(10))), 0600)
 
-	saved := (&App{}).SaveSecrets("server_name: new.example")
-	if !saved.Success {
-		t.Fatalf("partial save failed: %s", saved.Message)
+	app := &App{}
+	updates := map[string]string{
+		"server_name": "new.example",
+		"borgmatic_version": "",
 	}
+	preview := app.PreviewSecrets(updates)
+	if !preview.Success {
+		t.Fatalf("preview failed: %s", preview.Message)
+	}
+	saved := app.SaveSecrets(updates, preview.Content)
+	if !saved.Success {
+		t.Fatalf("save failed: %s", saved.Message)
+	}
+
 	content, err := os.ReadFile(filepath.Join(varsDir, "secrets.yml"))
 	if err != nil {
 		t.Fatal(err)
@@ -434,7 +448,7 @@ func TestSaveSecretsPreservesFieldsOmittedFromSubmittedDocument(t *testing.T) {
 		t.Fatalf("custom nested settings were lost: %s", content)
 	}
 	if _, exists := values["borgmatic_version"]; exists {
-		t.Fatal("a blank/missing optional version should remain removed when requested")
+		t.Fatal("explicitly cleared optional version should be removed")
 	}
 }
 

@@ -388,74 +388,30 @@ func (a *App) PreviewSecrets(updates map[string]string) SecretsResult {
 }
 
 
-func preserveExistingSecretFields(source, incoming *yaml.Node) error {
-	if source == nil || incoming == nil ||
-		source.Kind != yaml.DocumentNode || incoming.Kind != yaml.DocumentNode ||
-		len(source.Content) != 1 || len(incoming.Content) != 1 ||
-		source.Content[0].Kind != yaml.MappingNode || incoming.Content[0].Kind != yaml.MappingNode {
-		return errors.New("невозможно сохранить исходные параметры: ожидаются YAML-словари")
-	}
-	sourceRoot := source.Content[0]
-	incomingRoot := incoming.Content[0]
-
-	for i := 0; i+1 < len(sourceRoot.Content); i += 2 {
-		keyNode := sourceRoot.Content[i]
-		valueNode := sourceRoot.Content[i+1]
-		if keyNode.Kind != yaml.ScalarNode || keyNode.Tag != "!!str" {
-			continue
-		}
-		key := keyNode.Value
-		incomingIndex := -1
-		for j := 0; j+1 < len(incomingRoot.Content); j += 2 {
-			if incomingRoot.Content[j].Kind == yaml.ScalarNode &&
-				incomingRoot.Content[j].Tag == "!!str" &&
-				incomingRoot.Content[j].Value == key {
-				incomingIndex = j
-				break
-			}
-		}
-
-		if incomingIndex < 0 {
-			if _, optional := optionalSecretFields[key]; optional {
-				// Missing optional keys are the explicit result of clearing their form fields.
-				continue
-			}
-			// A partial save must not delete known required values or custom settings.
-			incomingRoot.Content = append(incomingRoot.Content, keyNode, valueNode)
-			continue
-		}
-
-		if _, formManaged := editableSecretFields[key]; !formManaged {
-			// Custom keys are not represented in the form; retain their original nodes,
-			// comments, YAML types, and nested structure even if the submitted document
-			// accidentally altered or omitted them.
-			incomingRoot.Content[incomingIndex] = keyNode
-			incomingRoot.Content[incomingIndex+1] = valueNode
-		}
-	}
-	return validateSecretYAMLNode(incomingRoot, "$")
-}
-
-func (a *App) SaveSecrets(yamlContent string) CheckResult {
+func (a *App) SaveSecrets(updates map[string]string, expectedYAML string) CheckResult {
 	dir, targetPath, _ := secretsPaths()
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return CheckResult{Success: false, Message: "Не удалось создать каталог конфигурации: " + err.Error()}
 	}
 
-	inputDocument, err := parseSecretsYAML([]byte(yamlContent))
+	_, document, _, _, err := loadSecretsSource()
+	if err != nil {
+		return CheckResult{Success: false, Message: "Файл не сохранён: не удалось прочитать исходную конфигурацию: " + err.Error()}
+	}
+	if err := mergeSecretUpdates(document, updates); err != nil {
+		return CheckResult{Success: false, Message: "Файл не сохранён: не удалось применить изменения: " + err.Error()}
+	}
+	normalized, err := marshalSecretsYAML(document)
 	if err != nil {
 		return CheckResult{Success: false, Message: "Файл не сохранён: итоговый YAML не прошёл проверку: " + err.Error()}
 	}
-	_, sourceDocument, _, _, err := loadSecretsSource()
+
+	previewDocument, err := parseSecretsYAML([]byte(expectedYAML))
 	if err != nil {
-		return CheckResult{Success: false, Message: "Файл не сохранён: не удалось проверить исходную конфигурацию: " + err.Error()}
+		return CheckResult{Success: false, Message: "Файл не сохранён: YAML предпросмотра не прошёл повторную проверку: " + err.Error()}
 	}
-	if err := preserveExistingSecretFields(sourceDocument, inputDocument); err != nil {
-		return CheckResult{Success: false, Message: "Файл не сохранён: не удалось сохранить исходные параметры: " + err.Error()}
-	}
-	normalized, err := marshalSecretsYAML(inputDocument)
-	if err != nil {
-		return CheckResult{Success: false, Message: "Файл не сохранён: не удалось сериализовать YAML: " + err.Error()}
+	if !secretYAMLEquivalent(document, previewDocument) {
+		return CheckResult{Success: false, Message: "Файл не сохранён: исходная конфигурация изменилась после предпросмотра. Вернитесь к форме и заново проверьте итоговый YAML."}
 	}
 
 	if err := writeSecretsAtomically(targetPath, normalized); err != nil {
@@ -470,7 +426,7 @@ func (a *App) SaveSecrets(yamlContent string) CheckResult {
 	if err != nil {
 		return CheckResult{Success: false, Message: "Файл записан, но повторная проверка YAML не пройдена: " + err.Error()}
 	}
-	if !secretYAMLEquivalent(inputDocument, readDocument) {
+	if !secretYAMLEquivalent(document, readDocument) {
 		return CheckResult{Success: false, Message: "Файл записан, но содержимое после чтения отличается от проверенной конфигурации."}
 	}
 	info, err := os.Stat(targetPath)
@@ -482,7 +438,7 @@ func (a *App) SaveSecrets(yamlContent string) CheckResult {
 	}
 	return CheckResult{
 		Success: true,
-		Exists: true,
+		Exists:  true,
 		Message: "secrets.yml сохранён атомарно, повторно прочитан, проверен YAML-парсером и имеет права 0600 на Linux.",
 	}
 }

@@ -3,6 +3,7 @@ import { CheckDocker, InstallProject, GetProjectVersions, ResolveProjectVersion,
 import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
 let generatedYamlString = "";
+let generatedSecretUpdates = {};
 let sourceSecretValues = {};
 let sourceSecretIsTemplate = true;
 
@@ -507,6 +508,7 @@ window.generateAndReviewYaml = async function() {
             alert('Итоговый secrets.yml не прошёл проверку: ' + preview.message);
             return;
         }
+        generatedSecretUpdates = { ...updates };
         generatedYamlString = preview.content;
         document.getElementById('yaml-preview').innerText = generatedYamlString;
 
@@ -547,7 +549,7 @@ window.copyYamlToClipboard = async function() {
 
 window.saveYamlAndFinish = async function() {
     try {
-        const result = await SaveSecrets(generatedYamlString);
+        const result = await SaveSecrets(generatedSecretUpdates, generatedYamlString);
         if (result.success) {
             goToStep(6);
         } else {
