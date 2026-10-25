@@ -358,8 +358,7 @@ func TestSecretFormFieldNamesAreUnique(t *testing.T) {
 	}
 	// yaml.v3 is also the parser used by the installer, not a regex approximation.
 	var node yaml.Node
-	if err := yaml.Unmarshal([]byte("value: unquoted
-"), &node); err != nil {
+	if err := yaml.Unmarshal([]byte("value: unquoted\n"), &node); err != nil {
 		t.Fatal(err)
 	}
 }
