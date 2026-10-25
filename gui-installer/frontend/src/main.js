@@ -281,13 +281,13 @@ window.generateAndReviewYaml = function() {
     const privatesshKey = document.getElementById('sec_private_ssh_key').value;
     const borgPass = document.getElementById('sec_borg_pass').value;
     const diskUuid = document.getElementById('sec_disk_uuid').value;
-    const s3Endpoint = document.getElementById('sec_s3_endpoint').value;
-    const s3Region = document.getElementById('sec_s3_region').value;
-    const s3Bucket = document.getElementById('sec_s3_bucket').value;
-    const s3AccessKey = document.getElementById('sec_s3_access_key').value;
-    const s3SecretKey = document.getElementById('sec_s3_secret_key').value;
-    const s3WorkloadPrefix = document.getElementById('sec_s3_workload_prefix').value;
-    const s3EdgePrefix = document.getElementById('sec_s3_edge_prefix').value;
+    const s3Endpoint = document.getElementById('sec_s3_endpoint').value.trim().replace(/\/+$/, '');
+    const s3Region = document.getElementById('sec_s3_region').value.trim();
+    const s3Bucket = document.getElementById('sec_s3_bucket').value.trim();
+    const s3AccessKey = document.getElementById('sec_s3_access_key').value.trim();
+    const s3SecretKey = document.getElementById('sec_s3_secret_key').value.trim();
+    const s3WorkloadPrefix = document.getElementById('sec_s3_workload_prefix').value.trim();
+    const s3EdgePrefix = document.getElementById('sec_s3_edge_prefix').value.trim();
 
     const backupFields = {
         passphrase: document.getElementById('sec_borg_pass'),
