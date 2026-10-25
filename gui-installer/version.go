@@ -346,16 +346,26 @@ func (a *App) ResolveProjectVersion(mode, ref, expectedSHA string) ProjectVersio
 
 // InstallProject downloads a resolved commit into a staging directory, verifies
 // the archive and Ansible Git task, then switches the project directory with rollback.
-func (a *App) InstallProject(mode, ref, expectedSHA string) CheckResult {
+func (a *App) InstallProject(mode, ref, expectedSHA string, replaceLegacy bool) CheckResult {
 	targetDir, err := filepath.Abs(projectInstallDirName)
 	if err != nil {
 		return CheckResult{Success: false, Message: "Не удалось определить каталог проекта: " + err.Error()}
 	}
 	state := getProjectInstallState(targetDir)
-	if state.Exists && !state.KnownVersion {
-		return CheckResult{
-			Success: false,
-			Message: "Обнаружен существующий каталог ServeHub-2-dev без корректных метаданных версии. Он не изменён. Сделайте резервную копию и вручную переименуйте или переместите этот каталог, затем перезапустите установщик. Автоматически приписывать ему версию небезопасно.",
+	legacyReplacement := state.Exists && !state.KnownVersion
+	if legacyReplacement {
+		info, statErr := os.Lstat(targetDir)
+		if statErr != nil {
+			return CheckResult{Success: false, Message: "Не удалось безопасно проверить старый каталог проекта: " + statErr.Error()}
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return CheckResult{Success: false, Message: "Путь установки не является обычным каталогом. Автоматическое переключение запрещено."}
+		}
+		if err := verifyProjectDirectory(targetDir); err != nil {
+			return CheckResult{Success: false, Message: "Существующий каталог без метаданных не похож на полноценную установку ServeHub-2 и не будет заменён автоматически: " + err.Error()}
+		}
+		if !replaceLegacy {
+			return CheckResult{Success: false, Message: "Найдена старая установка без метаданных версии. Подтвердите её миграцию в интерфейсе: прежний каталог будет сохранён в резервную копию, а выбранный commit установлен отдельно."}
 		}
 	}
 
@@ -422,7 +432,7 @@ func (a *App) InstallProject(mode, ref, expectedSHA string) CheckResult {
 		return CheckResult{Success: false, Message: "Не удалось подтвердить закрепление версии для серверов: " + err.Error()}
 	}
 
-	if state.KnownVersion {
+	if state.KnownVersion || legacyReplacement {
 		oldSecrets := filepath.Join(targetDir, "ansible", "vars", "secrets.yml")
 		newSecrets := filepath.Join(projectDir, "ansible", "vars", "secrets.yml")
 		if err := copySecretsIfPresent(oldSecrets, newSecrets); err != nil {
@@ -453,7 +463,11 @@ func (a *App) InstallProject(mode, ref, expectedSHA string) CheckResult {
 
 	backupDir := ""
 	if state.Exists {
-		placeholder, err := os.MkdirTemp(parentDir, ".servehub-previous-")
+		backupPrefix := ".servehub-previous-"
+		if legacyReplacement {
+			backupPrefix = ".servehub-legacy-backup-"
+		}
+		placeholder, err := os.MkdirTemp(parentDir, backupPrefix)
 		if err != nil {
 			return CheckResult{Success: false, Message: "Не удалось подготовить безопасное переключение каталога: " + err.Error()}
 		}
@@ -482,7 +496,9 @@ func (a *App) InstallProject(mode, ref, expectedSHA string) CheckResult {
 		message += " Совместимость старого Ansible playbook проверена: " + compatibilityPatch
 	}
 	if backupDir != "" {
-		if err := os.RemoveAll(backupDir); err != nil {
+		if legacyReplacement {
+			message += " Предыдущая установка без метаданных сохранена в резервной копии: " + backupDir
+		} else if err := os.RemoveAll(backupDir); err != nil {
 			message += " Предыдущий каталог сохранён для ручного удаления: " + backupDir
 		}
 	}

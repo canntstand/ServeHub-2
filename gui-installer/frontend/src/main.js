@@ -123,7 +123,9 @@ window.runInstallation = async function() {
             btnRetry.style.display = 'inline-block';
             return;
         }
-        const result = await InstallProject(selection.mode, selection.ref, selection.expectedSHA);
+        const migrationConsent = document.getElementById('replace-legacy-project');
+        const replaceLegacy = Boolean(migrationConsent && migrationConsent.checked);
+        const result = await InstallProject(selection.mode, selection.ref, selection.expectedSHA, replaceLegacy);
         
         if (result.success) {
             const secretsCheck = await CheckSecrets();
@@ -692,15 +694,18 @@ function selectedVersionOption() {
 
 function setProjectVersionContinueEnabled(enabled) {
     const button = document.getElementById('btn-version-continue');
-    if (button) button.disabled = !enabled || !projectVersionsLoaded || legacyInstallBlocked;
+    const consent = document.getElementById('replace-legacy-project');
+    const migrationAllowed = !legacyInstallBlocked || Boolean(consent && consent.checked);
+    if (button) button.disabled = !enabled || !projectVersionsLoaded || !migrationAllowed;
 }
 
 function getSelectedProjectVersion() {
     if (!projectVersionsLoaded) {
         return { valid: false, message: 'Список версий ещё не загружен. Обновите список и повторите.' };
     }
-    if (legacyInstallBlocked) {
-        return { valid: false, message: 'Сначала вручную переместите существующий каталог без метаданных версии, затем перезапустите установщик.' };
+    const migrationConsent = document.getElementById('replace-legacy-project');
+    if (legacyInstallBlocked && !(migrationConsent && migrationConsent.checked)) {
+        return { valid: false, message: 'Существующая установка не содержит метаданных. Подтвердите резервное сохранение старого каталога, прежде чем продолжить.' };
     }
     const useCommit = document.getElementById('use-project-commit-sha');
     if (useCommit && useCommit.checked) {
@@ -795,11 +800,17 @@ function renderInstalledProjectState(state, initialLoad) {
     if (!note) return;
 
     legacyInstallBlocked = Boolean(state && state.exists && !state.knownVersion);
+    const consentWrapper = document.getElementById('legacy-migration-consent-wrapper');
+    const consentCheckbox = document.getElementById('replace-legacy-project');
     if (legacyInstallBlocked) {
         note.style.display = 'block';
         note.classList.add('is-warning');
-        note.textContent = 'Найдена прежняя папка ServeHub-2-dev без корректного .servehub-version.json. Установщик не будет перезаписывать её или угадывать версию. Сделайте резервную копию, переместите папку вручную и откройте установщик снова.';
+        note.textContent = 'Найдена прежняя папка ServeHub-2-dev без корректного .servehub-version.json. Её фактический commit определить нельзя. Для миграции нужно отдельное подтверждение: установщик сохранит всю прежнюю папку в резервной копии и перенесёт secrets.yml, если он является обычным файлом.';
+        if (consentWrapper) consentWrapper.style.display = 'flex';
+        if (consentCheckbox && initialLoad) consentCheckbox.checked = false;
     } else if (state && state.exists && state.knownVersion) {
+        if (consentWrapper) consentWrapper.style.display = 'none';
+        if (consentCheckbox) consentCheckbox.checked = false;
         const meta = state.metadata;
         const sha = meta.commit_sha;
         note.style.display = 'block';
@@ -815,6 +826,8 @@ function renderInstalledProjectState(state, initialLoad) {
     } else {
         note.style.display = 'none';
         note.textContent = '';
+        if (consentWrapper) consentWrapper.style.display = 'none';
+        if (consentCheckbox) consentCheckbox.checked = false;
     }
     if (useCommit) useCommit.disabled = false;
     if (select) select.disabled = Boolean(useCommit && useCommit.checked);
@@ -918,7 +931,9 @@ window.updateProjectVersionPreview = function() {
     const warning = document.getElementById('project-version-warning');
     const useCommit = document.getElementById('use-project-commit-sha');
     if (!summary || !warning) return;
-    if (legacyInstallBlocked) {
+    const migrationConsent = document.getElementById('replace-legacy-project');
+    if (legacyInstallBlocked && !(migrationConsent && migrationConsent.checked)) {
+        summary.textContent = 'Существующая папка не содержит закреплённой версии. Подтвердите её резервное сохранение, чтобы продолжить с выбранным commit.';
         setProjectVersionContinueEnabled(false);
         return;
     }
@@ -927,7 +942,9 @@ window.updateProjectVersionPreview = function() {
         const rawSHA = input ? input.value.trim() : '';
         if (isFullSHA(resolvedProjectCommitSHA) && projectCommitInputAtResolution === rawSHA) {
             summary.textContent = 'Будет установлен commit ' + resolvedProjectCommitSHA + '.';
-            warning.textContent = 'При указании SHA установщик использует именно этот commit, даже если ветки и теги позже изменятся.';
+            warning.textContent = legacyInstallBlocked
+                ? 'Будет установлен указанный commit. Существующая установка без метаданных будет сохранена целиком в резервной папке; secrets.yml будет перенесён, если это обычный файл.'
+                : 'При указании SHA установщик использует именно этот commit, даже если ветки и теги позже изменятся.';
             setProjectVersionContinueEnabled(true);
         } else {
             summary.textContent = 'Для продолжения требуется проверить введённый commit SHA.';
@@ -943,7 +960,9 @@ window.updateProjectVersionPreview = function() {
     }
     summary.textContent = 'Будет установлен источник ' + (option.dataset.ref || option.textContent) +
         ' на commit ' + option.dataset.sha + '.';
-    if (option.value === 'dev') {
+    if (legacyInstallBlocked) {
+        warning.textContent = 'Выбранный commit заменит папку без известной версии. Прежняя папка останется в резервной копии; секреты будут перенесены безопасно. Проверьте, что выбранная версия совместима с вашей инфраструктурой.';
+    } else if (option.value === 'dev') {
         warning.textContent = 'Ветка dev может быть нестабильной и содержит незавершённые изменения. SHA фиксируется до загрузки; если ветка изменится, установка остановится, а не переключится незаметно.';
     } else {
         warning.textContent = 'Выбранный релиз или тег может отличаться от ветки dev по сервисам и архитектуре. Установщик развернёт выбранную версию и закрепит тот же commit на серверах.';

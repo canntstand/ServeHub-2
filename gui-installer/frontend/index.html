@@ -74,6 +74,10 @@
                         <div id="project-commit-summary" class="version-summary">Укажите SHA, чтобы проверить его перед загрузкой.</div>
                     </details>
                     <div id="project-installed-note" class="project-installed-note" role="status" style="display:none;"></div>
+                    <label class="version-sha-toggle legacy-migration-consent" id="legacy-migration-consent-wrapper" for="replace-legacy-project" style="display:none;">
+                        <input type="checkbox" id="replace-legacy-project" onchange="updateProjectVersionPreview()">
+                        Подтверждаю замену старой установки без данных о версии. Прежняя папка будет сохранена, настройки secrets.yml перенесены.
+                    </label>
                     <div class="version-actions">
                         <button type="button" class="btn-secondary" id="btn-refresh-project-versions" onclick="refreshProjectVersions()">Обновить список версий</button>
                     </div>
