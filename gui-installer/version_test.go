@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -88,5 +90,82 @@ func TestCommitSHAValidation(t *testing.T) {
 	}
 	if isInputCommitSHA("not-a-sha") || isFullCommitSHA("deadbeef") {
 		t.Fatal("invalid or incomplete SHA was accepted as a full commit")
+	}
+}
+
+
+func writeMinimalProjectForIntegrityTest(t *testing.T, projectDir string) {
+	t.Helper()
+	required := []string{
+		"docker-compose.ansible.yaml",
+		"docker-compose.local.yaml",
+		"docker-compose.remote.yaml",
+		"ansible/deploy.yml",
+		"ansible/tasks/bootstrap_os.yml",
+		"ansible/tasks/setup_local.yml",
+		"ansible/tasks/setup_remote.yml",
+		"ansible/vars/secrets.yml.example",
+		"scripts/ansible-entrypoint.sh",
+	}
+	for _, relative := range required {
+		fullPath := filepath.Join(projectDir, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(fullPath, []byte("test project content: "+relative+"\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestProjectInstallStateRequiresMatchingIntegrityFingerprint(t *testing.T) {
+	projectDir := filepath.Join(t.TempDir(), "ServeHub-2")
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeMinimalProjectForIntegrityTest(t, projectDir)
+
+	state := getProjectInstallState(projectDir)
+	if !state.Exists || !state.Complete || state.KnownVersion || state.IntegrityVerified {
+		t.Fatalf("project without version metadata should not be trusted: %#v", state)
+	}
+
+	metadata := ProjectVersionMetadata{
+		SchemaVersion: 1,
+		SourceMode:    "commit",
+		SourceRef:     strings.Repeat("a", 40),
+		ResolvedRef:   strings.Repeat("a", 40),
+		CommitSHA:     strings.Repeat("a", 40),
+		DisplayName:   "test commit",
+		InstalledAt:   "2026-01-01T00:00:00Z",
+	}
+	if err := writeProjectMetadata(projectDir, metadata); err != nil {
+		t.Fatal(err)
+	}
+	state = getProjectInstallState(projectDir)
+	if state.KnownVersion || state.IntegrityVerified {
+		t.Fatal("legacy metadata without an integrity fingerprint must not prove the installed code version")
+	}
+
+	fingerprint, err := projectIntegrityFingerprint(projectDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata.IntegritySHA256 = fingerprint
+	if err := writeProjectMetadata(projectDir, metadata); err != nil {
+		t.Fatal(err)
+	}
+	state = getProjectInstallState(projectDir)
+	if !state.KnownVersion || !state.IntegrityVerified || !state.Complete {
+		t.Fatalf("valid metadata and matching integrity fingerprint should be trusted: %#v", state)
+	}
+
+	coreFile := filepath.Join(projectDir, "docker-compose.local.yaml")
+	if err := os.WriteFile(coreFile, []byte("unexpected code modification\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	state = getProjectInstallState(projectDir)
+	if !state.Complete || state.KnownVersion || state.IntegrityVerified {
+		t.Fatalf("modified core file must invalidate version verification: %#v", state)
 	}
 }
