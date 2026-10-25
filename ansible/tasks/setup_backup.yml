@@ -60,65 +60,94 @@
   changed_when: false
   no_log: true
 
-- name: "[Backup] Подготовка временного файла для проверки S3"
-  ansible.builtin.copy:
-    dest: "/run/servehub-s3-probe-{{ inventory_hostname }}.txt"
-    content: "servehub-s3-preflight-{{ inventory_hostname }}"
-    owner: root
-    group: root
-    mode: "0600"
+- name: "[Backup] Подготовка временного файла 6 MiB для проверки S3 multipart-upload"
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/truncate
+      - -s
+      - 6M
+      - "/run/servehub-s3-probe-{{ inventory_hostname }}.bin"
+  changed_when: true
   when: rclone_config.changed
 
-- name: "[Backup] Проверка записи, чтения и удаления объектов в S3"
+- name: "[Backup] Проверка multipart-записи, чтения и удаления объектов в S3"
   block:
-    - name: "[Backup] Загрузка временного объекта в S3"
+    - name: "[Backup] Загрузка временного объекта multipart в S3"
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/rclone
+          - --config
+          - /etc/servehub/rclone.conf
+          - --s3-upload-cutoff
+          - 5M
+          - copyto
+          - "/run/servehub-s3-probe-{{ inventory_hostname }}.bin"
+          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
+      changed_when: true
+      no_log: true
+
+    - name: "[Backup] Скачивание временного объекта из S3"
       ansible.builtin.command:
         argv:
           - /usr/bin/rclone
           - --config
           - /etc/servehub/rclone.conf
           - copyto
-          - "/run/servehub-s3-probe-{{ inventory_hostname }}.txt"
-          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.txt"
+          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
+          - "/run/servehub-s3-probe-{{ inventory_hostname }}.download.bin"
       changed_when: true
       no_log: true
 
-    - name: "[Backup] Чтение временного объекта из S3"
+    - name: "[Backup] Проверка содержимого загруженного multipart-объекта"
       ansible.builtin.command:
         argv:
-          - /usr/bin/rclone
-          - --config
-          - /etc/servehub/rclone.conf
-          - cat
-          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.txt"
-      register: s3_probe_read
+          - /usr/bin/cmp
+          - -s
+          - "/run/servehub-s3-probe-{{ inventory_hostname }}.bin"
+          - "/run/servehub-s3-probe-{{ inventory_hostname }}.download.bin"
+      register: s3_probe_compare
       changed_when: false
+      failed_when: false
       no_log: true
 
-    - name: "[Backup] Проверка содержимого временного объекта"
+    - name: "[Backup] Отказ от настройки, если содержимое объекта отличается"
       ansible.builtin.assert:
         that:
-          - s3_probe_read.stdout == ('servehub-s3-preflight-' ~ inventory_hostname)
-        fail_msg: "Проверка чтения из Timeweb S3 вернула неожиданные данные."
+          - s3_probe_compare.rc | default(1) == 0
+        fail_msg: "Проверка чтения Timeweb S3 вернула объект с другим содержимым."
       no_log: true
 
-  always:
-    - name: "[Backup] Удаление временного объекта из S3 после проверки"
+    - name: "[Backup] Проверка возможности удалять объекты из S3"
       ansible.builtin.command:
         argv:
           - /usr/bin/rclone
           - --config
           - /etc/servehub/rclone.conf
           - deletefile
-          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.txt"
+          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
+      changed_when: true
+      no_log: true
+
+  always:
+    - name: "[Backup] Очистка временного объекта из S3 после проверки"
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/rclone
+          - --config
+          - /etc/servehub/rclone.conf
+          - deletefile
+          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
       changed_when: false
       failed_when: false
       no_log: true
 
-    - name: "[Backup] Удаление временного локального файла проверки S3"
+    - name: "[Backup] Удаление временных локальных файлов проверки S3"
       ansible.builtin.file:
-        path: "/run/servehub-s3-probe-{{ inventory_hostname }}.txt"
+        path: "{{ item }}"
         state: absent
+      loop:
+        - "/run/servehub-s3-probe-{{ inventory_hostname }}.bin"
+        - "/run/servehub-s3-probe-{{ inventory_hostname }}.download.bin"
   when: rclone_config.changed
 
 - name: "[Backup] Генерация конфигурации Borgmatic"
