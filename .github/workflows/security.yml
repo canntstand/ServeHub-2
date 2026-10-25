@@ -231,6 +231,10 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
           "$(go env GOPATH)/bin/wails" generate module
 
+      - name: Test GUI installer Go package
+        working-directory: gui-installer
+        run: go test ./...
+
       - name: Report Go module vulnerabilities (non-blocking)
         continue-on-error: true
         working-directory: gui-installer

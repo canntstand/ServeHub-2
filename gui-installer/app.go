@@ -1,19 +1,14 @@
 package main
 
 import (
-	"archive/zip"
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
-	"time"
 
 	pty "github.com/aymanbagabas/go-pty"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
