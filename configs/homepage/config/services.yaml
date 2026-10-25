@@ -27,6 +27,10 @@
         icon: si-hackthebox
         href: https://homebox.{{HOMEPAGE_VAR_SERVER_NAME}}/
         description: Учет вещей и оборудования
+    - Actual Budget:
+        icon: mdi-cash-multiple
+        href: https://actual.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Личный бюджет и учет финансов
 
 - 🛠️ Мониторинг и инфраструктура:
     - Grafana:
