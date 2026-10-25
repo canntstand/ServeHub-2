@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/ssh"
+	"gopkg.in/yaml.v3"
 )
 
 var (
