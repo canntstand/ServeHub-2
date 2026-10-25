@@ -123,16 +123,22 @@ window.runInstallation = async function() {
 
             if (secretsCheck.success) {
                 const existingSecrets = await LoadSecrets();
-                const hermesFields = [
-                    'hermes_api_base_url',
-                    'hermes_api_key',
-                    'hermes_model',
-                    'hermes_dashboard_basic_auth_secret',
-                ];
-                const hasHermesSettings = existingSecrets.success && hermesFields.every((key) => {
-                    const match = existingSecrets.content.match(new RegExp('^' + key + ':\\s*(.*)$', 'm'));
-                    return Boolean(match && match[1].trim() && !['""', "''"].includes(match[1].trim()));
-                });
+                const readHermesSecret = (key) => {
+                    if (!existingSecrets.success) return '';
+                    const line = existingSecrets.content.split(/\r?\n/).find(item => item.startsWith(key + ':'));
+                    if (!line) return '';
+                    return line.slice(line.indexOf(':') + 1).trim().replace(/^["']|["']$/g, '');
+                };
+                const currentHermesBaseUrl = readHermesSecret('hermes_api_base_url');
+                const currentHermesApiKey = readHermesSecret('hermes_api_key');
+                const currentHermesModel = readHermesSecret('hermes_model');
+                const currentHermesDashboardSecret = readHermesSecret('hermes_dashboard_basic_auth_secret');
+                const hasHermesSettings = existingSecrets.success &&
+                    (currentHermesBaseUrl.startsWith('https://') || currentHermesBaseUrl.startsWith('http://')) &&
+                    Boolean(currentHermesApiKey) &&
+                    !currentHermesApiKey.toLowerCase().startsWith('replace_with_') &&
+                    Boolean(currentHermesModel) &&
+                    /^[a-f0-9]{64}$/i.test(currentHermesDashboardSecret);
 
                 spinner.style.display = 'none';
 
