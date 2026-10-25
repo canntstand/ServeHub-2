@@ -144,13 +144,23 @@ repo_id_from_stream() {
             sub(/[[:space:]]+$/, "", value)
             return value
         }
-        /^[[:space:]]*\\[repository\\][[:space:]]*$/ { in_repository = 1; next }
-        /^[[:space:]]*\\[/ { in_repository = 0 }
-        in_repository {
-            key = trim($1)
-            if (key == "id") {
-                print trim(substr($0, index($0, "=") + 1))
-                exit
+        {
+            line = $0
+            sub(/^[[:space:]]+/, "", line)
+            sub(/[[:space:]]+$/, "", line)
+            if (line == "[repository]") {
+                in_repository = 1
+                next
+            }
+            if (substr(line, 1, 1) == "[") {
+                in_repository = 0
+            }
+            if (in_repository) {
+                key = trim($1)
+                if (key == "id") {
+                    print trim(substr($0, index($0, "=") + 1))
+                    exit
+                }
             }
         }
     '
@@ -185,7 +195,7 @@ offsite_destination_is_safe() {
         return 1
     fi
 
-    remote_repo_id="$(printf '%s\\n' "$remote_config" | repo_id_from_stream)"
+    remote_repo_id="$(printf '%s\n' "$remote_config" | repo_id_from_stream)"
     if [[ -z "$remote_repo_id" || "$remote_repo_id" != "$local_repo_id" ]]; then
         echo "[ERROR] Local and S3 Borg repository IDs differ; refusing synchronization to protect the existing S3 contents." >&2
         return 1
