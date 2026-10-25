@@ -30,7 +30,7 @@ jobs:
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/path:ro" \
             ghcr.io/gitleaks/gitleaks:v8.30.1 \
-            detect --source=/path --redact --no-banner --exit-code 1
+            detect --source=/path --config=/path/.gitleaks.toml --redact --no-banner --exit-code 1
 
       - name: Set up Python tooling
         uses: actions/setup-python@v6
