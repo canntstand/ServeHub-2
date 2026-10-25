@@ -41,6 +41,8 @@ services:
         condition: service_started
       homepage:
         condition: service_started
+      actual-budget:
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -641,6 +643,38 @@ services:
       reverse_proxy:
         aliases:
           - homebox-proxy
+
+  actual-budget:
+    image: actualbudget/actual-server:26.10.0
+    container_name: actual-budget
+    restart: unless-stopped
+    logging: *default-logging
+    expose:
+      - "5006"
+    user: "1001:1001"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./apps-data/actual-budget:/data
+    healthcheck:
+      test: ["CMD-SHELL", "node scripts/health-check.js"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+    networks:
+      default: {}
+      reverse_proxy:
+        aliases:
+          - actual-budget-proxy
+
 networks:
   docker_api:
     internal: true
