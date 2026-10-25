@@ -153,7 +153,7 @@ window.runInstallation = async function() {
                 spinner.style.display = 'none';
 
                 if (!hasHermesSettings && existingSecrets.success) {
-                    installText.innerText = 'Обнаружена существующая конфигурация. Для автоматического развёртывания обязательного Hermes Agent заполните API-ключ и проверьте Base URL и модель. Остальные сохранённые настройки загружены из secrets.yml.';
+                    installText.innerText = 'Обнаружена существующая конфигурация. Заполните только отсутствующие значения, необходимые для выбранного сценария. API-ключ Hermes нужен для сценариев с VPS/Edge; сгенерированные пароли будут сохранены в secrets.yml.';
                     installText.style.color = 'var(--accent-bright)';
                     btnFinish.disabled = false;
                     btnFinish.innerText = 'Настроить Hermes';
@@ -258,7 +258,6 @@ function isTemplatePlaceholder(value) {
         text.startsWith('change_this_to_') ||
         text.endsWith('_secure_password') ||
         text === 'hbox_key_pepper' ||
-        text === 'servehub-2-bucket' ||
         text === 'ssh-ed25519 replace_with_your_public_key';
 }
 

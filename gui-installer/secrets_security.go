@@ -20,6 +20,7 @@ import (
 
 var (
 	deploymentUsernameRegexp = regexp.MustCompile("^[a-z_][a-z0-9_-]{0,31}$")
+	serviceUsernameRegexp = regexp.MustCompile("^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 	deploymentDomainRegexp = regexp.MustCompile("(?i)^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")
 	s3BucketRegexp = regexp.MustCompile("^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")
 	s3PrefixRegexp = regexp.MustCompile("^[A-Za-z0-9][A-Za-z0-9_-]*$")
@@ -53,7 +54,6 @@ func isUnsafeDefaultValue(value string) bool {
 		"_secure_password",
 		"hbox_key_pepper",
 		"ssh-ed25519 replace_",
-		"servehub-2-bucket",
 	} {
 		if strings.Contains(value, marker) {
 			return true
@@ -159,7 +159,7 @@ func validateUsername(values map[string]string, key, label string) error {
 
 func validateDomainAndEmail(values map[string]string) error {
 	domain := strings.TrimSuffix(strings.TrimSpace(values["server_name"]), ".")
-	if len(domain) > 253 || !deploymentDomainRegexp.MatchString(domain) {
+	if len(domain) > 253 || net.ParseIP(domain) != nil || !deploymentDomainRegexp.MatchString(domain) {
 		return errors.New("server_name: укажите домен с корректными DNS-метками, например server.example.org")
 	}
 	emailValue := strings.TrimSpace(values["email"])
@@ -247,6 +247,12 @@ func validateS3Configuration(values map[string]string) error {
 			return fmt.Errorf("резервное копирование включено для всех сценариев: заполните %s", field.label)
 		}
 	}
+	if err := validateStrongSecret(values, "offsite_s3_access_key_id", "offsite_s3_access_key_id", 16); err != nil {
+		return err
+	}
+	if err := validateStrongSecret(values, "offsite_s3_secret_access_key", "offsite_s3_secret_access_key", 32); err != nil {
+		return err
+	}
 	if err := validateStrongSecret(values, "borgmatic_encryption_passphrase", "borgmatic_encryption_passphrase", 32); err != nil {
 		return err
 	}
@@ -275,8 +281,8 @@ func validateHermesConfiguration(values map[string]string) error {
 		return errors.New("hermes_api_base_url: укажите корректный HTTP(S) API URL без логина, пароля, query и fragment")
 	}
 	apiKey := strings.TrimSpace(values["hermes_api_key"])
-	if apiKey == "" || isUnsafeDefaultValue(apiKey) || strings.ContainsAny(apiKey, "\r\n\x00") {
-		return errors.New("hermes_api_key: нужен настоящий API-ключ провайдера Hermes; его нельзя сгенерировать локально")
+	if len(apiKey) < 16 || isUnsafeDefaultValue(apiKey) || strings.ContainsAny(apiKey, "\r\n\x00") {
+		return errors.New("hermes_api_key: нужен настоящий API-ключ провайдера Hermes длиной не менее 16 символов; его нельзя сгенерировать локально")
 	}
 	model := strings.TrimSpace(values["hermes_model"])
 	if model == "" || isUnsafeDefaultValue(model) || strings.ContainsAny(model, "\r\n\x00") {
@@ -320,6 +326,9 @@ func validateDeploymentValues(values map[string]string, option int) error {
 	usesLocal := option >= 1 && option <= 4
 	doesBootstrap := option == 1 || option == 3 || option == 5
 
+	if err := validateUsername(values, "admin_user", "admin_user"); err != nil {
+		return err
+	}
 	if err := validateSSHKeyPair(values); err != nil {
 		return err
 	}
@@ -378,7 +387,8 @@ func validateDeploymentValues(values map[string]string, option int) error {
 				return err
 			}
 		}
-		if !deploymentUsernameRegexp.MatchString(strings.TrimSpace(values["postgres_user"])) {
+		if !serviceUsernameRegexp.MatchString(strings.TrimSpace(values["postgres_user"])) ||
+			isUnsafeDefaultValue(values["postgres_user"]) {
 			return errors.New("postgres_user: укажите корректное имя пользователя PostgreSQL")
 		}
 	}

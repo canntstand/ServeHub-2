@@ -48,8 +48,8 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 		"offsite_s3_endpoint": "https://s3.twcstorage.ru",
 		"offsite_s3_region": "ru-1",
 		"offsite_s3_bucket": "my-private-backups",
-		"offsite_s3_access_key_id": "test-access-key",
-		"offsite_s3_secret_access_key": "test-secret-key",
+		"offsite_s3_access_key_id": "test-access-key-id-123456",
+		"offsite_s3_secret_access_key": "test-secret-access-key-material-1234567890",
 		"offsite_s3_workload_prefix": "workload",
 		"offsite_s3_edge_prefix": "edge",
 		"hermes_api_base_url": "https://api.example.org/v1",
@@ -169,5 +169,44 @@ func TestValidateDeploymentRejectsWeakTemplateSecretsAndInvalidIdentityFields(t 
 	values["email"] = "not-an-email"
 	if err := validateDeploymentValues(values, 4); err == nil || !strings.Contains(err.Error(), "email") {
 		t.Fatalf("expected invalid email rejection, got %v", err)
+	}
+}
+
+func TestGenerateSecretDefaultsDoesNotFabricateExternalCredentials(t *testing.T) {
+	varsDir := setupSecretsTestProject(t)
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml.example"),
+		"admin_password: \"\"\nhermes_api_key: \"\"\noffsite_s3_access_key_id: \"\"\noffsite_s3_secret_access_key: \"\"\n", 0600)
+	result := (&App{}).GenerateSecretDefaults()
+	if !result.Success {
+		t.Fatalf("generation failed: %s", result.Message)
+	}
+	for _, key := range []string{"hermes_api_key", "offsite_s3_access_key_id", "offsite_s3_secret_access_key"} {
+		if _, exists := result.Values[key]; exists {
+			t.Errorf("external credential %s must not be generated", key)
+		}
+	}
+	if len(result.Values["admin_password"]) != 64 {
+		t.Fatal("locally generatable admin password should be generated")
+	}
+}
+
+func TestS3BucketCanUseExistingServeHubBucketName(t *testing.T) {
+	values := validTestDeploymentValues(t)
+	values["offsite_s3_bucket"] = "servehub-2-bucket"
+	if err := validateDeploymentValues(values, 4); err != nil {
+		t.Fatalf("valid existing S3 bucket should not be rejected as a weak secret: %v", err)
+	}
+}
+
+func TestDeploymentValidationRejectsExampleDomainAndWeakS3Keys(t *testing.T) {
+	values := validTestDeploymentValues(t)
+	values["server_name"] = "192.168.1.2"
+	if err := validateDeploymentValues(values, 4); err == nil || !strings.Contains(err.Error(), "server_name") {
+		t.Fatalf("IP address must not be accepted as a DNS domain, got %v", err)
+	}
+	values = validTestDeploymentValues(t)
+	values["offsite_s3_access_key_id"] = "short"
+	if err := validateDeploymentValues(values, 4); err == nil || !strings.Contains(err.Error(), "offsite_s3_access_key_id") {
+		t.Fatalf("weak S3 access key should be rejected, got %v", err)
 	}
 }
