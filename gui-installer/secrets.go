@@ -7,16 +7,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
 
 	"gopkg.in/yaml.v3"
-)
-
-const (
-	secretsRelativePath         = "ansible/vars/secrets.yml"
-	secretsTemplateRelativePath = "ansible/vars/secrets.yml.example"
 )
 
 var editableSecretFields = map[string]struct{}{
@@ -507,7 +501,3 @@ func writeSecretsAtomically(targetPath string, content []byte) error {
 	return nil
 }
 
-// Used by tests to ensure parsed YAML preserves unknown fields and scalar types.
-func secretValuesEqual(left, right map[string]string) bool {
-	return reflect.DeepEqual(left, right)
-}
