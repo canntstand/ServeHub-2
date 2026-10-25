@@ -399,7 +399,7 @@ services:
       - hermes_egress
     volumes:
       - ./apps-data/hermes:/opt/data
-      - ./apps-data/hermes/workspace:/workspace
+      - ./apps-data/hermes-workspace:/workspace
     healthcheck:
       test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('127.0.0.1', 9119), timeout=5).close()"]
       interval: 30s
