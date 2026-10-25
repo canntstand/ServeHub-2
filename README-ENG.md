@@ -8,6 +8,7 @@
 
 # Table of Contents
 - [Brief Overview](#brief-overview)
+- [Actual Budget](#actual-budget)
 - [Hermes Agent](#hermes-agent)
 - [Main dependencies](#main-dependencies)
 - [Important Information Before Deployment](#important-information-before-deployment)
@@ -25,6 +26,7 @@ It is worth clarifying that hosting everything on one powerful VPS would be easi
 - **Gitea:** Lightweight Git-based version control system.
 - **Navidrome:** Personal music collection streaming.
 - **Audiobookshelf:** Server for audiobooks and podcasts with progress synchronization.
+- **Actual Budget:** Self-hosted personal finance and envelope budgeting.
 
 ## Network and Security
 - **Webnames:** Domain name registrar. Used for domain ownership and DNS record management (A-records, Wildcard) required for SSL. (Certificates are obtained via Webnames specifically, as my domain was purchased there).
@@ -67,6 +69,11 @@ It is worth clarifying that hosting everything on one powerful VPS would be easi
 - **[Docker Engine](https://docs.docker.com/compose/install/)/[Docker Desktop](https://docs.docker.com/desktop/)**
 - **[Docker Compose](https://docs.docker.com/compose/install/)**
 - **SSH**
+
+# Actual Budget
+Actual Budget is part of the local Workload stack and is available through Homepage at `https://actual.<domain>/` (VPN-only). Its state and budget files are stored under `apps-data/actual-budget/`, which is covered by the existing `apps-data/` backups.
+
+On first access, set the Actual server password. For financial data, I also recommend enabling end-to-end encryption in the budget settings and keeping its password in a separate safe place: it cannot be recovered if lost. See the [official Docker guide](https://actualbudget.org/docs/install/docker/) and [encryption guide](https://actualbudget.org/docs/getting-started/sync/).
 
 # Hermes Agent
 Hermes Agent is included in the standard Edge/VPS deployment and runs in its own Docker container alongside the other Edge services. No third server is required.
