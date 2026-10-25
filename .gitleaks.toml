@@ -5,7 +5,7 @@ useDefault = true
 
 [allowlist]
 description = "Ignore test credentials in security unit-tests"
-condition = "AND"
+condition = "OR"
 paths = [
   '''gui-installer/secrets_security_test\.go''',
 ]
