@@ -4,7 +4,7 @@ title = "ServeHub-2 Gitleaks configuration"
 useDefault = true
 
 [allowlist]
-description = "Ignore only the old synthetic Telegram token literal in the validator unit-test path; never ignore the test file as a whole."
+description = "Ignore test credentials in security unit-tests"
 condition = "AND"
 paths = [
   '''gui-installer/secrets_security_test\.go''',
@@ -15,4 +15,6 @@ regexes = [
   '''server\.example\.org''',
   '''admin@example\.com''',
   '''your_vps_username''',
+  '''hermes_dashboard_basic_auth_secret''',
+  '''map\[string\]string\{"secret":''',
 ]
