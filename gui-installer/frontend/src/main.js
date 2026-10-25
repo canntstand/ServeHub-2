@@ -1,5 +1,5 @@
 import './style.css';
-import { CheckDocker, InstallProject, SaveSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
+import { CheckDocker, InstallProject, GetProjectVersions, ResolveProjectVersion, SaveSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
 import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
 let generatedYamlString = "";
@@ -9,7 +9,7 @@ function yamlQuote(value) {
 }
 
 const STEP_TITLES = {
-    1: 'Добро пожаловать',
+    1: 'Выбор версии проекта',
     2: 'Проверка требований',
     3: 'Установка компонентов',
     4: 'Настройка secrets.yml',
@@ -106,7 +106,7 @@ window.runInstallation = async function() {
     const btnStep6Back = document.getElementById('btn-step6-back');
 
     spinner.style.display = 'block';
-    installText.innerText = 'Загрузка архива проекта ServeHub-2 с GitHub в память...';
+    installText.innerText = 'Проверяем выбранную версию и загружаем её во временный каталог...';
     installText.style.color = 'var(--text-secondary)';
     btnFinish.disabled = true;
     btnFinish.style.display = 'inline-block';
@@ -114,7 +114,16 @@ window.runInstallation = async function() {
     btnEditSecrets.style.display = 'none';
 
     try {
-        const result = await InstallProject();
+        const selection = getSelectedProjectVersion();
+        if (!selection.valid) {
+            spinner.style.display = 'none';
+            installText.innerText = selection.message || 'Сначала выберите и проверьте версию проекта.';
+            installText.style.color = 'var(--danger)';
+            btnFinish.style.display = 'none';
+            btnRetry.style.display = 'inline-block';
+            return;
+        }
+        const result = await InstallProject(selection.mode, selection.ref, selection.expectedSHA);
         
         if (result.success) {
             const secretsCheck = await CheckSecrets();
@@ -156,7 +165,7 @@ window.runInstallation = async function() {
                     return;
                 }
 
-                installText.innerHTML = `✓ ${result.message}<br><br><span style="color: var(--accent-soft); font-weight: bold;">ℹ Конфигурация найдена:</span> Файл <code style="background: var(--bg-3); padding: 2px 6px; border-radius: 4px;">secrets.yml</code> уже существует в проекте. Шаги создания и настройки будут пропущены.`;
+                installText.innerText = '✓ ' + result.message + '\n\nКонфигурация найдена: файл secrets.yml уже существует. Шаги создания и настройки будут пропущены.';
                 installText.style.color = 'var(--accent-bright)';
                 
                 btnFinish.disabled = false;
@@ -660,5 +669,297 @@ window.minimizeWindow = function() {
 window.maximizeWindow = function() {
     MaximizeApp();
 }
+
+
+
+let projectVersionCatalog = null;
+let projectInstallState = null;
+let projectVersionsLoaded = false;
+let legacyInstallBlocked = false;
+let resolvedProjectCommitSHA = "";
+let projectCommitInputAtResolution = "";
+let projectCommitPreviewRequest = 0;
+
+function isFullSHA(value) {
+    return /^[a-f0-9]{40}$/i.test(String(value || '').trim());
+}
+
+function selectedVersionOption() {
+    const select = document.getElementById('project-version-select');
+    if (!select || !select.selectedOptions || !select.selectedOptions[0]) return null;
+    return select.selectedOptions[0];
+}
+
+function setProjectVersionContinueEnabled(enabled) {
+    const button = document.getElementById('btn-version-continue');
+    if (button) button.disabled = !enabled || !projectVersionsLoaded || legacyInstallBlocked;
+}
+
+function getSelectedProjectVersion() {
+    if (!projectVersionsLoaded) {
+        return { valid: false, message: 'Список версий ещё не загружен. Обновите список и повторите.' };
+    }
+    if (legacyInstallBlocked) {
+        return { valid: false, message: 'Сначала вручную переместите существующий каталог без метаданных версии, затем перезапустите установщик.' };
+    }
+    const useCommit = document.getElementById('use-project-commit-sha');
+    if (useCommit && useCommit.checked) {
+        const input = document.getElementById('project-commit-sha');
+        const rawSHA = String(input ? input.value : '').trim();
+        if (!isFullSHA(resolvedProjectCommitSHA) || projectCommitInputAtResolution !== rawSHA) {
+            return { valid: false, message: 'Сначала проверьте указанный commit SHA — это делается после потери фокуса поля.' };
+        }
+        return { valid: true, mode: 'commit', ref: rawSHA, expectedSHA: resolvedProjectCommitSHA };
+    }
+
+    const option = selectedVersionOption();
+    if (!option || !option.dataset.ref || !isFullSHA(option.dataset.sha)) {
+        return { valid: false, message: 'У выбранного источника пока нет подтверждённого commit SHA. Обновите список версий.' };
+    }
+    if (option.value === 'release') {
+        return { valid: true, mode: 'release', ref: option.dataset.ref, expectedSHA: option.dataset.sha };
+    }
+    if (option.value === 'dev') {
+        return { valid: true, mode: 'dev', ref: 'dev', expectedSHA: option.dataset.sha };
+    }
+    if (option.value.startsWith('tag:')) {
+        return { valid: true, mode: 'tag', ref: option.dataset.ref, expectedSHA: option.dataset.sha };
+    }
+    return { valid: false, message: 'Неизвестный вариант версии.' };
+}
+
+function addProjectVersionOption(select, value, label, ref, sha, mode) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    option.dataset.ref = ref || '';
+    option.dataset.sha = sha || '';
+    option.dataset.mode = mode || '';
+    select.appendChild(option);
+}
+
+function populateProjectVersionChoices(result, preserveChoice) {
+    const select = document.getElementById('project-version-select');
+    const previousValue = preserveChoice ? select.value : '';
+    select.innerHTML = '';
+
+    const latest = result.latestRelease;
+    addProjectVersionOption(
+        select,
+        'release',
+        'Последний стабильный релиз — ' + latest.ref,
+        latest.ref,
+        latest.commitSHA,
+        'release'
+    );
+
+    const dev = result.dev;
+    addProjectVersionOption(
+        select,
+        'dev',
+        'Ветка dev — последние изменения (нестабильно)',
+        dev.ref,
+        dev.commitSHA,
+        'dev'
+    );
+
+    if (Array.isArray(result.tags) && result.tags.length) {
+        const group = document.createElement('optgroup');
+        group.label = 'Опубликованные теги';
+        for (const tag of result.tags) {
+            const option = document.createElement('option');
+            option.value = 'tag:' + tag.ref;
+            option.textContent = tag.ref + ' — ' + tag.commitSHA.slice(0, 8);
+            option.dataset.ref = tag.ref;
+            option.dataset.sha = tag.commitSHA;
+            option.dataset.mode = 'tag';
+            group.appendChild(option);
+        }
+        select.appendChild(group);
+    }
+
+    const availableValues = Array.from(select.options).map(option => option.value);
+    if (preserveChoice && availableValues.includes(previousValue)) {
+        select.value = previousValue;
+    } else {
+        select.value = 'release';
+    }
+    select.disabled = false;
+}
+
+function renderInstalledProjectState(state, initialLoad) {
+    const note = document.getElementById('project-installed-note');
+    const useCommit = document.getElementById('use-project-commit-sha');
+    const shaInput = document.getElementById('project-commit-sha');
+    const select = document.getElementById('project-version-select');
+    if (!note) return;
+
+    legacyInstallBlocked = Boolean(state && state.exists && !state.knownVersion);
+    if (legacyInstallBlocked) {
+        note.style.display = 'block';
+        note.classList.add('is-warning');
+        note.textContent = 'Найдена прежняя папка ServeHub-2-dev без корректного .servehub-version.json. Установщик не будет перезаписывать её или угадывать версию. Сделайте резервную копию, переместите папку вручную и откройте установщик снова.';
+    } else if (state && state.exists && state.knownVersion) {
+        const meta = state.metadata;
+        const sha = meta.commit_sha;
+        note.style.display = 'block';
+        note.classList.remove('is-warning');
+        note.textContent = 'В каталоге уже установлено: ' + meta.display_name + ', commit ' + sha +
+            '. Повторный запуск по умолчанию закреплён на этом же SHA. Чтобы переключить версию, явно выберите другой источник.';
+        if (initialLoad) {
+            useCommit.checked = true;
+            shaInput.value = sha;
+            resolvedProjectCommitSHA = sha;
+            projectCommitInputAtResolution = sha;
+        }
+    } else {
+        note.style.display = 'none';
+        note.textContent = '';
+    }
+    if (useCommit) useCommit.disabled = false;
+    if (select) select.disabled = Boolean(useCommit && useCommit.checked);
+    if (shaInput) shaInput.disabled = !(useCommit && useCommit.checked);
+}
+
+window.initializeProjectVersions = async function(preserveChoice = false) {
+    const select = document.getElementById('project-version-select');
+    const summary = document.getElementById('project-version-summary');
+    const continueButton = document.getElementById('btn-version-continue');
+    const refreshButton = document.getElementById('btn-refresh-project-versions');
+    if (refreshButton) refreshButton.disabled = true;
+    if (continueButton) continueButton.disabled = true;
+    if (!preserveChoice && summary) summary.textContent = 'Получаем опубликованные релизы, теги и commit SHA с GitHub...';
+
+    try {
+        const result = await GetProjectVersions();
+        if (!result.success) throw new Error(result.message || 'GitHub не вернул список версий.');
+        const previousSHA = resolvedProjectCommitSHA;
+        projectVersionCatalog = result;
+        projectInstallState = result.installed;
+        populateProjectVersionChoices(result, preserveChoice);
+        renderInstalledProjectState(result.installed, !preserveChoice);
+        projectVersionsLoaded = true;
+        if (preserveChoice && previousSHA) {
+            resolvedProjectCommitSHA = previousSHA;
+        }
+        window.updateProjectVersionPreview();
+    } catch (error) {
+        projectVersionsLoaded = false;
+        if (summary) summary.textContent = 'Не удалось получить список версий: ' + String(error);
+        if (continueButton) continueButton.disabled = true;
+    } finally {
+        if (refreshButton) refreshButton.disabled = false;
+    }
+};
+
+window.refreshProjectVersions = async function() {
+    await window.initializeProjectVersions(true);
+};
+
+window.toggleProjectCommitMode = function() {
+    const enabled = document.getElementById('use-project-commit-sha').checked;
+    const select = document.getElementById('project-version-select');
+    const input = document.getElementById('project-commit-sha');
+    select.disabled = enabled || !projectVersionsLoaded || legacyInstallBlocked;
+    input.disabled = !enabled;
+    if (enabled) {
+        input.focus();
+        resolvedProjectCommitSHA = '';
+        projectCommitInputAtResolution = '';
+    }
+    window.updateProjectVersionPreview();
+    if (enabled && /^[a-f0-9]{7,40}$/i.test(input.value.trim())) {
+        window.previewProjectCommit();
+    }
+};
+
+window.markProjectCommitChanged = function() {
+    resolvedProjectCommitSHA = '';
+    projectCommitInputAtResolution = '';
+    const summary = document.getElementById('project-commit-summary');
+    if (summary) summary.textContent = 'SHA изменён. Потеряйте фокус поля, чтобы проверить commit через GitHub.';
+    window.updateProjectVersionPreview();
+};
+
+window.previewProjectCommit = async function() {
+    const input = document.getElementById('project-commit-sha');
+    const summary = document.getElementById('project-commit-summary');
+    if (!input || !summary) return;
+    const rawSHA = String(input.value || '').trim();
+    if (!/^[a-f0-9]{7,40}$/i.test(rawSHA)) {
+        summary.textContent = 'Введите от 7 до 40 шестнадцатеричных символов commit SHA.';
+        resolvedProjectCommitSHA = '';
+        projectCommitInputAtResolution = '';
+        window.updateProjectVersionPreview();
+        return;
+    }
+    const requestId = ++projectCommitPreviewRequest;
+    summary.textContent = 'Проверяем commit SHA через GitHub...';
+    resolvedProjectCommitSHA = '';
+    projectCommitInputAtResolution = '';
+    setProjectVersionContinueEnabled(false);
+    try {
+        const result = await ResolveProjectVersion('commit', rawSHA, '');
+        if (requestId !== projectCommitPreviewRequest || rawSHA !== input.value.trim()) return;
+        if (!result.success) throw new Error(result.message || 'Commit не найден.');
+        resolvedProjectCommitSHA = result.commitSHA;
+        projectCommitInputAtResolution = rawSHA;
+        summary.textContent = 'Проверенный commit SHA: ' + result.commitSHA;
+        window.updateProjectVersionPreview();
+    } catch (error) {
+        if (requestId !== projectCommitPreviewRequest) return;
+        summary.textContent = 'Не удалось проверить commit: ' + String(error);
+        window.updateProjectVersionPreview();
+    }
+};
+
+window.updateProjectVersionPreview = function() {
+    const summary = document.getElementById('project-version-summary');
+    const warning = document.getElementById('project-version-warning');
+    const useCommit = document.getElementById('use-project-commit-sha');
+    if (!summary || !warning) return;
+    if (legacyInstallBlocked) {
+        setProjectVersionContinueEnabled(false);
+        return;
+    }
+    if (useCommit && useCommit.checked) {
+        const input = document.getElementById('project-commit-sha');
+        const rawSHA = input ? input.value.trim() : '';
+        if (isFullSHA(resolvedProjectCommitSHA) && projectCommitInputAtResolution === rawSHA) {
+            summary.textContent = 'Будет установлен commit ' + resolvedProjectCommitSHA + '.';
+            warning.textContent = 'При указании SHA установщик использует именно этот commit, даже если ветки и теги позже изменятся.';
+            setProjectVersionContinueEnabled(true);
+        } else {
+            summary.textContent = 'Для продолжения требуется проверить введённый commit SHA.';
+            setProjectVersionContinueEnabled(false);
+        }
+        return;
+    }
+    const option = selectedVersionOption();
+    if (!option || !option.dataset.sha) {
+        summary.textContent = 'У выбранного источника пока нет подтверждённого commit SHA.';
+        setProjectVersionContinueEnabled(false);
+        return;
+    }
+    summary.textContent = 'Будет установлен источник ' + (option.dataset.ref || option.textContent) +
+        ' на commit ' + option.dataset.sha + '.';
+    if (option.value === 'dev') {
+        warning.textContent = 'Ветка dev может быть нестабильной и содержит незавершённые изменения. SHA фиксируется до загрузки; если ветка изменится, установка остановится, а не переключится незаметно.';
+    } else {
+        warning.textContent = 'Выбранный релиз или тег может отличаться от ветки dev по сервисам и архитектуре. Установщик развернёт выбранную версию и закрепит тот же commit на серверах.';
+    }
+    setProjectVersionContinueEnabled(isFullSHA(option.dataset.sha));
+};
+
+window.continueFromVersionSelection = function() {
+    const selection = getSelectedProjectVersion();
+    if (!selection.valid) {
+        const summary = document.getElementById('project-version-summary');
+        if (summary) summary.textContent = selection.message;
+        return;
+    }
+    window.goToStep(2);
+};
+
 
 updateStepProgress(1);

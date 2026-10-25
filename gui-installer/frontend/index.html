@@ -43,7 +43,7 @@
             </div>
         </div>
         <div class="step-progress-label">
-            Шаг <span id="step-progress-current">1</span> из 7 — <span id="step-progress-title">Добро пожаловать</span>
+            Шаг <span id="step-progress-current">1</span> из 7 — <span id="step-progress-title">Выбор версии проекта</span>
         </div>
     </div>
 
@@ -53,7 +53,33 @@
                 <div class="brand-title">ServeHub-2</div>
                 
                 <h1 class="title">Мастер установки</h1>
-                <p class="subtitle">Добро пожаловать! Эта программа поможет вам установить и настроить проект ServeHub-2 на вашем компьютере.</p>
+                <p class="subtitle">Выберите точный источник проекта. Перед загрузкой установщик разрешит его в commit SHA и закрепит эту версию на обоих серверах.</p>
+
+                <div class="version-picker">
+                    <label for="project-version-select">Источник и версия ServeHub-2</label>
+                    <select id="project-version-select" onchange="updateProjectVersionPreview()" disabled>
+                        <option value="release">Загружаем список релизов...</option>
+                    </select>
+                    <div id="project-version-summary" class="version-summary" role="status">Получаем опубликованные версии GitHub...</div>
+                    <div class="version-warning" id="project-version-warning">
+                        Релизы и ветка dev могут содержать разный набор сервисов и разную архитектуру. Будет установлен именно выбранный источник, а не автоматически последняя разработческая версия.
+                    </div>
+                    <details class="version-advanced">
+                        <summary>Расширенные настройки</summary>
+                        <label class="version-sha-toggle" for="use-project-commit-sha">
+                            <input type="checkbox" id="use-project-commit-sha" onchange="toggleProjectCommitMode()" disabled>
+                            Указать конкретный commit SHA
+                        </label>
+                        <input type="text" id="project-commit-sha" placeholder="Например: 1432dd50e35c54c8..." autocomplete="off" spellcheck="false" disabled oninput="markProjectCommitChanged()" onblur="previewProjectCommit()">
+                        <div id="project-commit-summary" class="version-summary">Укажите SHA, чтобы проверить его перед загрузкой.</div>
+                    </details>
+                    <div id="project-installed-note" class="project-installed-note" role="status" style="display:none;"></div>
+                    <div class="version-actions">
+                        <button type="button" class="btn-secondary" id="btn-refresh-project-versions" onclick="refreshProjectVersions()">Обновить список версий</button>
+                    </div>
+                </div>
+
+                <button type="button" id="btn-version-continue" class="btn-primary" onclick="continueFromVersionSelection()" disabled>Продолжить</button>
                 
                 <button type="button" class="btn-primary" onclick="goToStep(2)">Продолжить</button>
                 <div style="margin-top: auto; padding-top: 30px;">

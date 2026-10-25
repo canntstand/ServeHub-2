@@ -1093,3 +1093,97 @@ button:focus-visible {
     visibility: visible;
     opacity: 1;
 }
+
+/* Version selection on the installer welcome step */
+.version-picker {
+    width: min(620px, 92vw);
+    box-sizing: border-box;
+    text-align: left;
+    margin: 0 0 18px;
+    padding: 16px 18px;
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.025);
+}
+.version-picker > label {
+    display: block;
+    color: var(--text-primary);
+    font-size: 13px;
+    margin-bottom: 9px;
+}
+.version-picker select,
+.version-picker input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    background: var(--bg-3, #171719);
+    border: 1px solid var(--border-2);
+    border-radius: 6px;
+    font: inherit;
+    font-size: 12px;
+}
+.version-picker select:focus,
+.version-picker input[type="text"]:focus {
+    outline: 1px solid var(--accent-bright);
+    border-color: var(--accent-bright);
+}
+.version-picker select:disabled,
+.version-picker input:disabled,
+.version-picker button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.version-summary {
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+    user-select: text;
+}
+.version-warning,
+.project-installed-note {
+    margin-top: 11px;
+    padding: 10px 11px;
+    border-left: 2px solid var(--accent-bright);
+    background: rgba(129, 140, 248, 0.07);
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+    user-select: text;
+}
+.project-installed-note.is-warning {
+    border-left-color: var(--danger);
+    background: rgba(229, 72, 77, 0.08);
+}
+.version-advanced {
+    margin-top: 13px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.version-advanced summary {
+    cursor: pointer;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+}
+.version-sha-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+    cursor: pointer;
+}
+.version-sha-toggle input {
+    accent-color: var(--accent-bright);
+}
+.version-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+.version-actions .btn-secondary {
+    padding: 7px 10px;
+    font-size: 11px;
+}

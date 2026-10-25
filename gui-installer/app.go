@@ -96,101 +96,6 @@ func (a *App) CheckDocker() CheckResult {
 	}
 }
 
-func (a *App) InstallProject() CheckResult {
-	targetDir := "ServeHub-2-dev"
-	if info, err := os.Stat(targetDir); err == nil {
-		if !info.IsDir() {
-			return CheckResult{Success: false, Message: "Путь ServeHub-2-dev существует, но не является каталогом."}
-		}
-		for _, path := range []string{"docker-compose.ansible.yaml", "ansible/deploy.yml", "ansible/requirements.yml"} {
-			if _, statErr := os.Stat(filepath.Join(targetDir, path)); statErr != nil {
-				return CheckResult{Success: false, Message: "Каталог проекта неполный: отсутствует " + path + ". Переместите или удалите неполный каталог и повторите установку."}
-			}
-		}
-		return CheckResult{Success: true, Message: "Проект уже установлен (папка ServeHub-2-dev существует)."}
-	} else if !os.IsNotExist(err) {
-		return CheckResult{Success: false, Message: "Не удалось проверить каталог проекта: " + err.Error()}
-	}
-
-	url := "https://github.com/canntstand/ServeHub-2/archive/refs/heads/dev.zip"
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Get(url)
-	if err != nil {
-		return CheckResult{Success: false, Message: "Не удалось подключиться к GitHub: " + err.Error()}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return CheckResult{Success: false, Message: "GitHub вернул ошибку: " + resp.Status}
-	}
-
-	const maxArchiveSize = 256 << 20
-	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxArchiveSize+1))
-	if err != nil {
-		return CheckResult{Success: false, Message: "Ошибка при чтении данных архива: " + err.Error()}
-	}
-	if len(bodyBytes) > maxArchiveSize {
-		return CheckResult{Success: false, Message: "Архив проекта превышает допустимый размер 256 МиБ."}
-	}
-
-	zipReader, err := zip.NewReader(bytes.NewReader(bodyBytes), int64(len(bodyBytes)))
-	if err != nil {
-		return CheckResult{Success: false, Message: "Не удалось прочитать скачанный zip-архив: " + err.Error()}
-	}
-
-	destFolder := "."
-
-	for _, f := range zipReader.File {
-		name := filepath.Clean(filepath.FromSlash(f.Name))
-		root := "ServeHub-2-dev"
-		if !filepath.IsLocal(name) || name == "." || name == ".." || !(name == root || strings.HasPrefix(name, root+string(os.PathSeparator))) {
-			return CheckResult{Success: false, Message: "Архив содержит небезопасный путь: " + f.Name}
-		}
-		fpath := filepath.Join(destFolder, name)
-
-		if f.FileInfo().IsDir() {
-			if err = os.MkdirAll(fpath, 0755); err != nil {
-				return CheckResult{Success: false, Message: "Не удалось создать каталог из архива: " + err.Error()}
-			}
-			continue
-		}
-
-		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
-			return CheckResult{Success: false, Message: "Не удалось создать структуру папок: " + err.Error()}
-		}
-
-		mode := f.Mode().Perm()
-		if mode == 0 {
-			mode = 0644
-		}
-		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
-		if err != nil {
-			return CheckResult{Success: false, Message: "Не удалось создать файл на диске: " + err.Error()}
-		}
-
-		rc, err := f.Open()
-		if err != nil {
-			outFile.Close()
-			return CheckResult{Success: false, Message: "Ошибка чтения файла из архива: " + err.Error()}
-		}
-
-		_, err = io.Copy(outFile, rc)
-
-		outFile.Close()
-		rc.Close()
-
-		if err != nil {
-			return CheckResult{Success: false, Message: "Ошибка записи файла на диск: " + err.Error()}
-		}
-	}
-
-	return CheckResult{
-		Success: true,
-		Message: "ServeHub-2 успешно скачан и развернут в рабочей папке!",
-	}
-}
-
 func (a *App) SaveSecrets(yamlContent string) CheckResult {
 	targetDir := filepath.Join(".", "ServeHub-2-dev", "ansible", "vars")
 
@@ -221,103 +126,117 @@ func (a *App) MaximizeApp() {
 }
 
 func (a *App) RunDeployment(option int, verbose bool) CheckResult {
+	metadata, err := readInstalledProjectMetadata(filepath.Join(".", projectInstallDirName))
+	if err != nil {
+		return CheckResult{Success: false, Message: "Не удалось определить закреплённую версию проекта: " + err.Error()}
+	}
+	if !isFullCommitSHA(metadata.CommitSHA) {
+		return CheckResult{Success: false, Message: "В метаданных установленного проекта отсутствует корректный commit SHA. Повторный деплой заблокирован."}
+	}
+
+	projectDir := filepath.Join(".", projectInstallDirName)
+	composeFile := filepath.Join(projectDir, "docker-compose.ansible.yaml")
+	needsBuild, err := ansibleComposeNeedsBuild(composeFile)
+	if err != nil {
+		return CheckResult{Success: false, Message: "Не удалось проверить Ansible Compose: " + err.Error()}
+	}
+
 	var steps []string
 	debugArgs := ""
 	if verbose {
 		debugArgs = " -vvv"
 	}
+	versionArgs := " -e servehub_version=" + metadata.CommitSHA
 
 	switch option {
 	case 1:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps,local --tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps,local --tags bootstrap%s%s", debugArgs, versionArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s%s", debugArgs, versionArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s%s", debugArgs, versionArgs),
 		}
 	case 2:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s%s", debugArgs, versionArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s%s", debugArgs, versionArgs),
 		}
 	case 3:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --tags bootstrap%s%s", debugArgs, versionArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s%s", debugArgs, versionArgs),
 		}
 	case 4:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit local --skip-tags bootstrap%s%s", debugArgs, versionArgs),
 		}
 	case 5:
 		steps = []string{
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --tags bootstrap%s", debugArgs),
-			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --tags bootstrap%s%s", debugArgs, versionArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s%s", debugArgs, versionArgs),
 		}
 	case 6:
 		steps = []string{
-			fmt.Sprintf(" ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s", debugArgs),
+			fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --limit vps --skip-tags bootstrap%s%s", debugArgs, versionArgs),
 		}
 	default:
 		return CheckResult{Success: false, Message: "Неизвестный сценарий развертывания!"}
 	}
 
 	for _, ansibleCmd := range steps {
-    wailsRuntime.EventsEmit(a.ctx, "deploy-log")
+		wailsRuntime.EventsEmit(a.ctx, "deploy-log", fmt.Sprintf("Закреплённая версия ServeHub-2: %s\n", metadata.CommitSHA))
 
-    cmdArgs := []string{
-        "compose",
-        "-f", "./ServeHub-2-dev/docker-compose.ansible.yaml",
-        "run", "--build", "--rm", "ansible",
-        "sh", "-c", ansibleCmd,
-    }
+		cmdArgs := []string{"compose", "-f", "./" + filepath.ToSlash(composeFile), "run"}
+		if needsBuild {
+			cmdArgs = append(cmdArgs, "--build")
+		}
+		cmdArgs = append(cmdArgs, "--rm", "ansible", "sh", "-c", ansibleCmd)
 
-    ptty, err := pty.New()
-    if err != nil {
-        return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось создать псевдотерминал: %s", err.Error())}
-    }
-    _ = ptty.Resize(200, 50)
+		ptty, err := pty.New()
+		if err != nil {
+			return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось создать псевдотерминал: %s", err.Error())}
+		}
+		_ = ptty.Resize(200, 50)
 
-    cmd := ptty.CommandContext(a.ctx, "docker", cmdArgs...)
-    cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+		cmd := ptty.CommandContext(a.ctx, "docker", cmdArgs...)
+		cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+		if err := cmd.Start(); err != nil {
+			ptty.Close()
+			return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось запустить Docker: %s", err.Error())}
+		}
 
-    if err := cmd.Start(); err != nil {
-        ptty.Close()
-        return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось запустить Docker: %s", err.Error())}
-    }
+		a.ptty = ptty
+		a.cmdStdin = ptty
+		a.activeCmd = cmd
 
-    a.ptty = ptty
-    a.cmdStdin = ptty
-    a.activeCmd = cmd
+		go func(p pty.Pty) {
+			scanner := bufio.NewScanner(p)
+			scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+			for scanner.Scan() {
+				clean := stripAnsi(scanner.Text())
+				if clean == "" {
+					continue
+				}
+				wailsRuntime.EventsEmit(a.ctx, "deploy-log", clean+"\n")
+			}
+		}(ptty)
 
-    go func(p pty.Pty) {
-        scanner := bufio.NewScanner(p)
-        scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-        for scanner.Scan() {
-            clean := stripAnsi(scanner.Text())
-            if clean == "" {
-                continue
-            }
-            wailsRuntime.EventsEmit(a.ctx, "deploy-log", clean+"\n")
-        }
-    }(ptty)
+		waitErr := cmd.Wait()
+		ptty.Close()
+		a.ptty = nil
+		a.cmdStdin = nil
+		a.activeCmd = nil
 
-    waitErr := cmd.Wait()
-
-    ptty.Close()
-    a.ptty = nil
-    a.cmdStdin = nil
-
-    if waitErr != nil {
-        return CheckResult{
-            Success: false,
-            Message: fmt.Sprintf("Ansible завершился с ошибкой: %s", waitErr.Error()),
-        }
-    }
-}
+		if waitErr != nil {
+			return CheckResult{
+				Success: false,
+				Message: fmt.Sprintf("Ansible завершился с ошибкой: %s", waitErr.Error()),
+			}
+		}
+	}
 
 	return CheckResult{
 		Success: true,
-		Message: "Все этапы деплоя Ansible успешно выполнены!",
+		Message: fmt.Sprintf("Все этапы деплоя Ansible успешно выполнены для commit %s.", metadata.CommitSHA),
 	}
 }
 
