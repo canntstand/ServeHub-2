@@ -29,10 +29,10 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 		"local_root_password": "local-root-password-for-test",
 		"local_ssh_password": "",
 		"local_sudo_password": "",
-		"server_name": "server.example.org",
+		"server_name": "server.infra-test.net",
 		"admin_user": "admin",
 		"admin_password": random(),
-		"email": "admin@example.org",
+		"email": "admin@infra-test.net",
 		"telegram_token": "123456789:" + strings.Repeat("A", 26) + "abcdefghi",
 		"telegram_chat_id": "-1001234567890",
 		"webnames_apikey": "webnames-provider-key-test-123456",
@@ -271,5 +271,23 @@ func TestValidateStrongSecretRejectsRepeatedAndLowEntropyValues(t *testing.T) {
 	values := map[string]string{"secret": "8f0b82c5d9a6e1f743c0b8e2d14a7f6c"}
 	if err := validateStrongSecret(values, "secret", "secret", 32); err != nil {
 		t.Fatalf("diverse 32-character secret should be accepted: %v", err)
+	}
+}
+
+func TestValidateDomainAndEmailRejectsReservedExampleValues(t *testing.T) {
+	values := validTestDeploymentValues(t)
+	values["server_name"] = "server.example.org"
+	if err := validateDomainAndEmail(values); err == nil || !strings.Contains(err.Error(), "действующий домен") {
+		t.Fatalf("reserved example domain should be rejected, got %v", err)
+	}
+	values = validTestDeploymentValues(t)
+	values["email"] = "admin@example.com"
+	if err := validateDomainAndEmail(values); err == nil || !strings.Contains(err.Error(), "примерный адрес") {
+		t.Fatalf("reserved example email should be rejected, got %v", err)
+	}
+	values = validTestDeploymentValues(t)
+	values["vps_user"] = "your_vps_username"
+	if err := validateUsername(values, "vps_user", "vps_user"); err == nil {
+		t.Fatal("template username should be rejected")
 	}
 }

@@ -173,21 +173,38 @@ func validateIPv4(values map[string]string, key, label string) error {
 
 func validateUsername(values map[string]string, key, label string) error {
 	value := strings.TrimSpace(values[key])
-	if !deploymentUsernameRegexp.MatchString(value) || value == "root" {
+	if !deploymentUsernameRegexp.MatchString(value) || value == "root" || isUnsafeDefaultValue(value) {
 		return fmt.Errorf("%s: используйте имя Linux-пользователя (буквы a-z, цифры, '_' и '-', до 32 символов; root не подходит для deploy_user)", label)
 	}
 	return nil
 }
 
+func isReservedExampleDomain(value string) bool {
+	domain := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(value)), ".")
+	if strings.HasPrefix(domain, "example.") {
+		return true
+	}
+	for _, reserved := range []string{"example.com", "example.org", "example.net", "example.edu", ".example.com", ".example.org", ".example.net", ".invalid", ".localhost"} {
+		if domain == reserved || strings.HasSuffix(domain, reserved) {
+			return true
+		}
+	}
+	return false
+}
+
 func validateDomainAndEmail(values map[string]string) error {
 	domain := strings.TrimSuffix(strings.TrimSpace(values["server_name"]), ".")
-	if len(domain) > 253 || net.ParseIP(domain) != nil || !deploymentDomainRegexp.MatchString(domain) {
-		return errors.New("server_name: укажите домен с корректными DNS-метками, например server.example.org")
+	if len(domain) > 253 || net.ParseIP(domain) != nil || !deploymentDomainRegexp.MatchString(domain) || isReservedExampleDomain(domain) {
+		return errors.New("server_name: укажите ваш действующий домен с корректными DNS-метками; example.* и IP-адреса в качестве домена не принимаются")
 	}
 	emailValue := strings.TrimSpace(values["email"])
 	parsed, err := mail.ParseAddress(emailValue)
 	if err != nil || parsed.Address != emailValue || !strings.Contains(emailValue, "@") {
 		return errors.New("email: укажите корректный адрес электронной почты без отображаемого имени")
+	}
+	emailDomain := emailValue[strings.LastIndex(emailValue, "@")+1:]
+	if isReservedExampleDomain(emailDomain) || isUnsafeDefaultValue(emailValue) {
+		return errors.New("email: замените примерный адрес реальным адресом на вашем домене")
 	}
 	return nil
 }
