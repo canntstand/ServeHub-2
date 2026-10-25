@@ -12,4 +12,7 @@ paths = [
 regexTarget = "match"
 regexes = [
   '''123456789:[A-Z]{26}abcdefghi''',
+  '''server\.example\.org''',
+  '''admin@example\.com''',
+  '''your_vps_username''',
 ]
