@@ -80,12 +80,12 @@ tests:
 
   - name: Blackbox certificate expiration raises warning
     start_timestamp: "2026-10-25T00:00:00Z"
-    interval: 1h
+    interval: 1m
     input_series:
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-tls",instance="https://grafana.example.com/",check_name="Wildcard TLS certificate"}'
-        values: '1794700800+0x10'
+        values: '1794700800+0x300'
       - series: 'probe_success{job="blackbox-tls",instance="https://grafana.example.com/",check_name="Wildcard TLS certificate"}'
-        values: '1+0x10'
+        values: '1+0x300'
     alert_rule_test:
       - eval_time: 5h
         alertname: CertificateExpiringSoon
