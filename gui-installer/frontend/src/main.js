@@ -6,6 +6,7 @@ let generatedYamlString = "";
 let generatedSecretUpdates = {};
 let sourceSecretValues = {};
 let sourceSecretIsTemplate = true;
+let generatedSecretDefaultsPending = false;
 
 const STEP_TITLES = {
     1: 'Выбор версии проекта',
@@ -152,6 +153,19 @@ window.runInstallation = async function() {
 
                 spinner.style.display = 'none';
 
+                if (generatedSecretDefaultsPending) {
+                    installText.innerText = 'В конфигурации найдены отсутствующие или шаблонные секреты. Установщик подготовил безопасные значения, но ещё не записал их в файл. Откройте форму, проверьте и сохраните конфигурацию, прежде чем переходить к деплою.';
+                    installText.style.color = 'var(--accent-bright)';
+                    btnFinish.disabled = false;
+                    btnFinish.innerText = 'Проверить и сохранить секреты';
+                    btnFinish.setAttribute('onclick', 'goToStep(4)');
+                    btnEditSecrets.style.display = 'none';
+                    if (btnStep6Back) {
+                        btnStep6Back.setAttribute('onclick', 'goToStep(3)');
+                    }
+                    return;
+                }
+
                 if (!hasHermesSettings && existingSecrets.success) {
                     installText.innerText = 'Обнаружена существующая конфигурация. Заполните только отсутствующие значения, необходимые для выбранного сценария. API-ключ Hermes нужен для сценариев с VPS/Edge; сгенерированные пароли будут сохранены в secrets.yml.';
                     installText.style.color = 'var(--accent-bright)';
@@ -292,7 +306,9 @@ async function applyGeneratedSecretDefaults() {
     if (!result.success) {
         throw new Error(result.message || 'Не удалось подготовить безопасные секреты.');
     }
-    for (const [key, value] of Object.entries(result.values || {})) {
+    const generatedValues = result.values || {};
+    generatedSecretDefaultsPending = Object.keys(generatedValues).length > 0;
+    for (const [key, value] of Object.entries(generatedValues)) {
         const fieldId = SECRETS_FIELD_MAP[key];
         if (!fieldId) continue;
         const element = document.getElementById(fieldId);
@@ -582,6 +598,7 @@ window.saveYamlAndFinish = async function() {
     try {
         const result = await SaveSecrets(generatedSecretUpdates, generatedYamlString);
         if (result.success) {
+            generatedSecretDefaultsPending = false;
             goToStep(6);
         } else {
             alert(`Ошибка записи файла: ${result.message}`);
