@@ -1,0 +1,15 @@
+title = "ServeHub-2 Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore only the old synthetic Telegram token literal in the validator unit-test path; never ignore the test file as a whole."
+condition = "AND"
+paths = [
+  '''gui-installer/secrets_security_test\.go''',
+]
+regexTarget = "match"
+regexes = [
+  '''123456789:[A-Z]{26}abcdefghi''',
+]

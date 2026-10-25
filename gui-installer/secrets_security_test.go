@@ -33,7 +33,7 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 		"admin_user": "admin",
 		"admin_password": random(),
 		"email": "admin@example.org",
-		"telegram_token": "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi",
+		"telegram_token": "123456789:" + strings.Repeat("A", 26) + "abcdefghi",
 		"telegram_chat_id": "-1001234567890",
 		"webnames_apikey": "webnames-provider-key-test-123456",
 		"postgres_user": "postgres_master",
@@ -97,9 +97,7 @@ offsite_s3_access_key_id: ""
 func TestGenerateSecretDefaultsDoesNotRotateExistingSecrets(t *testing.T) {
 	varsDir := setupSecretsTestProject(t)
 	const stable = "custom-existing-secret-value-long-enough-for-production"
-	writeTestFile(t, filepath.Join(varsDir, "secrets.yml"), "admin_password: "+stable+"
-hermes_api_key: live-provider-key
-", 0600)
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml"), "admin_password: "+stable+"\nhermes_api_key: provider-key-for-test\n", 0600)
 	result := (&App{}).GenerateSecretDefaults()
 	if !result.Success { t.Fatal(result.Message) }
 	if _, exists := result.Values["admin_password"]; exists { t.Fatal("existing non-placeholder secret was unexpectedly rotated") }
