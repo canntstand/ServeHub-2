@@ -873,7 +873,7 @@ window.toggleProjectCommitMode = function() {
     const enabled = document.getElementById('use-project-commit-sha').checked;
     const select = document.getElementById('project-version-select');
     const input = document.getElementById('project-commit-sha');
-    select.disabled = enabled || !projectVersionsLoaded || legacyInstallBlocked;
+    select.disabled = enabled || !projectVersionsLoaded;
     input.disabled = !enabled;
     if (enabled) {
         input.focus();
