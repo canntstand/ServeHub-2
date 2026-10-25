@@ -1,11 +1,21 @@
 
 
 
+
+- name: "[FS] Создание корневого каталога apps-data на VPS"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
+
 - name: "[Hermes] Проверка обязательной конфигурации API и Dashboard"
   ansible.builtin.assert:
     that:
       - hermes_api_base_url is defined and (hermes_api_base_url | string | trim | length) > 0
-      - hermes_api_base_url is match('^https?://\\S+$')
+      - hermes_api_base_url is defined and (hermes_api_base_url | string) is match('^https?://\\S+$')
       - hermes_api_key is defined and (hermes_api_key | string | trim | length) > 0
       - hermes_model is defined and (hermes_model | string | trim | length) > 0
       - hermes_dashboard_basic_auth_secret is defined and (hermes_dashboard_basic_auth_secret | string | trim) is match('^[A-Fa-f0-9]{64}$')
@@ -42,13 +52,6 @@
     force: false
   no_log: true
 
-- name: "[FS] Создание корневого каталога apps-data на VPS"
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data"
-    state: directory
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0755"
 
 - name: "[FS] Создание каталогов wg-easy и AdGuard Home с ограниченными правами"
   ansible.builtin.file:
