@@ -222,6 +222,11 @@ jobs:
       - name: Generate Wails frontend bindings
         working-directory: gui-installer
         run: |
+          # Go embeds frontend/dist at compile time. Create it before Wails
+          # generates bindings; Vite replaces its contents during the build.
+          mkdir -p frontend/dist
+          touch frontend/dist/.gitkeep
+
           go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
           "$(go env GOPATH)/bin/wails" generate module
 
