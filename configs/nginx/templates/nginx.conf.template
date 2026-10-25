@@ -321,7 +321,10 @@ server {
         allow 10.8.0.1;
         deny all;
         access_log off;
-        return 204;
+        proxy_pass http://10.8.0.1:9119/api/status;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
     }
 
     location / {
