@@ -132,8 +132,10 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
       - /run/udev:/run/udev:ro
+      - ./apps-data/node-exporter/textfile:/textfile_collector:ro
     command:
       - "--web.listen-address=10.8.0.1:9100"
+      - "--collector.textfile.directory=/textfile_collector"
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/rootfs"

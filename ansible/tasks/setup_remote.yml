@@ -268,11 +268,11 @@
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   when: alertmanager_config.changed
 
-- name: "[Prometheus] Применение изменённой конфигурации"
+- name: "[Prometheus] Перезагрузка scrape-конфигурации и alert rules"
   ansible.builtin.command:
     cmd: docker compose -f docker-compose.remote.yaml restart prometheus
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
-  when: prometheus_config.changed
+  changed_when: true
 
 - name: "[AdGuard] Применение изменённой конфигурации"
   ansible.builtin.command:

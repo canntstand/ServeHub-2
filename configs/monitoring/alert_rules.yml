@@ -106,3 +106,39 @@ groups:
         annotations:
           summary: "Давно не было успешного бэкапа"
           description: "Последняя успешная копия старше 30 часов на {{ $labels.instance }}."
+
+      - alert: OffsiteBackupFailed
+        expr: servehub_offsite_backup_last_run_success == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Не удалось синхронизировать бэкап в S3"
+          description: "Последняя синхронизация off-site-копии или проверка размеров объектов завершилась ошибкой на {{ $labels.instance }}."
+
+      - alert: OffsiteBackupTooOld
+        expr: time() - servehub_offsite_backup_last_success_timestamp_seconds > 108000
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Давно не было успешной off-site-копии"
+          description: "Последняя проверенная копия в S3 старше 30 часов на {{ $labels.instance }}."
+
+      - alert: BackupStackRestoreFailed
+        expr: servehub_backup_stack_restore_success == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Не удалось запустить сервисы после резервного копирования"
+          description: "Проверьте журнал borgmatic.service и состояние Compose на {{ $labels.instance }}."
+
+      - alert: BackupPipelineTooOld
+        expr: time() - servehub_backup_pipeline_last_success_timestamp_seconds > 108000
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Полный цикл резервного копирования давно не завершался успешно"
+          description: "Локальная копия, выгрузка в S3 и восстановление сервисов не завершались успешно вместе более 30 часов на {{ $labels.instance }}."

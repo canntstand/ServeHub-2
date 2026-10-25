@@ -3,26 +3,149 @@ set -uo pipefail
 
 METRICS_DIR="${SERVEHUB_BORGMATIC_METRICS_DIR:-/var/lib/node_exporter/textfile_collector}"
 METRICS_FILE="${METRICS_DIR%/}/borgmatic.prom"
+BORGMATIC_CONFIG="${SERVEHUB_BORGMATIC_CONFIG:-/etc/borgmatic/config.yaml}"
+BORG_REPOSITORY="${SERVEHUB_BORG_REPOSITORY:-}"
+RCLONE_CONFIG="${SERVEHUB_RCLONE_CONFIG:-/etc/servehub/rclone.conf}"
+RCLONE_REMOTE_PATH="${SERVEHUB_RCLONE_REMOTE_PATH:-}"
+COMPOSE_DIR="${SERVEHUB_COMPOSE_DIR:-}"
+COMPOSE_FILE="${SERVEHUB_COMPOSE_FILE:-}"
+BACKUP_ROLE="${SERVEHUB_BACKUP_ROLE:-unknown}"
 
 if ! mkdir -p "$METRICS_DIR"; then
     echo "[ERROR] Cannot create metrics directory: $METRICS_DIR" >&2
     exit 70
 fi
 
-LAST_SUCCESS=0
-if [[ -r "$METRICS_FILE" ]]; then
-    candidate="$(awk '$1 == "servehub_borgmatic_backup_last_success_timestamp_seconds" { print $2; exit }' "$METRICS_FILE")"
-    if [[ "$candidate" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
-        LAST_SUCCESS="$candidate"
+previous_metric() {
+    local metric="$1"
+    local value=""
+    if [[ -r "$METRICS_FILE" ]]; then
+        value="$(awk -v metric="$metric" '$1 == metric { print $2; exit }' "$METRICS_FILE")"
+    fi
+    if [[ "$value" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        printf '%s' "$value"
+    else
+        printf '0'
+    fi
+}
+
+LAST_BORG_SUCCESS="$(previous_metric servehub_borgmatic_backup_last_success_timestamp_seconds)"
+LAST_OFFSITE_SUCCESS="$(previous_metric servehub_offsite_backup_last_success_timestamp_seconds)"
+LAST_PIPELINE_SUCCESS="$(previous_metric servehub_backup_pipeline_last_success_timestamp_seconds)"
+LAST_RUN_TIMESTAMP=0
+BORG_STATUS=1
+OFFSITE_STATUS=0
+STACK_RESTORE_STATUS=1
+PIPELINE_STATUS=1
+STACK_START_NEEDED=0
+RUNNING_SERVICES=()
+LOCK_FILE="/run/lock/servehub-borgmatic-${BACKUP_ROLE}.lock"
+
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+    echo "[ERROR] Another ServeHub backup pipeline is already running for role '$BACKUP_ROLE'." >&2
+    exit 75
+fi
+
+restore_services() {
+    if (( STACK_START_NEEDED == 0 )); then
+        return 0
+    fi
+
+    if [[ -z "$COMPOSE_DIR" || -z "$COMPOSE_FILE" || ${#RUNNING_SERVICES[@]} -eq 0 ]]; then
+        STACK_START_NEEDED=0
+        STACK_RESTORE_STATUS=1
+        return 0
+    fi
+
+    local attempt
+    for attempt in 1 2 3; do
+        if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" up -d --no-recreate "${RUNNING_SERVICES[@]}"); then
+            STACK_START_NEEDED=0
+            STACK_RESTORE_STATUS=1
+            echo "[INFO] Previously running Compose services are back up." >&2
+            return 0
+        fi
+        echo "[WARN] Compose restoration attempt $attempt/3 failed." >&2
+        sleep 5
+    done
+
+    STACK_RESTORE_STATUS=0
+    echo "[ERROR] Failed to restart previously running Compose services after three attempts." >&2
+    return 1
+}
+
+on_exit() {
+    local original_status=$?
+    trap - EXIT
+    restore_services >/dev/null 2>&1 || true
+    exit "$original_status"
+}
+trap on_exit EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if [[ -z "$BORG_REPOSITORY" || -z "$RCLONE_REMOTE_PATH" || -z "$COMPOSE_DIR" || -z "$COMPOSE_FILE" ]]; then
+    echo "[ERROR] Borg repository, S3 destination and Compose settings must be configured by Ansible." >&2
+else
+    RUNNING_SERVICES_OUTPUT="$(cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" ps --services --filter status=running)"
+    DISCOVERY_STATUS=$?
+    if (( DISCOVERY_STATUS != 0 )); then
+        echo "[ERROR] Failed to inspect running Compose services; refusing to back up potentially changing data." >&2
+    else
+        while IFS= read -r service; do
+            [[ -n "$service" ]] && RUNNING_SERVICES+=("$service")
+        done <<< "$RUNNING_SERVICES_OUTPUT"
+
+        if (( ${#RUNNING_SERVICES[@]} > 0 )); then
+            STACK_START_NEEDED=1
+            if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" stop); then
+                echo "[INFO] All currently running Compose services are stopped for a consistent backup." >&2
+                /usr/local/bin/borgmatic --config "$BORGMATIC_CONFIG" --verbosity -1
+                BORG_STATUS=$?
+            else
+                echo "[ERROR] Failed to stop the Compose stack; refusing to back up potentially changing data." >&2
+            fi
+            restore_services || true
+        else
+            echo "[WARN] No running Compose services were found; backing up the current on-disk data without changing service state." >&2
+            /usr/local/bin/borgmatic --config "$BORGMATIC_CONFIG" --verbosity -1
+            BORG_STATUS=$?
+        fi
+
+        # Borg has released its repository lock before the S3 mirror is updated.
+        if (( BORG_STATUS == 0 )); then
+            if /usr/bin/rclone --config "$RCLONE_CONFIG" sync \
+                --fast-list --transfers 4 --checkers 8 --stats 30s --log-level INFO \
+                "$BORG_REPOSITORY" "$RCLONE_REMOTE_PATH"; then
+                if /usr/bin/rclone --config "$RCLONE_CONFIG" check \
+                    --one-way --size-only \
+                    "$BORG_REPOSITORY" "$RCLONE_REMOTE_PATH"; then
+                    OFFSITE_STATUS=1
+                else
+                    echo "[ERROR] rclone size verification of the off-site copy failed." >&2
+                fi
+            else
+                echo "[ERROR] rclone synchronization to the off-site S3 repository failed." >&2
+            fi
+        else
+            echo "[ERROR] Borgmatic failed; skipping off-site synchronization." >&2
+        fi
     fi
 fi
 
-/usr/local/bin/borgmatic --config /etc/borgmatic/config.yaml --verbosity -1
-borgmatic_status=$?
-finished_at="$(date +%s)"
-
-if [[ "$borgmatic_status" -eq 0 ]]; then
-    LAST_SUCCESS="$finished_at"
+LAST_RUN_TIMESTAMP="$(date +%s)"
+if (( BORG_STATUS == 0 )); then
+    LAST_BORG_SUCCESS="$LAST_RUN_TIMESTAMP"
+fi
+if (( OFFSITE_STATUS == 1 )); then
+    LAST_OFFSITE_SUCCESS="$LAST_RUN_TIMESTAMP"
+fi
+if (( BORG_STATUS == 0 && OFFSITE_STATUS == 1 && STACK_RESTORE_STATUS == 1 )); then
+    PIPELINE_STATUS=0
+    LAST_PIPELINE_SUCCESS="$LAST_RUN_TIMESTAMP"
+else
+    PIPELINE_STATUS=1
 fi
 
 if ! temporary_file="$(mktemp "${METRICS_FILE}.tmp.XXXXXX")"; then
@@ -31,19 +154,37 @@ if ! temporary_file="$(mktemp "${METRICS_FILE}.tmp.XXXXXX")"; then
 fi
 
 if ! cat > "$temporary_file" <<EOF
-# HELP servehub_borgmatic_backup_last_run_success Whether the last Borgmatic run succeeded.
+# HELP servehub_borgmatic_backup_last_run_success Whether the most recent local Borgmatic backup succeeded.
 # TYPE servehub_borgmatic_backup_last_run_success gauge
-servehub_borgmatic_backup_last_run_success $([[ "$borgmatic_status" -eq 0 ]] && printf 1 || printf 0)
-# HELP servehub_borgmatic_backup_last_run_timestamp_seconds Unix timestamp of the last Borgmatic run.
+servehub_borgmatic_backup_last_run_success $([[ "$BORG_STATUS" -eq 0 ]] && printf 1 || printf 0)
+# HELP servehub_borgmatic_backup_last_run_timestamp_seconds Unix timestamp of the last local Borg backup attempt.
 # TYPE servehub_borgmatic_backup_last_run_timestamp_seconds gauge
-servehub_borgmatic_backup_last_run_timestamp_seconds $finished_at
-# HELP servehub_borgmatic_backup_last_success_timestamp_seconds Unix timestamp of the last successful Borgmatic backup.
+servehub_borgmatic_backup_last_run_timestamp_seconds $LAST_RUN_TIMESTAMP
+# HELP servehub_borgmatic_backup_last_success_timestamp_seconds Unix timestamp of the last successful local Borg backup.
 # TYPE servehub_borgmatic_backup_last_success_timestamp_seconds gauge
-servehub_borgmatic_backup_last_success_timestamp_seconds $LAST_SUCCESS
+servehub_borgmatic_backup_last_success_timestamp_seconds $LAST_BORG_SUCCESS
+# HELP servehub_offsite_backup_last_run_success Whether the most recent rclone synchronization and size verification succeeded.
+# TYPE servehub_offsite_backup_last_run_success gauge
+servehub_offsite_backup_last_run_success $OFFSITE_STATUS
+# HELP servehub_offsite_backup_last_run_timestamp_seconds Unix timestamp of the most recent off-site synchronization attempt.
+# TYPE servehub_offsite_backup_last_run_timestamp_seconds gauge
+servehub_offsite_backup_last_run_timestamp_seconds $LAST_RUN_TIMESTAMP
+# HELP servehub_offsite_backup_last_success_timestamp_seconds Unix timestamp of the most recent successful off-site synchronization and verification.
+# TYPE servehub_offsite_backup_last_success_timestamp_seconds gauge
+servehub_offsite_backup_last_success_timestamp_seconds $LAST_OFFSITE_SUCCESS
+# HELP servehub_backup_stack_restore_success Whether the previously running Compose services were restored after backup.
+# TYPE servehub_backup_stack_restore_success gauge
+servehub_backup_stack_restore_success $STACK_RESTORE_STATUS
+# HELP servehub_backup_pipeline_last_run_success Whether local backup, S3 sync, and Compose restoration all succeeded.
+# TYPE servehub_backup_pipeline_last_run_success gauge
+servehub_backup_pipeline_last_run_success $PIPELINE_STATUS
+# HELP servehub_backup_pipeline_last_success_timestamp_seconds Unix timestamp of the last fully successful backup pipeline.
+# TYPE servehub_backup_pipeline_last_success_timestamp_seconds gauge
+servehub_backup_pipeline_last_success_timestamp_seconds $LAST_PIPELINE_SUCCESS
 EOF
 then
     rm -f "$temporary_file"
-    echo "[ERROR] Cannot write Prometheus metrics." >&2
+    echo "[ERROR] Cannot write temporary Prometheus metrics file." >&2
     exit 70
 fi
 
@@ -53,4 +194,4 @@ if ! chmod 0644 "$temporary_file" || ! mv -f "$temporary_file" "$METRICS_FILE"; 
     exit 70
 fi
 
-exit "$borgmatic_status"
+exit "$PIPELINE_STATUS"

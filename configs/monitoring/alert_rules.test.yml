@@ -97,3 +97,35 @@ tests:
             exp_annotations:
               summary: "TLS-сертификат скоро истекает"
               description: "На https://grafana.example.com/ до окончания срока TLS-сертификата менее 30 дней."
+
+  - name: failed S3 synchronization raises OffsiteBackupFailed
+    interval: 1m
+    input_series:
+      - series: 'servehub_offsite_backup_last_run_success{instance="10.8.0.2:9100"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: OffsiteBackupFailed
+        exp_alerts:
+          - exp_labels:
+              instance: "10.8.0.2:9100"
+              severity: critical
+            exp_annotations:
+              summary: "Не удалось синхронизировать бэкап в S3"
+              description: "Последняя синхронизация off-site-копии или проверка размеров объектов завершилась ошибкой на 10.8.0.2:9100."
+
+  - name: failed Compose service restoration raises BackupStackRestoreFailed
+    interval: 1m
+    input_series:
+      - series: 'servehub_backup_stack_restore_success{instance="10.8.0.1:9100"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: BackupStackRestoreFailed
+        exp_alerts:
+          - exp_labels:
+              instance: "10.8.0.1:9100"
+              severity: critical
+            exp_annotations:
+              summary: "Не удалось запустить сервисы после резервного копирования"
+              description: "Проверьте журнал borgmatic.service и состояние Compose на 10.8.0.1:9100."
