@@ -15,7 +15,7 @@
   ansible.builtin.assert:
     that:
       - hermes_api_base_url is defined and (hermes_api_base_url | string | trim | length) > 0
-      - hermes_api_base_url is defined and (hermes_api_base_url | string) is match('^https?://\S+
+      - (hermes_api_base_url | string).startswith('https://') or (hermes_api_base_url | string).startswith('http://')
       - hermes_api_key is defined and (hermes_api_key | string | trim | length) > 0
       - hermes_model is defined and (hermes_model | string | trim | length) > 0
       - hermes_dashboard_basic_auth_secret is defined and (hermes_dashboard_basic_auth_secret | string | trim) is match('^[A-Fa-f0-9]{64}$')
