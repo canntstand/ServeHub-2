@@ -298,4 +298,5 @@
     backup_repository_path: /var/lib/servehub-backup/edge-repo
     backup_metrics_dir: "/home/{{ deploy_user }}/ServeHub-2/apps-data/node-exporter/textfile"
     backup_compose_file: docker-compose.remote.yaml
+    backup_keep_services: "wg-easy adguardhome node-exporter cadvisor blackbox-exporter adguard-exporter docker-socket-proxy"
     backup_schedule_time: "03:00:00"

@@ -26,7 +26,7 @@ Borg/Borgmatic creates an encrypted local repository on each host. After Borg ha
 
 Workload: `apps-data/`, `configs/`, `.env`, `certbot/`, and `PersonalData/`. Edge: `apps-data/`, `configs/`, and `.env`. This includes generated configuration and service state that cannot be rebuilt from Git alone.
 
-Before creating an archive, the script records which Compose services are running, stops the stack, and starts previously running services afterwards. Borg must release its repository lock before remote synchronization starts. Services will be unavailable during the backup window. If Compose restoration fails, a metric and critical alert are emitted.
+Before creating an archive, the script records which Compose services are running, stops services with mutable application state, and starts only those stopped services afterwards. Workload keeps AmneziaWG, Node Exporter and cAdvisor running; Edge keeps VPN/DNS dependencies and monitoring helpers available to preserve network access during the backup window. Borg must release its repository lock before remote synchronization starts. Services will be unavailable during the backup window. If Compose restoration fails, a metric and critical alert are emitted.
 
 S3 stores the encrypted Borg repository. rclone receives the S3 access keys but does not get the Borg passphrase or decrypt data. The initial sync can be large; consider storage, operation, and cold-object retrieval pricing.
 

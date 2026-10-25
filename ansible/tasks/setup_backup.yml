@@ -189,6 +189,7 @@
       Environment=SERVEHUB_BACKUP_ROLE={{ backup_role }}
       Environment="SERVEHUB_COMPOSE_DIR=/home/{{ deploy_user }}/ServeHub-2"
       Environment=SERVEHUB_COMPOSE_FILE={{ backup_compose_file }}
+      Environment="SERVEHUB_BACKUP_KEEP_SERVICES={{ backup_keep_services }}"
       ExecStart=/bin/bash /home/{{ deploy_user }}/ServeHub-2/scripts/borgmatic_with_metrics.sh
       Nice=19
       IOSchedulingClass=best-effort

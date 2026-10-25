@@ -9,6 +9,7 @@ RCLONE_CONFIG="${SERVEHUB_RCLONE_CONFIG:-/etc/servehub/rclone.conf}"
 RCLONE_REMOTE_PATH="${SERVEHUB_RCLONE_REMOTE_PATH:-}"
 COMPOSE_DIR="${SERVEHUB_COMPOSE_DIR:-}"
 COMPOSE_FILE="${SERVEHUB_COMPOSE_FILE:-}"
+KEEP_SERVICES_RAW="${SERVEHUB_BACKUP_KEEP_SERVICES:-}"
 BACKUP_ROLE="${SERVEHUB_BACKUP_ROLE:-unknown}"
 
 if ! mkdir -p "$METRICS_DIR"; then
@@ -39,6 +40,7 @@ STACK_RESTORE_STATUS=1
 PIPELINE_STATUS=1
 STACK_START_NEEDED=0
 RUNNING_SERVICES=()
+STOP_SERVICES=()
 LOCK_FILE="/run/lock/servehub-borgmatic-${BACKUP_ROLE}.lock"
 
 exec 9>"$LOCK_FILE"
@@ -52,7 +54,7 @@ restore_services() {
         return 0
     fi
 
-    if [[ -z "$COMPOSE_DIR" || -z "$COMPOSE_FILE" || ${#RUNNING_SERVICES[@]} -eq 0 ]]; then
+    if [[ -z "$COMPOSE_DIR" || -z "$COMPOSE_FILE" || ${#STOP_SERVICES[@]} -eq 0 ]]; then
         STACK_START_NEEDED=0
         STACK_RESTORE_STATUS=1
         return 0
@@ -60,10 +62,10 @@ restore_services() {
 
     local attempt
     for attempt in 1 2 3; do
-        if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" up -d --no-recreate "${RUNNING_SERVICES[@]}"); then
+        if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" start "${STOP_SERVICES[@]}"); then
             STACK_START_NEEDED=0
             STACK_RESTORE_STATUS=1
-            echo "[INFO] Previously running Compose services are back up." >&2
+            echo "[INFO] Previously running backup-stopped Compose services are back up." >&2
             return 0
         fi
         echo "[WARN] Compose restoration attempt $attempt/3 failed." >&2
@@ -97,18 +99,32 @@ else
             [[ -n "$service" ]] && RUNNING_SERVICES+=("$service")
         done <<< "$RUNNING_SERVICES_OUTPUT"
 
-        if (( ${#RUNNING_SERVICES[@]} > 0 )); then
+        read -r -a KEEP_SERVICES <<< "$KEEP_SERVICES_RAW"
+        for service in "${RUNNING_SERVICES[@]}"; do
+            keep=0
+            for keep_service in "${KEEP_SERVICES[@]}"; do
+                if [[ "$service" == "$keep_service" ]]; then
+                    keep=1
+                    break
+                fi
+            done
+            if (( keep == 0 )); then
+                STOP_SERVICES+=("$service")
+            fi
+        done
+
+        if (( ${#STOP_SERVICES[@]} > 0 )); then
             STACK_START_NEEDED=1
-            if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" stop); then
-                echo "[INFO] All currently running Compose services are stopped for a consistent backup." >&2
+            if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" stop "${STOP_SERVICES[@]}"); then
+                echo "[INFO] Stateful Compose services are stopped; network and metrics dependencies remain available." >&2
                 /usr/local/bin/borgmatic --config "$BORGMATIC_CONFIG" --verbosity -1
                 BORG_STATUS=$?
             else
-                echo "[ERROR] Failed to stop the Compose stack; refusing to back up potentially changing data." >&2
+                echo "[ERROR] Failed to stop the backup services; refusing to back up potentially changing data." >&2
             fi
             restore_services || true
         else
-            echo "[WARN] No running Compose services were found; backing up the current on-disk data without changing service state." >&2
+            echo "[WARN] No services required stopping; running Borgmatic against the current on-disk data." >&2
             /usr/local/bin/borgmatic --config "$BORGMATIC_CONFIG" --verbosity -1
             BORG_STATUS=$?
         fi
