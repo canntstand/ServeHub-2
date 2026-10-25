@@ -33,6 +33,10 @@
         icon: si-grafana
         href: https://grafana.{{HOMEPAGE_VAR_SERVER_NAME}}/
         description: Дашборды и метрики
+    - Hermes Agent:
+        icon: mdi-robot
+        href: https://hermes.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: ИИ-агент и панель управления
     - Prometheus:
         icon: si-prometheus
         href: https://prometheus.{{HOMEPAGE_VAR_SERVER_NAME}}/
