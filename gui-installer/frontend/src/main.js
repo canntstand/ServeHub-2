@@ -321,7 +321,7 @@ window.generateAndReviewYaml = function() {
     const s3WorkloadPrefix = document.getElementById('sec_s3_workload_prefix').value.trim();
     const s3EdgePrefix = document.getElementById('sec_s3_edge_prefix').value.trim();
 
-    const hermesApiBaseUrl = document.getElementById('sec_hermes_api_base_url').value.trim().replace(/\\/+$/, '');
+    const hermesApiBaseUrl = document.getElementById('sec_hermes_api_base_url').value.trim().replace(/\/+$/, '');
     const hermesApiKey = document.getElementById('sec_hermes_api_key').value.trim();
     const hermesModel = document.getElementById('sec_hermes_model').value.trim();
     const hermesSecretField = document.getElementById('sec_hermes_dashboard_basic_auth_secret');
@@ -393,17 +393,17 @@ window.generateAndReviewYaml = function() {
     if (!['https:', 'http:'].includes(parsedHermesEndpoint.protocol) ||
         !parsedHermesEndpoint.hostname || parsedHermesEndpoint.username ||
         parsedHermesEndpoint.password || parsedHermesEndpoint.search ||
-        parsedHermesEndpoint.hash || /[\\r\\n]/.test(hermesApiBaseUrl)) {
+        parsedHermesEndpoint.hash || hermesApiBaseUrl.includes('\n') || hermesApiBaseUrl.includes('\r')) {
         alert('Hermes API Base URL должен быть HTTP(S)-адресом без логина, пароля, query-параметров и fragment.');
         document.getElementById('sec_hermes_api_base_url').focus();
         return;
     }
-    if (!hermesApiKey || /[\\r\\n]/.test(hermesApiKey)) {
+    if (!hermesApiKey || hermesApiKey.includes('\n') || hermesApiKey.includes('\r')) {
         alert('Введите API-ключ для Hermes. Ключ не должен содержать переносы строк.');
         document.getElementById('sec_hermes_api_key').focus();
         return;
     }
-    if (!hermesModel || /[\\r\\n]/.test(hermesModel)) {
+    if (!hermesModel || hermesModel.includes('\n') || hermesModel.includes('\r')) {
         alert('Введите идентификатор модели Hermes без переносов строк.');
         document.getElementById('sec_hermes_model').focus();
         return;
