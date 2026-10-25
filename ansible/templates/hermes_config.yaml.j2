@@ -3,6 +3,6 @@ model:
   default: {{ hermes_model | string | to_json }}
 
 dashboard:
-  public_url: {{ ('https://' ~ server_name ~ '/').to_json }}
+  public_url: {{ ('https://' ~ server_name ~ '/') | to_json }}
   trusted_proxies:
     - "10.8.0.2"
