@@ -95,13 +95,20 @@ func generateSSHKeyPair() (privateKey string, publicKey string, err error) {
 // known template values. It never rotates an existing non-placeholder secret.
 // Generated values are returned for preview; only SaveSecrets persists them.
 func (a *App) GenerateSecretDefaults() SecretsResult {
-	_, _, values, _, err := loadSecretsSource()
+	_, _, values, isTemplate, err := loadSecretsSource()
 	if err != nil {
 		return SecretsResult{Success: false, Message: "Не удалось прочитать исходную конфигурацию: " + err.Error()}
 	}
 	generated := make(map[string]string)
 	for _, key := range generatedSecretFieldNames {
-		if !isUnsafeDefaultValue(values[key]) {
+		value := strings.TrimSpace(values[key])
+		if !isUnsafeDefaultValue(value) {
+			continue
+		}
+		// An empty value in an existing secrets.yml may be intentional or tied
+		// to an existing deployment; don't silently rotate it. Template blanks
+		// and explicit weak placeholders are safe to replace.
+		if !isTemplate && value == "" {
 			continue
 		}
 		value, err := randomHexSecret(32)
@@ -113,6 +120,10 @@ func (a *App) GenerateSecretDefaults() SecretsResult {
 
 	privateNeeds := isUnsafeDefaultValue(values["ssh_private_key"])
 	publicNeeds := isUnsafeDefaultValue(values["ssh_public_key"])
+	if !isTemplate && (strings.TrimSpace(values["ssh_private_key"]) == "" || strings.TrimSpace(values["ssh_public_key"]) == "") {
+		privateNeeds = false
+		publicNeeds = false
+	}
 	if privateNeeds && publicNeeds {
 		privateKey, publicKey, err := generateSSHKeyPair()
 		if err != nil {

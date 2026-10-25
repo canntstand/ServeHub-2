@@ -1,5 +1,5 @@
 import './style.css';
-import { CheckDocker, InstallProject, GetProjectVersions, ResolveProjectVersion, SaveSecrets, PreviewSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
+import { CheckDocker, InstallProject, GetProjectVersions, ResolveProjectVersion, SaveSecrets, PreviewSecrets, GenerateSecretDefaults, ValidateDeploymentSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
 import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
 let generatedYamlString = "";
@@ -133,6 +133,7 @@ window.runInstallation = async function() {
                 throw new Error(existingSecrets.message || 'Не удалось прочитать и проверить secrets.yml или его шаблон.');
             }
             populateSecretsForm(existingSecrets.values, existingSecrets.isTemplate);
+            await applyGeneratedSecretDefaults();
 
             spinner.style.display = 'none';
 
@@ -257,6 +258,7 @@ function isTemplatePlaceholder(value) {
         text.startsWith('change_this_to_') ||
         text.endsWith('_secure_password') ||
         text === 'hbox_key_pepper' ||
+        text === 'servehub-2-bucket' ||
         text === 'ssh-ed25519 replace_with_your_public_key';
 }
 
@@ -282,6 +284,22 @@ function populateSecretsForm(values, isTemplate = false) {
             element.value = exampleChatID || isTemplatePlaceholder(fallback) ? '' : fallback;
         } else {
             element.value = originalValue;
+        }
+    }
+}
+
+async function applyGeneratedSecretDefaults() {
+    const result = await GenerateSecretDefaults();
+    if (!result.success) {
+        throw new Error(result.message || 'Не удалось подготовить безопасные секреты.');
+    }
+    for (const [key, value] of Object.entries(result.values || {})) {
+        const fieldId = SECRETS_FIELD_MAP[key];
+        if (!fieldId) continue;
+        const element = document.getElementById(fieldId);
+        if (!element) continue;
+        if (!String(element.value ?? '').trim() || isTemplatePlaceholder(element.value)) {
+            element.value = String(value ?? '');
         }
     }
 }
@@ -318,6 +336,7 @@ window.editExistingSecrets = async function() {
         const result = await LoadSecrets();
         if (result.success) {
             populateSecretsForm(result.values, result.isTemplate);
+            await applyGeneratedSecretDefaults();
             goToStep(4);
         } else {
             alert(`Не удалось загрузить текущую конфигурацию: ${result.message}`);
@@ -448,29 +467,31 @@ window.generateAndReviewYaml = async function() {
         }
     }
 
-    let parsedHermesEndpoint;
-    try {
-        parsedHermesEndpoint = new URL(hermesApiBaseUrl);
-    } catch {
-        alert('Укажите корректный Base URL API для Hermes.');
-        document.getElementById('sec_hermes_api_base_url').focus();
-        return;
+    if (hermesApiBaseUrl) {
+        let parsedHermesEndpoint;
+        try {
+            parsedHermesEndpoint = new URL(hermesApiBaseUrl);
+        } catch {
+            alert('Укажите корректный Base URL API для Hermes.');
+            document.getElementById('sec_hermes_api_base_url').focus();
+            return;
+        }
+        if (!['https:', 'http:'].includes(parsedHermesEndpoint.protocol) ||
+            !parsedHermesEndpoint.hostname || parsedHermesEndpoint.username ||
+            parsedHermesEndpoint.password || parsedHermesEndpoint.search ||
+            parsedHermesEndpoint.hash || hermesApiBaseUrl.includes('\n') || hermesApiBaseUrl.includes('\r')) {
+            alert('Hermes API Base URL должен быть HTTP(S)-адресом без логина, пароля, query-параметров и fragment.');
+            document.getElementById('sec_hermes_api_base_url').focus();
+            return;
+        }
     }
-    if (!['https:', 'http:'].includes(parsedHermesEndpoint.protocol) ||
-        !parsedHermesEndpoint.hostname || parsedHermesEndpoint.username ||
-        parsedHermesEndpoint.password || parsedHermesEndpoint.search ||
-        parsedHermesEndpoint.hash || hermesApiBaseUrl.includes('\n') || hermesApiBaseUrl.includes('\r')) {
-        alert('Hermes API Base URL должен быть HTTP(S)-адресом без логина, пароля, query-параметров и fragment.');
-        document.getElementById('sec_hermes_api_base_url').focus();
-        return;
-    }
-    if (!hermesApiKey || hermesApiKey.includes('\n') || hermesApiKey.includes('\r')) {
-        alert('Введите API-ключ для Hermes. Ключ не должен содержать переносы строк.');
+    if (hermesApiKey && (hermesApiKey.includes('\n') || hermesApiKey.includes('\r'))) {
+        alert('API-ключ Hermes не должен содержать переносы строк.');
         document.getElementById('sec_hermes_api_key').focus();
         return;
     }
-    if (!hermesModel || hermesModel.includes('\n') || hermesModel.includes('\r')) {
-        alert('Введите идентификатор модели Hermes без переносов строк.');
+    if (hermesModel && (hermesModel.includes('\n') || hermesModel.includes('\r'))) {
+        alert('Идентификатор модели Hermes не должен содержать переносы строк.');
         document.getElementById('sec_hermes_model').focus();
         return;
     }
@@ -602,9 +623,29 @@ window.sendEnterToAnsible = async function() {
     }
 }
 
-window.confirmDeployment = function() {
+window.confirmDeployment = async function() {
     if (selectedOptionNum === 0) return;
-    
+    const nextButton = document.getElementById('btn-deploy-next');
+    if (nextButton) {
+        nextButton.disabled = true;
+        nextButton.innerText = 'Проверка конфигурации...';
+    }
+    try {
+        const validation = await ValidateDeploymentSecrets(generatedSecretUpdates, selectedOptionNum);
+        if (!validation.success) {
+            alert('Развёртывание заблокировано: ' + validation.message);
+            return;
+        }
+    } catch (err) {
+        alert('Не удалось проверить конфигурацию перед запуском Ansible: ' + err);
+        return;
+    } finally {
+        if (nextButton) {
+            nextButton.disabled = selectedOptionNum === 0;
+            nextButton.innerText = 'Продолжить';
+        }
+    }
+
     const optionTexts = {
         1: "Пункт 1. Полный деплой (Локальный + VPS)",
         2: "Пункт 2. Запуск сервисов (Локальный + VPS)",
