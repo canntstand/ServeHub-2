@@ -267,54 +267,6 @@
     group: "{{ deploy_user }}"
     mode: "u=rwX,g=rwX,o="
 
-- name: "[Backup] Проверка UUID отдельного диска"
-  ansible.builtin.command:
-    argv:
-      - blkid
-      - -U
-      - "{{ backup_disk_uuid }}"
-  register: disk_check
-  changed_when: false
-  failed_when: false
-  when: backup_disk_uuid | default('') | string | trim | length > 0
-
-- name: "[Backup] Ошибка, если настроенный диск не найден"
-  ansible.builtin.fail:
-    msg: "backup_disk_uuid задан, но диск с этим UUID не найден. Исправьте UUID или оставьте значение пустым, чтобы использовать /var/lib/servehub-backup."
-  when:
-    - backup_disk_uuid | default('') | string | trim | length > 0
-    - disk_check.rc | default(1) != 0
-
-- name: "[Backup] Монтирование отдельного диска для локального репозитория"
-  when:
-    - backup_disk_uuid | default('') | string | trim | length > 0
-    - disk_check.rc | default(1) == 0
-  block:
-    - name: "[Backup] Монтирование диска и запись в fstab"
-      ansible.posix.mount:
-        path: /mnt/backup_storage
-        src: "UUID={{ backup_disk_uuid }}"
-        fstype: auto
-        opts: defaults,nofail
-        state: mounted
-
-    - name: "[Backup] Ограничение доступа к каталогу резервного диска"
-      ansible.builtin.file:
-        path: /mnt/backup_storage
-        state: directory
-        owner: root
-        group: root
-        mode: "0700"
-
-- name: "[Backup] Настройка Borgmatic и off-site S3 для Workload"
-  ansible.builtin.include_tasks: setup_backup.yml
-  vars:
-    backup_role: workload
-    backup_repository_path: "{{ '/mnt/backup_storage/server_backup.borg' if (backup_disk_uuid | default('') | string | trim | length > 0) else '/var/lib/servehub-backup/workload-repo' }}"
-    backup_metrics_dir: "/home/{{ deploy_user }}/ServeHub-2/apps-data/node-exporter/textfile"
-    backup_compose_file: docker-compose.local.yaml
-    backup_keep_services: "amnezia-client node-exporter cadvisor"
-    backup_schedule_time: "04:00:00"
 - name: "[Kernel] Проверка/загрузка модуля AmneziaWG"
   ansible.builtin.command:
     cmd: modprobe amneziawg
@@ -593,3 +545,52 @@
     enabled: true
     state: "{{ 'restarted' if amnezia_dns_service.changed else 'started' }}"
     daemon_reload: false
+
+- name: "[Backup] Проверка UUID отдельного диска"
+  ansible.builtin.command:
+    argv:
+      - blkid
+      - -U
+      - "{{ backup_disk_uuid }}"
+  register: disk_check
+  changed_when: false
+  failed_when: false
+  when: backup_disk_uuid | default('') | string | trim | length > 0
+
+- name: "[Backup] Ошибка, если настроенный диск не найден"
+  ansible.builtin.fail:
+    msg: "backup_disk_uuid задан, но диск с этим UUID не найден. Исправьте UUID или оставьте значение пустым, чтобы использовать /var/lib/servehub-backup."
+  when:
+    - backup_disk_uuid | default('') | string | trim | length > 0
+    - disk_check.rc | default(1) != 0
+
+- name: "[Backup] Монтирование отдельного диска для локального репозитория"
+  when:
+    - backup_disk_uuid | default('') | string | trim | length > 0
+    - disk_check.rc | default(1) == 0
+  block:
+    - name: "[Backup] Монтирование диска и запись в fstab"
+      ansible.posix.mount:
+        path: /mnt/backup_storage
+        src: "UUID={{ backup_disk_uuid }}"
+        fstype: auto
+        opts: defaults,nofail
+        state: mounted
+
+    - name: "[Backup] Ограничение доступа к каталогу резервного диска"
+      ansible.builtin.file:
+        path: /mnt/backup_storage
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+- name: "[Backup] Настройка Borgmatic и off-site S3 для Workload"
+  ansible.builtin.include_tasks: setup_backup.yml
+  vars:
+    backup_role: workload
+    backup_repository_path: "{{ '/mnt/backup_storage/server_backup.borg' if (backup_disk_uuid | default('') | string | trim | length > 0) else '/var/lib/servehub-backup/workload-repo' }}"
+    backup_metrics_dir: "/home/{{ deploy_user }}/ServeHub-2/apps-data/node-exporter/textfile"
+    backup_compose_file: docker-compose.local.yaml
+    backup_keep_services: "amnezia-client node-exporter cadvisor"
+    backup_schedule_time: "04:00:00"
