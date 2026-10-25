@@ -89,17 +89,17 @@ window.runDockerCheck = async function() {
 
         if (result.success) {
             statusText.innerText = `✓ ${result.message}`;
-            statusText.style.color = '#818cf8';
+            statusText.style.color = 'var(--success)';
             btnNext.disabled = false;
         } else {
             statusText.innerText = `✗ Ошибка: ${result.message}.`;
-            statusText.style.color = '#e5484d';
+            statusText.style.color = 'var(--danger)';
             btnRetry.style.display = 'block';
         }
     } catch (err) {
         spinner.style.display = 'none';
         statusText.innerText = 'Критическая ошибка при вызове проверки бэкенда:\n' + err;
-        statusText.style.color = '#e5484d';
+        statusText.style.color = 'var(--danger)';
         btnRetry.style.display = 'block';
     }
 }
@@ -166,7 +166,7 @@ window.runInstallation = async function() {
                 projectInstallDirectoryVerified = true;
                 const pathInput = document.getElementById('project-install-directory');
                 if (pathInput) pathInput.value = projectInstallDirectory;
-                renderInstalledProjectState(projectInstallState, false);
+                renderInstalledProjectState(projectInstallState, true);
                 window.updateProjectActionUI();
             }
             const secretsCheck = await CheckSecrets();
@@ -928,9 +928,10 @@ window.startDeployment = async function() {
     logPre.innerText = 'Подготовка окружения и инициализация процесса деплоя...\n';
     
     btnRun.disabled = true;
+    btnRun.innerText = 'Деплой выполняется…';
     btnBack.disabled = true;
     if (btnExit) btnExit.style.display = 'none';
-    if (btnEnter) btnEnter.style.display = 'block';
+    if (btnEnter) btnEnter.style.display = 'none';
 
     const postDeployGuide = document.getElementById('post-deploy-guide');
     if (postDeployGuide) postDeployGuide.style.display = 'none';
@@ -939,6 +940,10 @@ window.startDeployment = async function() {
         const logPre = document.getElementById('deploy-logs');
         const isAtBottom = (logPre.scrollHeight - logPre.clientHeight) <= (logPre.scrollTop + 5);
         logPre.innerText += message;
+        // Show manual continuation only when streamed Ansible output asks for input.
+        if (btnEnter && /(press\s+(?:enter|return)\s+to\s+continue|press\s+enter|нажмите\s+(?:enter|ввод)|нажмите\s+enter\s+для\s+продолжения)/i.test(logPre.innerText.slice(-4000))) {
+            btnEnter.style.display = 'block';
+        }
         if (isAtBottom) {
             logPre.scrollTop = logPre.scrollHeight;
         }
@@ -958,7 +963,7 @@ window.startDeployment = async function() {
 
         if (result.success) {
             logPre.innerText += `\n[ УСПЕХ ]: ${result.message}\n`;
-            logPre.style.borderColor = '#818cf8';
+            logPre.style.borderColor = 'var(--success)';
             btnRun.style.display = 'none';
             btnBack.style.display = 'none';
             if (btnExit) {
@@ -970,17 +975,19 @@ window.startDeployment = async function() {
             if (guide) guide.style.display = 'block';
         } else {
             logPre.innerText += `\n[ ОШИБКА ]: Деплой завершился неудачей.\nПричина: ${result.message}\n`;
-            logPre.style.borderColor = '#e5484d';
+            logPre.style.borderColor = 'var(--danger)';
             btnRun.disabled = false;
+            btnRun.innerText = 'Повторить деплой';
             btnBack.disabled = false;
             if (btnExit) btnExit.style.display = 'block';
         }
     } catch (err) {
         if (btnEnter) btnEnter.style.display = 'none';
         logPre.innerText += `\n[ КРИТИЧЕСКАЯ ОШИБКА СИСТЕМЫ ]: Ошибка вызова бэкенда:\n${err}\n`;
-        logPre.style.borderColor = '#e5484d';
+        logPre.style.borderColor = 'var(--danger)';
 
         btnRun.disabled = false;
+        btnRun.innerText = 'Повторить деплой';
         btnBack.disabled = false;
         if (btnExit) btnExit.style.display = 'block';
     }
@@ -1104,7 +1111,7 @@ window.updateProjectActionUI = function() {
     if (useOption) useOption.disabled = !(state && state.exists && state.complete && state.knownVersion);
     if (installOption) installOption.disabled = Boolean(state && state.exists);
     if (updateOption) updateOption.disabled = !(state && state.exists && state.complete);
-    if (recoverOption) recoverOption.disabled = !projectInstallDirectoryVerified;
+    if (recoverOption) recoverOption.disabled = !projectInstallDirectoryVerified || Boolean(state && state.exists && !state.partial);
 
     if (action === 'update' && useCommit && useCommit.checked) {
         useCommit.checked = false;
@@ -1267,12 +1274,22 @@ function renderInstalledProjectState(state, initialLoad) {
     if (!note) return;
 
     legacyInstallBlocked = Boolean(state && state.exists && !state.knownVersion && !state.partial);
-    if (initialLoad) {
+    const currentAction = selectedProjectAction();
+    const actionStillFitsState =
+        (currentAction === 'use' && state && state.exists && state.complete && state.knownVersion) ||
+        (currentAction === 'install' && !(state && state.exists)) ||
+        (currentAction === 'update' && state && state.exists && state.complete) ||
+        (currentAction === 'recover' && projectInstallDirectoryVerified && !(state && state.exists && !state.partial));
+    if (initialLoad || !actionStillFitsState) {
         const defaultAction = state && state.exists
             ? (state.partial ? 'recover' : (state.knownVersion ? 'use' : 'update'))
             : 'install';
         const radio = document.querySelector('input[name="project-action"][value="' + defaultAction + '"]');
         if (radio) radio.checked = true;
+    }
+    if (initialLoad) {
+        const replaceConfirm = document.getElementById('confirm-replace-install');
+        if (replaceConfirm) replaceConfirm.checked = false;
     }
     const consentWrapper = document.getElementById('legacy-migration-consent-wrapper');
     const consentCheckbox = document.getElementById('replace-legacy-project');
@@ -1285,7 +1302,8 @@ function renderInstalledProjectState(state, initialLoad) {
     } else if (legacyInstallBlocked) {
         note.style.display = 'block';
         note.classList.add('is-warning');
-        note.textContent = 'Найдена прежняя папка ServeHub-2-dev без корректного .servehub-version.json. Её фактический commit определить нельзя. Для миграции нужно отдельное подтверждение: установщик сохранит всю прежнюю папку в резервной копии и перенесёт secrets.yml, если он является обычным файлом.';
+        note.textContent = (state && state.message ? state.message + ' ' : 'Фактическую версию каталога подтвердить нельзя. ') +
+            'Для переключения требуется явное подтверждение: вся прежняя папка будет сохранена в резервной копии, известные настройки будут перенесены.';
         if (consentWrapper) consentWrapper.style.display = 'flex';
         if (consentCheckbox && initialLoad) consentCheckbox.checked = false;
     } else if (state && state.exists && state.knownVersion) {
@@ -1341,8 +1359,11 @@ window.initializeProjectVersions = async function(preserveChoice = false) {
         window.updateProjectVersionPreview();
     } catch (error) {
         projectVersionsLoaded = false;
-        if (summary) summary.textContent = 'Не удалось получить список версий: ' + String(error);
-        if (continueButton) continueButton.disabled = true;
+        if (select) select.disabled = true;
+        if (summary) summary.textContent = 'Не удалось получить список версий: ' + String(error) +
+            '. Использование проверенной текущей установки и восстановление не требуют доступа к GitHub.';
+        window.updateProjectActionUI();
+        window.updateProjectVersionPreview();
     } finally {
         if (refreshButton) refreshButton.disabled = false;
     }
@@ -1430,7 +1451,7 @@ window.updateProjectVersionPreview = function() {
         return;
     }
     const migrationConsent = document.getElementById('replace-legacy-project');
-    if (legacyInstallBlocked && !(migrationConsent && migrationConsent.checked)) {
+    if (action === 'update' && legacyInstallBlocked && !(migrationConsent && migrationConsent.checked)) {
         summary.textContent = 'Существующая папка не содержит закреплённой версии. Подтвердите её резервное сохранение, чтобы продолжить с выбранным commit.';
         setProjectVersionContinueEnabled(false);
         return;
