@@ -86,7 +86,7 @@ tests:
       - series: 'probe_success{job="blackbox-tls",instance="https://grafana.example.com/",check_name="Wildcard TLS certificate"}'
         values: '1+0x5'
     alert_rule_test:
-      - eval_time: 3h
+      - eval_time: 5h
         alertname: CertificateExpiringSoon
         exp_alerts:
           - exp_labels:

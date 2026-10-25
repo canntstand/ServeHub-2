@@ -99,7 +99,9 @@ groups:
           description: "Проверь журнал резервного копирования на {{ $labels.instance }}."
 
       - alert: BorgmaticBackupTooOld
-        expr: time() - servehub_borgmatic_backup_last_success_timestamp_seconds > 108000
+        expr: |
+          (time() - servehub_borgmatic_backup_last_success_timestamp_seconds > 108000)
+          and on(instance) (servehub_borgmatic_backup_last_success_timestamp_seconds > 0)
         for: 10m
         labels:
           severity: critical
@@ -117,7 +119,9 @@ groups:
           description: "Последняя синхронизация off-site-копии или проверка размеров объектов завершилась ошибкой на {{ $labels.instance }}."
 
       - alert: OffsiteBackupTooOld
-        expr: time() - servehub_offsite_backup_last_success_timestamp_seconds > 108000
+        expr: |
+          (time() - servehub_offsite_backup_last_success_timestamp_seconds > 108000)
+          and on(instance) (servehub_offsite_backup_last_success_timestamp_seconds > 0)
         for: 10m
         labels:
           severity: critical
@@ -135,7 +139,9 @@ groups:
           description: "Проверьте журнал borgmatic.service и состояние Compose на {{ $labels.instance }}."
 
       - alert: BackupPipelineTooOld
-        expr: time() - servehub_backup_pipeline_last_success_timestamp_seconds > 108000
+        expr: |
+          (time() - servehub_backup_pipeline_last_success_timestamp_seconds > 108000)
+          and on(instance) (servehub_backup_pipeline_last_success_timestamp_seconds > 0)
         for: 10m
         labels:
           severity: critical
