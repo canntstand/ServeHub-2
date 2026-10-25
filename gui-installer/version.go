@@ -28,10 +28,13 @@ const (
 	maxProjectArchiveSize = int64(256 << 20)
 	maxExpandedProjectSize = uint64(512 << 20)
 	maxProjectArchiveFiles = 50000
+	maxProjectIntegrityManifestSize = 16 << 20
+	projectIntegrityManifestName = ".servehub-version-files.json"
 )
 
 var (
 	fullCommitSHARegexp = regexp.MustCompile("^[0-9a-fA-F]{40}$")
+	integritySHA256Regexp = regexp.MustCompile("^[0-9a-fA-F]{64}$")
 	inputCommitSHARegexp = regexp.MustCompile("^[0-9a-fA-F]{7,40}$")
 	gitModuleRegexp = regexp.MustCompile("^([ \t]*)(?:ansible\\.builtin\\.)?git:[ \t]*(?:#.*)?$")
 	yamlRepoRegexp = regexp.MustCompile("^[ \t]*repo:[ \t]*(.+?)[ \t]*$")
@@ -778,15 +781,18 @@ func installProjectVersion(ctx context.Context, requestedDir, action, mode, ref,
 		return CheckResult{Success: false, Message: "Не удалось подтвердить закрепление версии для серверов: " + err.Error()}
 	}
 
+	// Build the manifest before copying non-colliding user files from the old
+	// installation, so user-created files are preserved but not treated as
+	// repository-owned files for future integrity verification.
+	integritySHA256, err := projectIntegrityFingerprint(projectDir)
+	if err != nil {
+		return CheckResult{Success: false, Message: "Не удалось вычислить контрольную сумму установленного кода: " + err.Error()}
+	}
+
 	if state.Exists && state.Complete && (action == "update" || legacyReplacement) {
 		if err := preserveUserProjectFiles(targetDir, projectDir); err != nil {
 			return CheckResult{Success: false, Message: "Не удалось сохранить пользовательскую конфигурацию: " + err.Error() + ". Исходная установка не изменялась."}
 		}
-	}
-
-	integritySHA256, err := projectIntegrityFingerprint(projectDir)
-	if err != nil {
-		return CheckResult{Success: false, Message: "Не удалось вычислить контрольную сумму установленного кода: " + err.Error()}
 	}
 
 	sourceRef := resolution.Ref
@@ -1200,51 +1206,173 @@ func extractProjectArchive(archivePath, destination string) error {
 	return verifyProjectDirectory(destination)
 }
 
-var projectIntegrityFiles = []string{
-	"docker-compose.ansible.yaml",
-	"docker-compose.local.yaml",
-	"docker-compose.remote.yaml",
-	"ansible/deploy.yml",
-	"ansible/tasks/bootstrap_os.yml",
-	"ansible/tasks/setup_local.yml",
-	"ansible/tasks/setup_remote.yml",
-	"scripts/ansible-entrypoint.sh",
+type projectIntegrityEntry struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
 }
 
-// projectIntegrityFingerprint binds a set of core project files to the installed
-// version metadata. Configuration and user-managed files are intentionally
-// excluded, so preserving local settings does not invalidate the code check.
+type projectIntegrityManifest struct {
+	SchemaVersion int                    `json:"schema_version"`
+	Files         []projectIntegrityEntry `json:"files"`
+}
+
+var projectIntegrityExcludedPaths = map[string]struct{}{
+	".servehub-version.json":      {},
+	projectIntegrityManifestName:  {},
+	"ansible/vars/secrets.yml":     {},
+	"ansible/inventory.ini":        {},
+	".env":                         {},
+	"docker-compose.override.yaml": {},
+}
+
+// projectIntegrityFingerprint writes a manifest of all regular files from the
+// downloaded project version, excluding user-managed settings. Metadata keeps
+// the SHA-256 of this manifest; verification checks each managed file against
+// it. Non-colliding user files copied during an update stay outside this list.
 func projectIntegrityFingerprint(projectDir string) (string, error) {
-	hash := sha256.New()
-	for _, relative := range projectIntegrityFiles {
-		filePath := filepath.Join(projectDir, filepath.FromSlash(relative))
+	files := make([]projectIntegrityEntry, 0, 256)
+	err := filepath.WalkDir(projectDir, func(filePath string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(projectDir, filePath)
+		if err != nil {
+			return err
+		}
+		if relative == "." || entry.IsDir() {
+			return nil
+		}
+		relative = filepath.ToSlash(relative)
+		if _, excluded := projectIntegrityExcludedPaths[relative]; excluded {
+			return nil
+		}
 		info, err := os.Lstat(filePath)
 		if err != nil {
-			return "", fmt.Errorf("не удалось проверить %s: %w", relative, err)
+			return fmt.Errorf("не удалось проверить %s: %w", relative, err)
 		}
 		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-			return "", fmt.Errorf("ключевой файл %s не является обычным файлом", relative)
-		}
-		if _, err := io.WriteString(hash, relative+"\x00"); err != nil {
-			return "", err
+			return fmt.Errorf("файл проекта %s не является обычным файлом", relative)
 		}
 		file, err := os.Open(filePath)
 		if err != nil {
-			return "", fmt.Errorf("не удалось открыть %s: %w", relative, err)
+			return fmt.Errorf("не удалось открыть %s: %w", relative, err)
 		}
+		hash := sha256.New()
 		_, copyErr := io.Copy(hash, file)
 		closeErr := file.Close()
 		if copyErr != nil {
-			return "", fmt.Errorf("не удалось проверить содержимое %s: %w", relative, copyErr)
+			return fmt.Errorf("не удалось вычислить контрольную сумму %s: %w", relative, copyErr)
 		}
 		if closeErr != nil {
-			return "", fmt.Errorf("не удалось закрыть %s после проверки: %w", relative, closeErr)
+			return fmt.Errorf("не удалось закрыть %s после проверки: %w", relative, closeErr)
 		}
-		if _, err := hash.Write([]byte{0}); err != nil {
-			return "", err
+		files = append(files, projectIntegrityEntry{Path: relative, SHA256: hex.EncodeToString(hash.Sum(nil))})
+		if len(files) > maxProjectArchiveFiles {
+			return fmt.Errorf("манифест проекта превысил лимит %d файлов", maxProjectArchiveFiles)
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(files) == 0 {
+		return "", errors.New("в проекте не найдено файлов для контрольной проверки")
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+	content, err := json.Marshal(projectIntegrityManifest{SchemaVersion: 1, Files: files})
+	if err != nil {
+		return "", fmt.Errorf("не удалось сериализовать манифест проекта: %w", err)
+	}
+	if len(content) > maxProjectIntegrityManifestSize {
+		return "", fmt.Errorf("манифест проекта превышает лимит %d МиБ", maxProjectIntegrityManifestSize>>20)
+	}
+	manifestPath := filepath.Join(projectDir, projectIntegrityManifestName)
+	manifestFile, err := os.OpenFile(manifestPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return "", fmt.Errorf("не удалось создать манифест контрольных сумм: %w", err)
+	}
+	_, writeErr := manifestFile.Write(content)
+	closeErr := manifestFile.Close()
+	if writeErr != nil {
+		_ = os.Remove(manifestPath)
+		return "", fmt.Errorf("не удалось записать манифест контрольных сумм: %w", writeErr)
+	}
+	if closeErr != nil {
+		_ = os.Remove(manifestPath)
+		return "", fmt.Errorf("не удалось закрыть манифест контрольных сумм: %w", closeErr)
+	}
+	digest := sha256.Sum256(content)
+	return hex.EncodeToString(digest[:]), nil
+}
+
+func verifyProjectIntegrityFingerprint(projectDir, expectedFingerprint string) error {
+	if !integritySHA256Regexp.MatchString(expectedFingerprint) {
+		return errors.New("метаданные не содержат корректную контрольную сумму манифеста")
+	}
+	manifestPath := filepath.Join(projectDir, projectIntegrityManifestName)
+	info, err := os.Lstat(manifestPath)
+	if err != nil {
+		return errors.New("манифест контрольных сумм отсутствует")
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > maxProjectIntegrityManifestSize {
+		return errors.New("манифест контрольных сумм не является обычным файлом допустимого размера")
+	}
+	content, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return fmt.Errorf("не удалось прочитать манифест контрольных сумм: %w", err)
+	}
+	digest := sha256.Sum256(content)
+	if !strings.EqualFold(hex.EncodeToString(digest[:]), expectedFingerprint) {
+		return errors.New("контрольная сумма манифеста не совпадает с метаданными версии")
+	}
+	var manifest projectIntegrityManifest
+	if err := json.Unmarshal(content, &manifest); err != nil {
+		return errors.New("манифест контрольных сумм повреждён")
+	}
+	if manifest.SchemaVersion != 1 || len(manifest.Files) == 0 || len(manifest.Files) > maxProjectArchiveFiles {
+		return errors.New("манифест контрольных сумм имеет неподдерживаемую структуру")
+	}
+	seen := make(map[string]struct{}, len(manifest.Files))
+	for _, entry := range manifest.Files {
+		relative := entry.Path
+		if relative == "" || strings.Contains(relative, "\\") || strings.Contains(relative, ":") ||
+			strings.HasPrefix(relative, "/") || path.Clean(relative) != relative ||
+			relative == "." || relative == ".." || strings.HasPrefix(relative, "../") ||
+			!integritySHA256Regexp.MatchString(entry.SHA256) {
+			return errors.New("манифест содержит недопустимый путь или checksum")
+		}
+		if _, excluded := projectIntegrityExcludedPaths[relative]; excluded {
+			return errors.New("манифест включает файл пользовательских настроек или метаданных")
+		}
+		key := strings.ToLower(relative)
+		if _, duplicate := seen[key]; duplicate {
+			return errors.New("манифест содержит повторяющиеся пути")
+		}
+		seen[key] = struct{}{}
+		filePath := filepath.Join(projectDir, filepath.FromSlash(relative))
+		localRelative, err := filepath.Rel(projectDir, filePath)
+		if err != nil || !filepath.IsLocal(localRelative) {
+			return errors.New("путь из манифеста выходит за пределы каталога проекта")
+		}
+		fileInfo, err := os.Lstat(filePath)
+		if err != nil || fileInfo.Mode()&os.ModeSymlink != 0 || !fileInfo.Mode().IsRegular() {
+			return fmt.Errorf("файл из манифеста отсутствует или небезопасен: %s", relative)
+		}
+		file, err := os.Open(filePath)
+		if err != nil {
+			return fmt.Errorf("не удалось открыть файл из манифеста %s: %w", relative, err)
+		}
+		hash := sha256.New()
+		_, copyErr := io.Copy(hash, file)
+		closeErr := file.Close()
+		if copyErr != nil || closeErr != nil {
+			return fmt.Errorf("не удалось проверить файл из манифеста %s", relative)
+		}
+		if !strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), entry.SHA256) {
+			return fmt.Errorf("контрольная сумма файла %s не совпадает", relative)
 		}
 	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	return nil
 }
 
 func verifyProjectDirectory(projectDir string) error {
@@ -1512,13 +1640,8 @@ func getProjectInstallState(projectDir string) ProjectInstallState {
 		state.Message = "Структура проекта существует, но метаданные не содержат контрольную сумму ключевых файлов. Фактическую версию нельзя подтвердить; переключение потребует явного подтверждения и резервной копии."
 		return state
 	}
-	actualIntegrity, err := projectIntegrityFingerprint(projectDir)
-	if err != nil {
-		state.Message = "Не удалось проверить контрольную сумму ключевых файлов: " + err.Error()
-		return state
-	}
-	if !strings.EqualFold(actualIntegrity, metadata.IntegritySHA256) {
-		state.Message = "Контрольная сумма ключевых файлов не совпадает с метаданными. Код мог быть изменён; фактическая версия не подтверждена."
+	if err := verifyProjectIntegrityFingerprint(projectDir, metadata.IntegritySHA256); err != nil {
+		state.Message = "Проверка контрольных сумм кода не пройдена: " + err.Error() + ". Фактическая версия не подтверждена."
 		return state
 	}
 	state.KnownVersion = true

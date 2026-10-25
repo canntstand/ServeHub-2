@@ -169,3 +169,67 @@ func TestProjectInstallStateRequiresMatchingIntegrityFingerprint(t *testing.T) {
 		t.Fatalf("modified core file must invalidate version verification: %#v", state)
 	}
 }
+
+
+func TestPreserveUserProjectFilesKeepsSettingsAndNewVersionCode(t *testing.T) {
+	source := filepath.Join(t.TempDir(), "old")
+	destination := filepath.Join(t.TempDir(), "new")
+	for _, dir := range []string{source, destination} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldFiles := map[string]string{
+		"ansible/vars/secrets.yml": "server_name: old.example.test\n",
+		"ansible/inventory.ini": "localhost ansible_connection=local\n",
+		".env": "USER_SETTING=kept\n",
+		"docker-compose.override.yaml": "services: {}\n",
+		"my-data/notes.txt": "personal notes\n",
+		"docker-compose.local.yaml": "old code\n",
+	}
+	for relative, content := range oldFiles {
+		fullPath := filepath.Join(source, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(fullPath, []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	newCode := filepath.Join(destination, "docker-compose.local.yaml")
+	if err := os.WriteFile(newCode, []byte("new upstream code\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(destination, "ansible", "vars"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(destination, "ansible", "vars", "secrets.yml.example"), []byte("template: true\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := preserveUserProjectFiles(source, destination); err != nil {
+		t.Fatalf("preserveUserProjectFiles failed: %v", err)
+	}
+	for _, relative := range []string{
+		"ansible/vars/secrets.yml",
+		"ansible/inventory.ini",
+		".env",
+		"docker-compose.override.yaml",
+		"my-data/notes.txt",
+	} {
+		got, err := os.ReadFile(filepath.Join(destination, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatalf("preserved file %s not found: %v", relative, err)
+		}
+		if string(got) != oldFiles[relative] {
+			t.Errorf("preserved file %s changed: %q", relative, string(got))
+		}
+	}
+	gotCode, err := os.ReadFile(newCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(gotCode) != "new upstream code\n" {
+		t.Fatalf("preserve pass overwrote code from the new version: %q", gotCode)
+	}
+}
