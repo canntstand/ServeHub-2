@@ -186,6 +186,13 @@ const SECRETS_FIELD_MAP = {
     ssh_private_key: 'sec_private_ssh_key',
     borgmatic_encryption_passphrase: 'sec_borg_pass',
     backup_disk_uuid: 'sec_disk_uuid',
+    offsite_s3_endpoint: 'sec_s3_endpoint',
+    offsite_s3_region: 'sec_s3_region',
+    offsite_s3_bucket: 'sec_s3_bucket',
+    offsite_s3_access_key_id: 'sec_s3_access_key',
+    offsite_s3_secret_access_key: 'sec_s3_secret_key',
+    offsite_s3_workload_prefix: 'sec_s3_workload_prefix',
+    offsite_s3_edge_prefix: 'sec_s3_edge_prefix',
 };
 
 function populateSecretsForm(yamlText) {
@@ -274,6 +281,13 @@ window.generateAndReviewYaml = function() {
     const privatesshKey = document.getElementById('sec_private_ssh_key').value;
     const borgPass = document.getElementById('sec_borg_pass').value;
     const diskUuid = document.getElementById('sec_disk_uuid').value;
+    const s3Endpoint = document.getElementById('sec_s3_endpoint').value;
+    const s3Region = document.getElementById('sec_s3_region').value;
+    const s3Bucket = document.getElementById('sec_s3_bucket').value;
+    const s3AccessKey = document.getElementById('sec_s3_access_key').value;
+    const s3SecretKey = document.getElementById('sec_s3_secret_key').value;
+    const s3WorkloadPrefix = document.getElementById('sec_s3_workload_prefix').value;
+    const s3EdgePrefix = document.getElementById('sec_s3_edge_prefix').value;
 
     const formattedPrivateKey = privatesshKey
         .split('\n')
@@ -308,6 +322,13 @@ ssh_private_key: |
 ${formattedPrivateKey}
 borgmatic_encryption_passphrase: ${yamlQuote(borgPass)}
 backup_disk_uuid: ${yamlQuote(diskUuid)}
+offsite_s3_endpoint: ${yamlQuote(s3Endpoint)}
+offsite_s3_region: ${yamlQuote(s3Region)}
+offsite_s3_bucket: ${yamlQuote(s3Bucket)}
+offsite_s3_access_key_id: ${yamlQuote(s3AccessKey)}
+offsite_s3_secret_access_key: ${yamlQuote(s3SecretKey)}
+offsite_s3_workload_prefix: ${yamlQuote(s3WorkloadPrefix)}
+offsite_s3_edge_prefix: ${yamlQuote(s3EdgePrefix)}
 `;
 
     document.getElementById('yaml-preview').innerText = generatedYamlString;

@@ -229,6 +229,34 @@
                         <label>UUID диска для бэкапов (blkid):</label>
                         <input type="text" id="sec_disk_uuid" value="backup_disk_uuid">
                     </div>
+                    <div class="form-group">
+                        <label>Timeweb S3 endpoint:</label>
+                        <input type="text" id="sec_s3_endpoint" value="https://s3.twcstorage.ru">
+                    </div>
+                    <div class="form-group">
+                        <label>Регион S3:</label>
+                        <input type="text" id="sec_s3_region" value="ru-1">
+                    </div>
+                    <div class="form-group">
+                        <label>Имя приватного S3-бакета:</label>
+                        <input type="text" id="sec_s3_bucket" value="servehub-2-bucket">
+                    </div>
+                    <div class="form-group">
+                        <label>S3 Access Key:</label>
+                        <input type="password" id="sec_s3_access_key" autocomplete="off" placeholder="Access Key">
+                    </div>
+                    <div class="form-group">
+                        <label>S3 Secret Access Key:</label>
+                        <input type="password" id="sec_s3_secret_key" autocomplete="new-password" placeholder="Secret Access Key">
+                    </div>
+                    <div class="form-group">
+                        <label>Префикс репозитория Workload:</label>
+                        <input type="text" id="sec_s3_workload_prefix" value="workload">
+                    </div>
+                    <div class="form-group">
+                        <label>Префикс репозитория Edge:</label>
+                        <input type="text" id="sec_s3_edge_prefix" value="edge">
+                    </div>
                 </div>
 
                 <div class="button-group">
@@ -362,9 +390,10 @@
                             <div class="guide-content">
                                 <ol>
                                     <li>Проверьте расписание резервного копирования: <code>systemctl status borgmatic.timer</code>.</li>
-                                    <li>Проверьте журнал последнего запуска: <code>sudo journalctl -u borgmatic.service --since today</code>.</li>
-                                    <li>Экспортируйте ключ репозитория на внешний носитель: <code>sudo borg key export /mnt/backup_storage/server_backup.borg /путь/на/внешнем/носителе/server_backup.key</code>.</li>
-                                    <li>Не храните единственную копию ключа на этом сервере или на диске с репозиторием.</li>
+                                    <li>Проверьте журнал резервного копирования и S3: <code>sudo journalctl -u borgmatic.service --since today</code>.</li>
+                                    <li>Проверьте Prometheus-метрики <code>servehub_borgmatic_backup_last_run_success</code> и <code>servehub_offsite_backup_last_run_success</code>.</li>
+                                    <li>Храните <code>borgmatic_encryption_passphrase</code> отдельно от серверов и S3. Без парольной фразы восстановить шифрованные архивы нельзя.</li>
+                                    <li>Инструкция по восстановлению: <code>docs/BACKUPS.md</code> в репозитории.</li>
                                 </ol>
                             </div>
                         </details>

@@ -50,7 +50,9 @@ It is worth clarifying that hosting everything on one powerful VPS would be easi
 - **TG Bot Integration:** Telegram bot for receiving notifications from Alertmanager.
 
 ## Backup
-- **BorgBackup + Borgmatic:** Encrypted automated backups to disk with `lz4` compression.
+- **BorgBackup + Borgmatic:** Encrypted backups of Workload and Edge with `lz4` compression.
+- **rclone + Timeweb Cloud S3:** Synchronizes each local Borg repository to a separate prefix in one private S3 bucket.
+- **Recovery:** Setup, monitoring, and restore instructions are available in [docs/BACKUPS-ENG.md](docs/BACKUPS-ENG.md).
 
 ## Automation
 - **Ansible:** Configuration management system for automatic OS deployment, security hardening, and Docker container orchestration.
