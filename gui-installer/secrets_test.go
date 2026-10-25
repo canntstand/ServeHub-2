@@ -386,3 +386,55 @@ func TestEditableSecretFieldsCoverExampleAndFrontend(t *testing.T) {
 		}
 	}
 }
+
+func TestSaveSecretsPreservesFieldsOmittedFromSubmittedDocument(t *testing.T) {
+	varsDir := setupSecretsTestProject(t)
+	template := strings.Join([]string{
+		"server_name: template.example",
+		"telegram_chat_id: -10042",
+		"borgmatic_version: 2.1.10",
+		"template_custom: retained",
+	}, string(rune(10)))
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml.example"), template, 0600)
+
+	current := strings.Join([]string{
+		"server_name: old.example",
+		"telegram_chat_id: -100123",
+		"feature_enabled: true",
+		"custom_settings:",
+		"  nested: preserved",
+		"borgmatic_version: 2.1.10",
+	}, string(rune(10)))
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml"), current, 0600)
+
+	saved := (&App{}).SaveSecrets("server_name: new.example")
+	if !saved.Success {
+		t.Fatalf("partial save failed: %s", saved.Message)
+	}
+	content, err := os.ReadFile(filepath.Join(varsDir, "secrets.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := parseSecretsYAML(content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := secretScalarValues(document)
+	for key, want := range map[string]string{
+		"server_name": "new.example",
+		"telegram_chat_id": "-100123",
+		"feature_enabled": "true",
+	} {
+		if values[key] != want {
+			t.Errorf("%s = %q, want %q", key, values[key], want)
+		}
+	}
+	if !strings.Contains(string(content), "custom_settings:") ||
+		!strings.Contains(string(content), "nested: preserved") {
+		t.Fatalf("custom nested settings were lost: %s", content)
+	}
+	if _, exists := values["borgmatic_version"]; exists {
+		t.Fatal("a blank/missing optional version should remain removed when requested")
+	}
+}
+
