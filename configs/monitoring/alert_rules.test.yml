@@ -82,9 +82,9 @@ tests:
     interval: 1h
     input_series:
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-tls",instance="https://grafana.example.com/",check_name="Wildcard TLS certificate"}'
-        values: '2000000+0x5'
+        values: '2000000+0x10'
       - series: 'probe_success{job="blackbox-tls",instance="https://grafana.example.com/",check_name="Wildcard TLS certificate"}'
-        values: '1+0x5'
+        values: '1+0x10'
     alert_rule_test:
       - eval_time: 5h
         alertname: CertificateExpiringSoon
