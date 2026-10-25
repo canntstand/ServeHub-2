@@ -28,6 +28,14 @@
     group: "10000"
     mode: "0700"
 
+- name: "[Hermes] Создание постоянной рабочей папки для файлов пользователя"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/hermes/workspace"
+    state: directory
+    owner: "10000"
+    group: "10000"
+    mode: "0700"
+
 - name: "[Hermes] Начальная конфигурация модели и доверенного reverse proxy"
   ansible.builtin.template:
     src: "{{ playbook_dir }}/templates/hermes_config.yaml.j2"
