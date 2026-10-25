@@ -157,7 +157,7 @@
                         <input type="text" id="sec_vps_user" value="your_vps_username">
                     </div>
                     <div class="form-group">
-                        <label>Пароль root VPS:</label>
+                        <label>Пароль root VPS (для полного bootstrap):</label>
                         <div class="password-wrapper">
                             <input type="password" id="sec_vps_root_pass" value="your_vps_root_password" autocomplete="new-password">
                         </div>
@@ -179,7 +179,7 @@
                         <input type="text" id="sec_local_user" value="your_local_username">
                     </div>
                     <div class="form-group">
-                        <label>Пароль root домашнего сервера:</label>
+                        <label>Пароль root домашнего сервера (для полного bootstrap):</label>
                         <div class="password-wrapper">
                             <input type="password" id="sec_local_root_pass" value="your_local_root_password" autocomplete="new-password">
                         </div>
@@ -266,12 +266,13 @@
                         <small>Необязательно. Не меняйте после первого запуска AdGuard Home.</small>
                     </div>
                     <div class="form-group">
-                        <label>Публичный SSH ключ вашего ПК:</label>
+                        <label>Публичный SSH-ключ для установки на серверы:</label>
                         <input type="text" id="sec_public_ssh_key" value="ssh_desktop_public_key_where_ansible_is_installed">
                     </div>
                     <div class="form-group">
-                        <label>Приватный SSH ключ вашего ПК (для доступа к серверам):</label>
-                        <textarea id="sec_private_ssh_key" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----"></textarea>
+                        <label>Приватный SSH-ключ контроллера (необходим для Ansible):</label>
+                        <textarea id="sec_private_ssh_key" rows="6" placeholder="Сгенерируется автоматически для полного bootstrap; можно вставить существующий ключ"></textarea>
+                        <small>Пары проверяются на соответствие. Для сценариев без bootstrap выберите ключ, чей публичный аналог уже разрешён на целевых серверах.</small>
                     </div>
                     <div class="form-group">
                         <label>Фраза шифрования borgmatic:</label>

@@ -434,8 +434,8 @@ window.generateAndReviewYaml = async function() {
             backupFields.endpoint.focus();
             return;
         }
-        if (borgPass.length < 20 || !borgPass.trim()) {
-            alert('Фраза шифрования Borg должна содержать не менее 20 символов.');
+        if (borgPass.length < 32 || !borgPass.trim()) {
+            alert('Фраза шифрования Borg должна содержать не менее 32 символов.');
             backupFields.passphrase.focus();
             return;
         }
@@ -452,10 +452,14 @@ window.generateAndReviewYaml = async function() {
             return;
         }
         const safePrefix = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
-        if (!safePrefix.test(s3WorkloadPrefix) || !safePrefix.test(s3EdgePrefix) ||
-            s3WorkloadPrefix === s3EdgePrefix) {
-            alert('Префиксы Workload и Edge должны соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]* и различаться.');
+        if (s3WorkloadPrefix && !safePrefix.test(s3WorkloadPrefix)) {
+            alert('Префикс Workload должен соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]*.');
             backupFields.workloadPrefix.focus();
+            return;
+        }
+        if (s3EdgePrefix && !safePrefix.test(s3EdgePrefix)) {
+            alert('Префикс Edge должен соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]*.');
+            backupFields.edgePrefix.focus();
             return;
         }
         const safeBucket = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
