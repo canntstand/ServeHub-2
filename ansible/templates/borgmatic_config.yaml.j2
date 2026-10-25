@@ -1,18 +1,23 @@
 source_directories:
-  - "/home/{{ local_user }}/ServeHub-2/apps-data/"
-  - "/home/{{ local_user }}/PersonalData/"
+  - "/home/{{ deploy_user }}/ServeHub-2/apps-data/"
+  - "/home/{{ deploy_user }}/ServeHub-2/configs/"
+  - "/home/{{ deploy_user }}/ServeHub-2/.env"
+{% if backup_role == 'workload' %}
+  - "/home/{{ deploy_user }}/ServeHub-2/certbot/"
+  - "/home/{{ deploy_user }}/PersonalData/"
+{% endif %}
 
 repositories:
-  - path: /mnt/backup_storage/server_backup.borg
-    label: local-backup
+  - path: {{ backup_repository_path | to_json }}
+    label: {{ (backup_role ~ '-local') | to_json }}
 
 keep_daily: 7
 keep_weekly: 4
 keep_monthly: 6
 compression: lz4
 
-encryption_passphrase: {{ (borgmatic_encryption_passphrase | default(borg_passphrase | default(''))) | to_json }}
-
+encryption_passphrase: {{ borgmatic_encryption_passphrase | to_json }}
+{% if backup_role == 'workload' %}
 loki:
   url: http://10.8.0.1:3100/loki/api/v1/push
   labels:
@@ -20,24 +25,4 @@ loki:
     host: __hostname
     config: __config
   send_logs: true
-
-commands:
-  - before: action
-    when:
-      - create
-    run:
-      - echo "Starting backup pipeline..."
-      - cd "/home/{{ local_user }}/ServeHub-2" && docker compose -f docker-compose.local.yaml down
-
-  - after: action
-    when:
-      - create
-    states:
-      - finish
-    run:
-      - cd "/home/{{ local_user }}/ServeHub-2" && docker compose -f docker-compose.local.yaml up -d
-      - echo "Backup completed successfully!"
-
-  - after: error
-    run:
-      - cd "/home/{{ local_user }}/ServeHub-2" && docker compose -f docker-compose.local.yaml up -d
+{% endif %}

@@ -1,0 +1,227 @@
+---
+- name: "[Backup] Проверка обязательных параметров Borg и S3"
+  ansible.builtin.assert:
+    that:
+      - (borgmatic_encryption_passphrase | default('') | string | length) >= 20
+      - (offsite_s3_bucket | default('') | string | trim | length) > 0
+      - (offsite_s3_access_key_id | default('') | string | trim | length) > 0
+      - (offsite_s3_secret_access_key | default('') | string | length) > 0
+      - (offsite_s3_endpoint | default('https://s3.twcstorage.ru') | string | trim | length) > 0
+      - (offsite_s3_region | default('ru-1') | string | trim | length) > 0
+      - (offsite_s3_workload_prefix | default('workload') | string | trim | length) > 0
+      - (offsite_s3_edge_prefix | default('edge') | string | trim | length) > 0
+      - (offsite_s3_workload_prefix | default('workload') | string | trim) != (offsite_s3_edge_prefix | default('edge') | string | trim)
+      - '/' not in (offsite_s3_workload_prefix | default('workload') | string)
+      - '/' not in (offsite_s3_edge_prefix | default('edge') | string)
+    fail_msg: >-
+      Задайте одну общую borgmatic_encryption_passphrase (не менее 20 символов),
+      имя приватного бакета и S3 Access/Secret Key в vars/secrets.yml.
+      Префиксы Workload и Edge должны быть непустыми и различаться.
+  no_log: true
+
+- name: "[Backup] Создание каталога локального Borg-репозитория"
+  ansible.builtin.file:
+    path: "{{ backup_repository_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: "[Backup] Создание системных каталогов конфигурации"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "/etc/borgmatic", mode: "0700" }
+    - { path: "/etc/servehub", mode: "0700" }
+    - { path: "/root/.cache/borg", mode: "0700" }
+
+- name: "[Backup] Настройка подключения rclone к Timeweb S3"
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/templates/rclone.conf.j2"
+    dest: /etc/servehub/rclone.conf
+    owner: root
+    group: root
+    mode: "0600"
+  register: rclone_config
+  no_log: true
+
+- name: "[Backup] Проверка доступа к бакету Timeweb S3"
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/rclone
+      - --config
+      - /etc/servehub/rclone.conf
+      - lsd
+      - "timeweb-cloud:{{ offsite_s3_bucket }}"
+  changed_when: false
+  no_log: true
+
+- name: "[Backup] Подготовка временного файла для проверки S3"
+  ansible.builtin.copy:
+    dest: "/run/servehub-s3-probe-{{ inventory_hostname }}.txt"
+    content: "servehub-s3-preflight-{{ inventory_hostname }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when: rclone_config.changed
+
+- name: "[Backup] Проверка записи, чтения и удаления объектов в S3"
+  block:
+    - name: "[Backup] Загрузка временного объекта в S3"
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/rclone
+          - --config
+          - /etc/servehub/rclone.conf
+          - copyto
+          - "/run/servehub-s3-probe-{{ inventory_hostname }}.txt"
+          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.txt"
+      changed_when: true
+      no_log: true
+
+    - name: "[Backup] Чтение временного объекта из S3"
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/rclone
+          - --config
+          - /etc/servehub/rclone.conf
+          - cat
+          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.txt"
+      register: s3_probe_read
+      changed_when: false
+      no_log: true
+
+    - name: "[Backup] Проверка содержимого временного объекта"
+      ansible.builtin.assert:
+        that:
+          - s3_probe_read.stdout == ('servehub-s3-preflight-' ~ inventory_hostname)
+        fail_msg: "Проверка чтения из Timeweb S3 вернула неожиданные данные."
+      no_log: true
+
+  always:
+    - name: "[Backup] Удаление временного объекта из S3 после проверки"
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/rclone
+          - --config
+          - /etc/servehub/rclone.conf
+          - deletefile
+          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.txt"
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: "[Backup] Удаление временного локального файла проверки S3"
+      ansible.builtin.file:
+        path: "/run/servehub-s3-probe-{{ inventory_hostname }}.txt"
+        state: absent
+  when: rclone_config.changed
+
+- name: "[Backup] Генерация конфигурации Borgmatic"
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/templates/borgmatic_config.yaml.j2"
+    dest: /etc/borgmatic/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: "[Backup] Валидация конфигурации Borgmatic"
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/borgmatic
+      - --config
+      - /etc/borgmatic/config.yaml
+      - config
+      - validate
+  changed_when: false
+  no_log: true
+
+- name: "[Backup] Проверка существующего локального репозитория Borg"
+  ansible.builtin.stat:
+    path: "{{ backup_repository_path }}/config"
+  register: borg_repo_stat
+
+- name: "[Backup] Инициализация репозитория Borg только при отсутствии config"
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/borgmatic
+      - --config
+      - /etc/borgmatic/config.yaml
+      - repo-create
+      - --encryption
+      - repokey-blake2
+      - --make-parent-dirs
+  when: not borg_repo_stat.stat.exists
+  no_log: true
+
+- name: "[Backup] Установка borgmatic.service"
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/borgmatic.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=ServeHub encrypted backup and off-site synchronization
+      Documentation=https://torsion.org/borgmatic/
+      Wants=network-online.target docker.service
+      Requires=docker.service
+      After=network-online.target local-fs.target docker.service
+      RequiresMountsFor={{ backup_repository_path }}
+      {% if backup_repository_path == '/mnt/backup_storage/server_backup.borg' %}
+      ConditionPathIsMountPoint=/mnt/backup_storage
+      {% endif %}
+
+      [Service]
+      Type=oneshot
+      User=root
+      Environment=PATH=/usr/local/bin:/usr/bin:/bin
+      Environment=SERVEHUB_BORGMATIC_METRICS_DIR={{ backup_metrics_dir }}
+      Environment=SERVEHUB_BORGMATIC_CONFIG=/etc/borgmatic/config.yaml
+      Environment=SERVEHUB_BORG_REPOSITORY={{ backup_repository_path }}
+      Environment=SERVEHUB_RCLONE_CONFIG=/etc/servehub/rclone.conf
+      Environment=SERVEHUB_RCLONE_REMOTE_PATH=timeweb-cloud:{{ offsite_s3_bucket }}/{{ offsite_s3_workload_prefix if backup_role == 'workload' else offsite_s3_edge_prefix }}
+      Environment=SERVEHUB_BACKUP_ROLE={{ backup_role }}
+      Environment="SERVEHUB_COMPOSE_DIR=/home/{{ deploy_user }}/ServeHub-2"
+      Environment=SERVEHUB_COMPOSE_FILE={{ backup_compose_file }}
+      ExecStart=/bin/bash /home/{{ deploy_user }}/ServeHub-2/scripts/borgmatic_with_metrics.sh
+      Nice=19
+      IOSchedulingClass=best-effort
+      IOSchedulingPriority=7
+      TimeoutStartSec=12h
+  register: borgmatic_service_file
+
+- name: "[Backup] Установка borgmatic.timer"
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/borgmatic.timer
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Run ServeHub backups daily
+
+      [Timer]
+      OnCalendar=*-*-* {{ backup_schedule_time }}
+      RandomizedDelaySec=15m
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  register: borgmatic_timer_file
+
+- name: "[Backup] Перечитывание systemd при изменении unit-файлов"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: borgmatic_service_file.changed or borgmatic_timer_file.changed
+
+- name: "[Backup] Включение и запуск borgmatic.timer"
+  ansible.builtin.systemd_service:
+    name: borgmatic.timer
+    enabled: true
+    state: started

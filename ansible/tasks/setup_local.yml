@@ -313,7 +313,6 @@
     backup_repository_path: "{{ '/mnt/backup_storage/server_backup.borg' if (backup_disk_uuid | default('') | string | trim | length > 0) else '/var/lib/servehub-backup/workload-repo' }}"
     backup_metrics_dir: "/home/{{ deploy_user }}/ServeHub-2/apps-data/node-exporter/textfile"
     backup_compose_file: docker-compose.local.yaml
-    backup_compose_services: "alloy navidrome audiobookshelf nextcloud-db nextcloud-redis nextcloud nextcloud-cron vaultwarden-db vaultwarden gitea habitica habitica-client habitica-db homebox-db homebox"
     backup_schedule_time: "04:00:00"
 - name: "[Kernel] Проверка/загрузка модуля AmneziaWG"
   ansible.builtin.command:
