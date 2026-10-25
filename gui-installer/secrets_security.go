@@ -215,6 +215,43 @@ func validateSSHKeyPair(values map[string]string) error {
 	return nil
 }
 
+func hasLowEntropySecret(value string, minLength int) bool {
+	value = strings.TrimSpace(value)
+	if len(value) < minLength {
+		return true
+	}
+	lower := strings.ToLower(value)
+	switch lower {
+	case "passwordpasswordpasswordpassword",
+		"changemechangemechangemechangeme",
+		"12345678901234567890123456789012",
+		"qwertyuiopasdfghjklzxcvbnmqwerty",
+		"adminadminadminadminadminadminadmin":
+		return true
+	}
+
+	// Reject a string made by repeating a tiny pattern (e.g. "abcdabcd...")
+	for patternLength := 1; patternLength <= 4 && patternLength*3 <= len(value); patternLength++ {
+		if len(value)%patternLength != 0 {
+			continue
+		}
+		pattern := value[:patternLength]
+		if strings.Repeat(pattern, len(value)/patternLength) == value {
+			return true
+		}
+	}
+
+	unique := make(map[rune]struct{})
+	for _, char := range value {
+		unique[char] = struct{}{}
+	}
+	minUnique := 6
+	if len(value) >= 32 {
+		minUnique = 8
+	}
+	return len(unique) < minUnique
+}
+
 func validateStrongSecret(values map[string]string, key, label string, minLength int) error {
 	value := strings.TrimSpace(values[key])
 	if value == "" || isUnsafeDefaultValue(value) {
@@ -222,6 +259,9 @@ func validateStrongSecret(values map[string]string, key, label string, minLength
 	}
 	if len(value) < minLength {
 		return fmt.Errorf("%s: требуется не менее %d байт", label, minLength)
+	}
+	if hasLowEntropySecret(value, minLength) {
+		return fmt.Errorf("%s: секрет слишком простой или повторяющийся. Используйте случайное значение с достаточным разнообразием символов", label)
 	}
 	if strings.ContainsAny(value, "\r\n\x00") {
 		return fmt.Errorf("%s: переносы строк и нулевой байт не допускаются", label)

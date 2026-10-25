@@ -55,7 +55,7 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 		"hermes_api_base_url": "https://api.example.org/v1",
 		"hermes_api_key": "provider-api-key-for-test-123456789",
 		"hermes_model": "model-name",
-		"hermes_dashboard_basic_auth_secret": hex.EncodeToString(make([]byte, 32)),
+		"hermes_dashboard_basic_auth_secret": random(),
 	}
 }
 
@@ -253,5 +253,23 @@ func TestGenerateSecretDefaultsGeneratesMissingButNotExplicitlyBlankExistingValu
 	}
 	if len(result.Values["ssh_private_key"]) == 0 || len(result.Values["ssh_public_key"]) == 0 {
 		t.Fatal("missing SSH key pair should be generated for an existing config that has no key entries")
+	}
+}
+
+func TestValidateStrongSecretRejectsRepeatedAndLowEntropyValues(t *testing.T) {
+	for _, value := range []string{
+		strings.Repeat("a", 64),
+		strings.Repeat("abcd", 16),
+		"passwordpasswordpasswordpassword",
+		"12345678901234567890123456789012",
+	} {
+		err := validateStrongSecret(map[string]string{"secret": value}, "secret", "secret", 32)
+		if err == nil || !strings.Contains(err.Error(), "слишком простой") {
+			t.Errorf("expected low-entropy value %q to be rejected, got %v", value, err)
+		}
+	}
+	values := map[string]string{"secret": "8f0b82c5d9a6e1f743c0b8e2d14a7f6c"}
+	if err := validateStrongSecret(values, "secret", "secret", 32); err != nil {
+		t.Fatalf("diverse 32-character secret should be accepted: %v", err)
 	}
 }
