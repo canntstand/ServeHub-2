@@ -94,27 +94,6 @@ func (a *App) CheckDocker() CheckResult {
 	}
 }
 
-func (a *App) SaveSecrets(yamlContent string) CheckResult {
-	targetDir := filepath.Join(".", "ServeHub-2-dev", "ansible", "vars")
-
-	err := os.MkdirAll(targetDir, 0700)
-	if err != nil {
-		return CheckResult{Success: false, Message: "Не удалось создать директорию конфигурации: " + err.Error()}
-	}
-
-	targetFile := filepath.Join(targetDir, "secrets.yml")
-
-	err = os.WriteFile(targetFile, []byte(yamlContent), 0600)
-	if err != nil {
-		return CheckResult{Success: false, Message: "Не удалось записать файл secrets.yml: " + err.Error()}
-	}
-	if err = os.Chmod(targetFile, 0600); err != nil {
-		return CheckResult{Success: false, Message: "Не удалось ограничить права файла secrets.yml: " + err.Error()}
-	}
-
-	return CheckResult{Success: true, Message: "Файл secrets.yml успешно создан!"}
-}
-
 func (a *App) MinimizeApp() {
 	wailsRuntime.WindowMinimise(a.ctx)
 }
