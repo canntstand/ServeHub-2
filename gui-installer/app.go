@@ -56,12 +56,15 @@ func (a *App) startup(ctx context.Context) {
 type CheckResult struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
+	Exists  bool   `json:"exists,omitempty"`
 }
 
 type SecretsResult struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Content string `json:"content"`
+	Success    bool              `json:"success"`
+	Message    string            `json:"message"`
+	Content    string            `json:"content"`
+	Values     map[string]string `json:"values"`
+	IsTemplate bool              `json:"isTemplate"`
 }
 
 func (a *App) CloseApp() {
@@ -235,36 +238,3 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 	}
 }
 
-func (a *App) CheckSecrets() CheckResult {
-	targetFile := filepath.Join(".", "ServeHub-2-dev", "ansible", "vars", "secrets.yml")
-
-	if _, err := os.Stat(targetFile); err == nil {
-		return CheckResult{
-			Success: true,
-			Message: "Обнаружен ранее созданный конфигурационный файл secrets.yml.",
-		}
-	}
-
-	return CheckResult{
-		Success: false,
-		Message: "Файл конфигурации не найден.",
-	}
-}
-
-func (a *App) LoadSecrets() SecretsResult {
-	targetFile := filepath.Join(".", "ServeHub-2-dev", "ansible", "vars", "secrets.yml")
-
-	data, err := os.ReadFile(targetFile)
-	if err != nil {
-		return SecretsResult{
-			Success: false,
-			Message: "Не удалось прочитать файл secrets.yml: " + err.Error(),
-		}
-	}
-
-	return SecretsResult{
-		Success: true,
-		Message: "Файл secrets.yml успешно загружен.",
-		Content: string(data),
-	}
-}
