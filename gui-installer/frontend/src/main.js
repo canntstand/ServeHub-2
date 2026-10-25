@@ -816,7 +816,7 @@ function renderInstalledProjectState(state, initialLoad) {
         note.style.display = 'block';
         note.classList.remove('is-warning');
         note.textContent = 'В каталоге уже установлено: ' + meta.display_name + ', commit ' + sha +
-            '. Повторный запуск по умолчанию закреплён на этом же SHA. Чтобы переключить версию, явно выберите другой источник.';
+            '. Повторный запуск закреплён на этом SHA. Чтобы выбрать другой релиз или dev, сначала снимите флажок «Указать конкретный commit SHA», затем выберите источник.';
         if (initialLoad) {
             useCommit.checked = true;
             shaInput.value = sha;
