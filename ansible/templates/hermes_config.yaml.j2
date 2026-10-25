@@ -5,6 +5,9 @@ model:
   api_key: "${OPENAI_API_KEY}"
   api_mode: chat_completions
 
+terminal:
+  cwd: "/workspace"
+
 dashboard:
   public_url: {{ ('https://hermes.' ~ server_name) | to_json }}
   trusted_proxies:
