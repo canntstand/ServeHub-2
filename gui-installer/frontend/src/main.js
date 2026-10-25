@@ -373,7 +373,26 @@ window.generateAndReviewYaml = async function() {
 
     const configIsTemplate = sourceSecretIsTemplate;
 
-    if (s3Endpoint) {
+    const backupKeyNames = [
+        'offsite_s3_endpoint', 'offsite_s3_region', 'offsite_s3_bucket',
+        'offsite_s3_access_key_id', 'offsite_s3_secret_access_key',
+        'offsite_s3_workload_prefix', 'offsite_s3_edge_prefix',
+        'borgmatic_encryption_passphrase',
+    ];
+    const backupGroupChanged = backupKeyNames.some(key => {
+        const current = String(collectSecretFormValues({
+            offsite_s3_endpoint: s3Endpoint,
+            offsite_s3_region: s3Region,
+            offsite_s3_bucket: s3Bucket,
+            offsite_s3_access_key_id: s3AccessKey,
+            offsite_s3_secret_access_key: s3SecretKey,
+            offsite_s3_workload_prefix: s3WorkloadPrefix,
+            offsite_s3_edge_prefix: s3EdgePrefix,
+        })[key] ?? '');
+        return current !== String(sourceSecretValues[key] ?? '');
+    });
+
+    if (configIsTemplate || backupGroupChanged) {
         let parsedEndpoint;
         try {
             parsedEndpoint = new URL(s3Endpoint);
@@ -389,46 +408,35 @@ window.generateAndReviewYaml = async function() {
             backupFields.endpoint.focus();
             return;
         }
-    } else if (configIsTemplate) {
-        alert('Укажите HTTPS endpoint Timeweb S3.');
-        backupFields.endpoint.focus();
-        return;
-    }
-
-    if ((configIsTemplate || borgPass.trim()) && (borgPass.length < 20 || !borgPass.trim())) {
-        alert('Фраза шифрования Borg должна содержать не менее 20 символов.');
-        backupFields.passphrase.focus();
-        return;
-    }
-    const requiredS3 = [s3Region, s3Bucket, s3AccessKey, s3SecretKey];
-    if (configIsTemplate && !requiredS3.every(value => value.trim().length > 0)) {
-        alert('Заполните регион, имя бакета, S3 Access Key и S3 Secret Access Key.');
-        const firstEmpty = [
-            [s3Region, backupFields.region],
-            [s3Bucket, backupFields.bucket],
-            [s3AccessKey, backupFields.accessKey],
-            [s3SecretKey, backupFields.secretKey],
-        ].find(([value]) => !value.trim());
-        if (firstEmpty) firstEmpty[1].focus();
-        return;
-    }
-    if (s3Bucket) {
+        if (borgPass.length < 20 || !borgPass.trim()) {
+            alert('Фраза шифрования Borg должна содержать не менее 20 символов.');
+            backupFields.passphrase.focus();
+            return;
+        }
+        const requiredS3 = [s3Region, s3Bucket, s3AccessKey, s3SecretKey];
+        if (!requiredS3.every(value => value.trim().length > 0)) {
+            alert('Заполните регион, имя бакета, S3 Access Key и S3 Secret Access Key.');
+            const firstEmpty = [
+                [s3Region, backupFields.region],
+                [s3Bucket, backupFields.bucket],
+                [s3AccessKey, backupFields.accessKey],
+                [s3SecretKey, backupFields.secretKey],
+            ].find(([value]) => !value.trim());
+            if (firstEmpty) firstEmpty[1].focus();
+            return;
+        }
+        const safePrefix = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+        if (!safePrefix.test(s3WorkloadPrefix) || !safePrefix.test(s3EdgePrefix) ||
+            s3WorkloadPrefix === s3EdgePrefix) {
+            alert('Префиксы Workload и Edge должны соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]* и различаться.');
+            backupFields.workloadPrefix.focus();
+            return;
+        }
         const safeBucket = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
         if (!safeBucket.test(s3Bucket) || s3Bucket.includes('..')) {
             alert('Укажите корректное S3-имя бакета (латиница в нижнем регистре, цифры, точки и дефисы; без пути).');
             backupFields.bucket.focus();
             return;
-        }
-    }
-    if (s3WorkloadPrefix || s3EdgePrefix) {
-        const safePrefix = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
-        if (!safePrefix.test(s3WorkloadPrefix) || !safePrefix.test(s3EdgePrefix) ||
-            s3WorkloadPrefix === s3EdgePrefix) {
-            if (configIsTemplate || s3WorkloadPrefix || s3EdgePrefix) {
-                alert('Префиксы Workload и Edge должны соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]* и различаться.');
-                backupFields.workloadPrefix.focus();
-                return;
-            }
         }
     }
 
