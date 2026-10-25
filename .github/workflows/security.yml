@@ -186,6 +186,7 @@ jobs:
           # CRITICAL results report-only until the images can be updated.
           # The allowlist is intentionally tag-specific: other tags/images remain blocking.
           non_blocking_critical_images=(
+            "actualbudget/actual-server:26.10.0"
             "advplyr/audiobookshelf:2.37.2"
             "docker.io/awinterstein/habitica-server:5.51.0"
             "docker.io/mongo:7.0.45"
