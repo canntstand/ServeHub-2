@@ -37,6 +37,9 @@ scrape_configs:
       - targets: ["https://hermes.{{ server_name }}/health-check"]
         labels:
           check_name: "Hermes Agent"
+      - targets: ["https://actual.{{ server_name }}/"]
+        labels:
+          check_name: "Actual Budget"
       - targets: ["https://prometheus.{{ server_name }}/-/ready"]
         labels:
           check_name: "Prometheus"
