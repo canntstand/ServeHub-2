@@ -75,7 +75,7 @@ The installer collects an OpenAI-compatible API Base URL, API key, and model ID.
 
 After deployment, open the **Hermes Agent** card on Homepage. The panel is available at `https://hermes.<domain>/` over VPN and HTTPS only. Sign in with the administrator username and password provided by the installer.
 
-Agent data, session history, memory, and skills are stored in `apps-data/hermes/`. Do not grant Hermes access to the Docker socket, VPN configuration, or server SSH keys unless specifically required.
+Agent data, session history, memory, and skills are stored in `apps-data/hermes/`. User files have a separate persistent directory at `apps-data/hermes-workspace/`, mounted inside the container as `/workspace`. It is created automatically during deployment and survives restarts. Files can be uploaded via SSH/SFTP as the deployment user; set private SSH key permissions to `0600`. Hermes can access everything in this directory, so only place secrets here when you intend to grant the agent access.
 # Important Information Before Deployment
 1. **Supported OS:** Ubuntu 24.04 LTS.
 2. **DNS Configuration:** In the registrar's DNS panel (e.g., Webnames), you must point the primary domain A-record and the wildcard record (`*`) to the internal IP address of the Workload server running Nginx — **`10.8.0.2`**. This is critical: all traffic to your services must travel inside the secure AmneziaWG tunnel. If you point the domain to the public IP of the VPS, Nginx will block external requests due to the `deny all` rule.
