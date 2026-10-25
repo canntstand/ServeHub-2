@@ -79,10 +79,11 @@ tests:
               description: "Цель http://10.8.0.2:8080/health-check не проходит HTTP(S)-проверку более 10 минут."
 
   - name: Blackbox certificate expiration raises warning
+    start_timestamp: "2026-10-25T00:00:00Z"
     interval: 1h
     input_series:
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-tls",instance="https://grafana.example.com/",check_name="Wildcard TLS certificate"}'
-        values: '2000000+0x10'
+        values: '1794700800+0x10'
       - series: 'probe_success{job="blackbox-tls",instance="https://grafana.example.com/",check_name="Wildcard TLS certificate"}'
         values: '1+0x10'
     alert_rule_test:
