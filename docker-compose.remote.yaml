@@ -384,20 +384,21 @@ services:
     logging: *default-logging
     ports:
       - "10.8.0.1:9119:9119"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       - HERMES_DASHBOARD=1
       - HERMES_DASHBOARD_HOST=0.0.0.0
-      - HERMES_DASHBOARD_PUBLIC_URL=https://hermes.${SERVER_NAME}
       - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=${ADMIN_USER}
       - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=${ADMIN_PASSWORD}
       - HERMES_DASHBOARD_BASIC_AUTH_SECRET=${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
-      - HERMES_API_BASE_URL=${HERMES_API_BASE_URL}
-      - HERMES_MODEL=${HERMES_MODEL}
     command: ["gateway", "run"]
     volumes:
       - ./apps-data/hermes:/opt/data
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9119/api/status', timeout=5)"]
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('127.0.0.1', 9119), timeout=5).close()"]
       interval: 30s
       timeout: 10s
       retries: 3
