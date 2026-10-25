@@ -1,0 +1,511 @@
+{
+  "uid": "servehub-backup-status",
+  "title": "Backup Status",
+  "tags": [
+    "servehub",
+    "backup"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "2m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Полный цикл резервирования",
+      "datasource": "Prometheus",
+      "description": "Текущее состояние последнего запуска. Workload — домашний сервер; Edge — VPS.",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "label_replace(servehub_backup_pipeline_last_run_success{job=\"node-exporter-local\"}, \"server\", \"Workload\", \"instance\", \".*\") or label_replace(servehub_backup_pipeline_last_run_success{job=\"node-exporter-vps\"}, \"server\", \"Edge\", \"instance\", \".*\")",
+          "legendFormat": "{{server}}",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Нет данных",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "ОШИБКА",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "УСПЕШНО",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Локальная копия Borgmatic",
+      "datasource": "Prometheus",
+      "description": "Текущее состояние последнего запуска. Workload — домашний сервер; Edge — VPS.",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "label_replace(servehub_borgmatic_backup_last_run_success{job=\"node-exporter-local\"}, \"server\", \"Workload\", \"instance\", \".*\") or label_replace(servehub_borgmatic_backup_last_run_success{job=\"node-exporter-vps\"}, \"server\", \"Edge\", \"instance\", \".*\")",
+          "legendFormat": "{{server}}",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Нет данных",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "ОШИБКА",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "УСПЕШНО",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Выгрузка и проверка S3",
+      "datasource": "Prometheus",
+      "description": "Текущее состояние последнего запуска. Workload — домашний сервер; Edge — VPS.",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "label_replace(servehub_offsite_backup_last_run_success{job=\"node-exporter-local\"}, \"server\", \"Workload\", \"instance\", \".*\") or label_replace(servehub_offsite_backup_last_run_success{job=\"node-exporter-vps\"}, \"server\", \"Edge\", \"instance\", \".*\")",
+          "legendFormat": "{{server}}",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Нет данных",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "ОШИБКА",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "УСПЕШНО",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Восстановление сервисов",
+      "datasource": "Prometheus",
+      "description": "Текущее состояние последнего запуска. Workload — домашний сервер; Edge — VPS.",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "label_replace(servehub_backup_stack_restore_success{job=\"node-exporter-local\"}, \"server\", \"Workload\", \"instance\", \".*\") or label_replace(servehub_backup_stack_restore_success{job=\"node-exporter-vps\"}, \"server\", \"Edge\", \"instance\", \".*\")",
+          "legendFormat": "{{server}}",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Нет данных",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "ОШИБКА",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "УСПЕШНО",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Возраст последнего успешного полного цикла",
+      "datasource": "Prometheus",
+      "description": "Время с последнего цикла, в котором локальная копия, S3-проверка и восстановление сервисов завершились успешно. Если успешного цикла ещё не было, значение не отображается.",
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "label_replace((time() - servehub_backup_pipeline_last_success_timestamp_seconds{job=\"node-exporter-local\"}) and (servehub_backup_pipeline_last_success_timestamp_seconds{job=\"node-exporter-local\"} > 0), \"server\", \"Workload\", \"instance\", \".*\") or label_replace((time() - servehub_backup_pipeline_last_success_timestamp_seconds{job=\"node-exporter-vps\"}) and (servehub_backup_pipeline_last_success_timestamp_seconds{job=\"node-exporter-vps\"} > 0), \"server\", \"Edge\", \"instance\", \".*\")",
+          "legendFormat": "{{server}}",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dthms",
+          "noValue": "Нет успешного цикла",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 86400
+              },
+              {
+                "color": "red",
+                "value": 108000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Интервалы между запусками",
+      "datasource": "Prometheus",
+      "description": "Показывает время с последней попытки полного цикла. Падение линии к нулю соответствует новому запуску; после 30 часов без запуска сработает алерт.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "label_replace(time() - servehub_backup_pipeline_last_run_timestamp_seconds{job=\"node-exporter-local\"}, \"server\", \"Workload\", \"instance\", \".*\") or label_replace(time() - servehub_backup_pipeline_last_run_timestamp_seconds{job=\"node-exporter-vps\"}, \"server\", \"Edge\", \"instance\", \".*\")",
+          "legendFormat": "{{server}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dthms",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "state-timeline",
+      "title": "История результата полного цикла",
+      "datasource": "Prometheus",
+      "description": "Показывает, какой результат последнего цикла сохранялся во времени. Повторные успешные запуски подряд сливаются в непрерывное успешное состояние: текущие метрики не хранят отдельную запись для каждой попытки.",
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "expr": "label_replace(servehub_backup_pipeline_last_run_success{job=\"node-exporter-local\"}, \"server\", \"Workload\", \"instance\", \".*\") or label_replace(servehub_backup_pipeline_last_run_success{job=\"node-exporter-vps\"}, \"server\", \"Edge\", \"instance\", \".*\")",
+          "legendFormat": "{{server}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "alignValue": "center",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mergeValues": true,
+        "rowHeight": 0.8,
+        "showValue": "auto",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "ОШИБКА",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "УСПЕШНО",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "liveNow": false
+}
