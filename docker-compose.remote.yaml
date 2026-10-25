@@ -377,6 +377,40 @@ services:
         limits:
           memory: 1G
 
+  hermes:
+    image: nousresearch/hermes-agent:v0.22.5
+    container_name: hermes
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "10.8.0.1:9119:9119"
+    environment:
+      - HERMES_DASHBOARD=1
+      - HERMES_DASHBOARD_HOST=0.0.0.0
+      - HERMES_DASHBOARD_PUBLIC_URL=https://hermes.${SERVER_NAME}
+      - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=${ADMIN_USER}
+      - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=${ADMIN_PASSWORD}
+      - HERMES_DASHBOARD_BASIC_AUTH_SECRET=${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
+      - HERMES_API_BASE_URL=${HERMES_API_BASE_URL}
+      - HERMES_MODEL=${HERMES_MODEL}
+    command: ["gateway", "run"]
+    volumes:
+      - ./apps-data/hermes:/opt/data
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9119/api/status', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      wg-easy:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
 networks:
   docker_api:
     internal: true
