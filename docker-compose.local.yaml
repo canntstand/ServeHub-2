@@ -42,7 +42,7 @@ services:
       homepage:
         condition: service_started
       actual-budget:
-        condition: service_healthy
+        condition: service_started
     deploy:
       resources:
         limits:
