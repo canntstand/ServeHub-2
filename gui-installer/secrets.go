@@ -61,6 +61,90 @@ var optionalSecretFields = map[string]struct{}{
 	"borgmatic_version": {},
 }
 
+var sensitiveSecretFields = map[string]struct{}{
+	"vps_root_password":                  {},
+	"vps_ssh_password":                   {},
+	"vps_sudo_password":                  {},
+	"local_root_password":                {},
+	"local_ssh_password":                 {},
+	"local_sudo_password":                {},
+	"admin_password":                     {},
+	"telegram_token":                     {},
+	"webnames_apikey":                    {},
+	"postgres_password":                  {},
+	"nextcloud_redis_pass":               {},
+	"secret_vaultwarden_password":        {},
+	"hbox_pepper":                        {},
+	"adguard_password_salt":              {},
+	"ssh_private_key":                    {},
+	"borgmatic_encryption_passphrase":    {},
+	"offsite_s3_access_key_id":           {},
+	"offsite_s3_secret_access_key":        {},
+	"hermes_api_key":                     {},
+	"hermes_dashboard_basic_auth_secret": {},
+}
+
+func isSensitiveSecretField(key string) bool {
+	if _, ok := sensitiveSecretFields[key]; ok {
+		return true
+	}
+	key = strings.ToLower(key)
+	for _, marker := range []string{
+		"password", "passphrase", "token", "secret", "api_key", "apikey",
+		"access_key", "private_key", "pepper", "salt", "credential",
+	} {
+		if strings.Contains(key, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// redactSensitiveText masks complete secret values and individual lines of
+// multiline secrets (notably PEM/OpenSSH private keys) before diagnostics or
+// process output are forwarded to the UI.
+func redactSensitiveText(text string, values map[string]string) string {
+	candidates := make([]string, 0, len(values)*2)
+	seen := make(map[string]struct{}, len(values)*2)
+	addCandidate := func(candidate string) {
+		candidate = strings.TrimSpace(candidate)
+		if len(candidate) < 4 {
+			return
+		}
+		if _, exists := seen[candidate]; exists {
+			return
+		}
+		seen[candidate] = struct{}{}
+		candidates = append(candidates, candidate)
+	}
+
+	for key, value := range values {
+		if !isSensitiveSecretField(key) {
+			continue
+		}
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		addCandidate(value)
+		// Some tools print multiline values as one escaped string.
+		addCandidate(strings.ReplaceAll(value, "\n", "\\n"))
+		for _, line := range strings.FieldsFunc(value, func(r rune) bool {
+			return r == '\n' || r == '\r'
+		}) {
+			addCandidate(line)
+		}
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		return len(candidates[i]) > len(candidates[j])
+	})
+	for _, candidate := range candidates {
+		text = strings.ReplaceAll(text, candidate, "[REDACTED]")
+	}
+	return text
+}
+
 func secretsPaths() (string, string, string) {
 	projectDir := filepath.Join(".", projectInstallDirName)
 	dir := filepath.Join(projectDir, "ansible", "vars")
@@ -229,6 +313,17 @@ func mergeSecretUpdates(document *yaml.Node, updates map[string]string) error {
 				break
 			}
 		}
+		// A blank form field is not proof that an existing credential should
+		// be removed. Preserve populated secrets unless a replacement is given;
+		// template placeholders may still be cleared intentionally.
+		if pairIndex >= 0 && isSensitiveSecretField(key) && strings.TrimSpace(value) == "" {
+			oldValue := root.Content[pairIndex+1]
+			if oldValue.Kind != yaml.ScalarNode ||
+				(strings.TrimSpace(oldValue.Value) != "" && !isUnsafeDefaultValue(oldValue.Value)) {
+				continue
+			}
+		}
+
 		if _, optional := optionalSecretFields[key]; optional && strings.TrimSpace(value) == "" {
 			if pairIndex >= 0 {
 				root.Content = append(root.Content[:pairIndex], root.Content[pairIndex+2:]...)

@@ -4,9 +4,15 @@ import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
 let generatedYamlString = "";
 let generatedSecretUpdates = {};
+let generatedPreviewValues = {};
 let sourceSecretValues = {};
 let sourceSecretIsTemplate = true;
 let generatedSecretDefaultsPending = false;
+let secretFormInitialized = false;
+let secretFormProjectSHA = "";
+let privateSSHKeyValue = "";
+let privateSSHKeyVisible = false;
+let privateSSHKeyToggleButton = null;
 
 const STEP_TITLES = {
     1: 'Выбор версии проекта',
@@ -133,8 +139,14 @@ window.runInstallation = async function() {
             if (!existingSecrets.success) {
                 throw new Error(existingSecrets.message || 'Не удалось прочитать и проверить secrets.yml или его шаблон.');
             }
-            populateSecretsForm(existingSecrets.values, existingSecrets.isTemplate);
-            await applyGeneratedSecretDefaults();
+            // Navigation back to this step must not overwrite unsaved form edits.
+            // Reload only when the selected project commit has actually changed.
+            if (!secretFormInitialized || secretFormProjectSHA !== selection.expectedSHA) {
+                populateSecretsForm(existingSecrets.values, existingSecrets.isTemplate);
+                await applyGeneratedSecretDefaults();
+                secretFormInitialized = true;
+                secretFormProjectSHA = selection.expectedSHA;
+            }
 
             spinner.style.display = 'none';
 
@@ -262,6 +274,107 @@ const SECRETS_FIELD_MAP = {
     hermes_dashboard_basic_auth_secret: 'sec_hermes_dashboard_basic_auth_secret',
 };
 
+const SENSITIVE_SECRET_FIELDS = new Set([
+    'vps_root_password', 'vps_ssh_password', 'vps_sudo_password',
+    'local_root_password', 'local_ssh_password', 'local_sudo_password',
+    'admin_password', 'telegram_token', 'webnames_apikey',
+    'postgres_password', 'nextcloud_redis_pass', 'secret_vaultwarden_password',
+    'hbox_pepper', 'adguard_password_salt', 'ssh_private_key',
+    'borgmatic_encryption_passphrase', 'offsite_s3_access_key_id',
+    'offsite_s3_secret_access_key', 'hermes_api_key',
+    'hermes_dashboard_basic_auth_secret',
+]);
+
+const PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER =
+    'Приватный SSH-ключ загружен и скрыт. Нажмите «Показать ключ» для просмотра или изменения.';
+const PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER =
+    'Ключ не задан. Нажмите «Показать ключ», чтобы вставить существующий ключ.';
+
+function refreshPrivateSSHKeyToggle() {
+    if (!privateSSHKeyToggleButton) return;
+    privateSSHKeyToggleButton.textContent = privateSSHKeyVisible ? 'Скрыть ключ' : 'Показать ключ';
+    privateSSHKeyToggleButton.setAttribute('aria-pressed', String(privateSSHKeyVisible));
+    privateSSHKeyToggleButton.setAttribute('aria-label',
+        privateSSHKeyVisible ? 'Скрыть приватный SSH-ключ' : 'Показать приватный SSH-ключ');
+}
+
+function setPrivateSSHKeyVisibility(visible) {
+    const field = document.getElementById('sec_private_ssh_key');
+    if (!field) {
+        privateSSHKeyVisible = Boolean(visible);
+        refreshPrivateSSHKeyToggle();
+        return;
+    }
+    if (privateSSHKeyVisible) {
+        privateSSHKeyValue = String(field.value ?? '');
+    }
+    privateSSHKeyVisible = Boolean(visible);
+    field.value = privateSSHKeyVisible ? privateSSHKeyValue : '';
+    field.placeholder = privateSSHKeyVisible
+        ? ''
+        : (privateSSHKeyValue.trim() ? PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER : PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER);
+    refreshPrivateSSHKeyToggle();
+}
+
+function setupSecretVisibilityToggles() {
+    for (const key of SENSITIVE_SECRET_FIELDS) {
+        const fieldId = SECRETS_FIELD_MAP[key];
+        const field = fieldId ? document.getElementById(fieldId) : null;
+        if (!field || field.type === 'hidden' || field.dataset.secretVisibilityToggle === 'ready') continue;
+
+        const isPrivateKey = key === 'ssh_private_key';
+        if (!isPrivateKey && field.tagName !== 'TEXTAREA') field.type = 'password';
+
+        let wrapper = field.parentElement;
+        if (!wrapper || !wrapper.classList.contains('password-wrapper')) {
+            wrapper = document.createElement('div');
+            wrapper.className = 'secret-field-control';
+            if (isPrivateKey) wrapper.classList.add('secret-textarea-control');
+            field.parentNode.insertBefore(wrapper, field);
+            wrapper.appendChild(field);
+        } else {
+            wrapper.classList.add('secret-field-control');
+            if (isPrivateKey) wrapper.classList.add('secret-textarea-control');
+        }
+
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'secret-visibility-toggle';
+        toggle.textContent = 'Показать';
+        toggle.setAttribute('aria-controls', field.id);
+        toggle.setAttribute('aria-pressed', 'false');
+        wrapper.appendChild(toggle);
+
+        if (isPrivateKey) {
+            privateSSHKeyToggleButton = toggle;
+            field.addEventListener('input', () => {
+                if (privateSSHKeyVisible) privateSSHKeyValue = String(field.value ?? '');
+            });
+            field.value = privateSSHKeyVisible ? privateSSHKeyValue : '';
+            field.placeholder = privateSSHKeyVisible
+                ? ''
+                : (privateSSHKeyValue.trim() ? PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER : PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER);
+            refreshPrivateSSHKeyToggle();
+            toggle.addEventListener('click', () => {
+                const show = !privateSSHKeyVisible;
+                setPrivateSSHKeyVisibility(show);
+                if (show) field.focus();
+            });
+        } else {
+            toggle.setAttribute('aria-label', 'Показать секрет');
+            toggle.addEventListener('click', () => {
+                const show = field.type === 'password';
+                field.type = show ? 'text' : 'password';
+                toggle.textContent = show ? 'Скрыть' : 'Показать';
+                toggle.setAttribute('aria-pressed', String(show));
+                toggle.setAttribute('aria-label', show ? 'Скрыть секрет' : 'Показать секрет');
+            });
+        }
+
+        field.dataset.secretVisibilityToggle = 'ready';
+    }
+}
+
 function isTemplatePlaceholder(value) {
     const text = String(value ?? '').trim().toLowerCase();
     return text.startsWith('replace_with_') ||
@@ -286,18 +399,32 @@ function populateSecretsForm(values, isTemplate = false) {
     for (const [key, fieldId] of Object.entries(SECRETS_FIELD_MAP)) {
         const element = document.getElementById(fieldId);
         if (!element) continue;
-        if (!Object.prototype.hasOwnProperty.call(source, key)) {
+
+        let nextValue = '';
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+            const originalValue = String(source[key] ?? '');
+            const exampleChatID = key === 'telegram_chat_id' && originalValue === '-1001234567890';
+            if (sourceSecretIsTemplate && (isTemplatePlaceholder(originalValue) || exampleChatID)) {
+                const fallback = String(element.defaultValue ?? '');
+                nextValue = exampleChatID || isTemplatePlaceholder(fallback) ? '' : fallback;
+            } else {
+                nextValue = originalValue;
+            }
+        }
+
+        if (key === 'ssh_private_key') {
+            // Keep the actual private key in application state; never render it
+            // in the textarea unless the user explicitly reveals it.
+            privateSSHKeyValue = nextValue;
+            privateSSHKeyVisible = false;
             element.value = '';
+            element.placeholder = privateSSHKeyValue.trim()
+                ? PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER
+                : PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER;
+            refreshPrivateSSHKeyToggle();
             continue;
         }
-        const originalValue = String(source[key] ?? '');
-        const exampleChatID = key === 'telegram_chat_id' && originalValue === '-1001234567890';
-        if (sourceSecretIsTemplate && (isTemplatePlaceholder(originalValue) || exampleChatID)) {
-            const fallback = String(element.defaultValue ?? '');
-            element.value = exampleChatID || isTemplatePlaceholder(fallback) ? '' : fallback;
-        } else {
-            element.value = originalValue;
-        }
+        element.value = nextValue;
     }
 }
 
@@ -313,6 +440,19 @@ async function applyGeneratedSecretDefaults() {
         if (!fieldId) continue;
         const element = document.getElementById(fieldId);
         if (!element) continue;
+
+        if (key === 'ssh_private_key') {
+            if (!privateSSHKeyValue.trim() || isTemplatePlaceholder(privateSSHKeyValue)) {
+                privateSSHKeyValue = String(value ?? '');
+                element.value = privateSSHKeyVisible ? privateSSHKeyValue : '';
+                element.placeholder = privateSSHKeyVisible
+                    ? ''
+                    : (privateSSHKeyValue.trim() ? PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER : PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER);
+                refreshPrivateSSHKeyToggle();
+            }
+            continue;
+        }
+
         if (!String(element.value ?? '').trim() || isTemplatePlaceholder(element.value)) {
             element.value = String(value ?? '');
         }
@@ -324,6 +464,10 @@ function collectSecretFormValues(normalized = {}) {
     for (const [key, fieldId] of Object.entries(SECRETS_FIELD_MAP)) {
         const element = document.getElementById(fieldId);
         if (!element) continue;
+        if (key === 'ssh_private_key' && !Object.prototype.hasOwnProperty.call(normalized, key)) {
+            values[key] = privateSSHKeyVisible ? String(element.value ?? '') : privateSSHKeyValue;
+            continue;
+        }
         values[key] = Object.prototype.hasOwnProperty.call(normalized, key)
             ? normalized[key]
             : String(element.value ?? '');
@@ -335,23 +479,42 @@ function collectSecretFormValues(normalized = {}) {
 // untouched YAML nodes never make a round trip through the HTML form.
 function buildChangedSecretUpdates(values) {
     const updates = {};
+    let retainedBlankSecret = false;
     for (const [key, value] of Object.entries(values)) {
         const current = String(value ?? '');
         const existed = Object.prototype.hasOwnProperty.call(sourceSecretValues, key);
         const previous = existed ? String(sourceSecretValues[key] ?? '') : '';
         if (existed && current === previous) continue;
+
+        // Clearing a populated credential must not silently erase it from an
+        // existing secrets.yml. Enter a replacement to change the credential.
+        if (SENSITIVE_SECRET_FIELDS.has(key) && existed && !sourceSecretIsTemplate &&
+            current.trim() === '' && previous.trim() !== '' && !isTemplatePlaceholder(previous)) {
+            retainedBlankSecret = true;
+            continue;
+        }
         if (!existed && current === '') continue;
         updates[key] = current;
+    }
+    if (retainedBlankSecret) {
+        alert('Пустое поле не удаляет уже сохранённый секрет: прежнее значение будет сохранено. Чтобы заменить секрет, введите новое значение.');
     }
     return updates;
 }
 
 window.editExistingSecrets = async function() {
+    if (secretFormInitialized) {
+        goToStep(4);
+        return;
+    }
     try {
         const result = await LoadSecrets();
         if (result.success) {
             populateSecretsForm(result.values, result.isTemplate);
             await applyGeneratedSecretDefaults();
+            secretFormInitialized = true;
+            const selected = getSelectedProjectVersion();
+            secretFormProjectSHA = selected.valid ? selected.expectedSHA : '';
             goToStep(4);
         } else {
             alert(`Не удалось загрузить текущую конфигурацию: ${result.message}`);
@@ -542,6 +705,10 @@ window.generateAndReviewYaml = async function() {
     });
     const updates = buildChangedSecretUpdates(normalizedValues);
 
+    if (!window.confirm('Предпросмотр secrets.yml будет содержать пароли, токены, API-ключи и приватный SSH-ключ в открытом виде. Продолжайте только на доверенном устройстве. Показать конфигурацию?')) {
+        return;
+    }
+
     const previewButton = document.querySelector('#step-4 .button-group .btn-primary');
     const originalButtonText = previewButton ? previewButton.innerText : '';
     if (previewButton) {
@@ -556,6 +723,7 @@ window.generateAndReviewYaml = async function() {
             return;
         }
         generatedSecretUpdates = { ...updates };
+        generatedPreviewValues = { ...(preview.values || {}) };
         generatedYamlString = preview.content;
         document.getElementById('yaml-preview').innerText = generatedYamlString;
 
@@ -598,6 +766,24 @@ window.saveYamlAndFinish = async function() {
     try {
         const result = await SaveSecrets(generatedSecretUpdates, generatedYamlString);
         if (result.success) {
+            if (Object.keys(generatedPreviewValues).length > 0) {
+                sourceSecretValues = { ...generatedPreviewValues };
+            }
+            sourceSecretIsTemplate = false;
+            if (Object.prototype.hasOwnProperty.call(sourceSecretValues, 'ssh_private_key')) {
+                privateSSHKeyValue = String(sourceSecretValues.ssh_private_key ?? '');
+            }
+            privateSSHKeyVisible = false;
+            const privateKeyField = document.getElementById('sec_private_ssh_key');
+            if (privateKeyField) {
+                privateKeyField.value = '';
+                privateKeyField.placeholder = privateSSHKeyValue.trim()
+                    ? PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER
+                    : PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER;
+            }
+            refreshPrivateSSHKeyToggle();
+            generatedSecretUpdates = {};
+            generatedPreviewValues = {};
             generatedSecretDefaultsPending = false;
             goToStep(6);
         } else {
@@ -1081,5 +1267,6 @@ window.continueFromVersionSelection = function() {
 };
 
 
+setupSecretVisibilityToggles();
 updateStepProgress(1);
 window.initializeProjectVersions();

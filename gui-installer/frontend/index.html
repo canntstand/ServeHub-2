@@ -267,7 +267,7 @@
                     </div>
                     <div class="form-group">
                         <label>Соль пароля AdGuard (необязательно):</label>
-                        <input type="text" id="sec_adguard_password_salt" value="" autocomplete="off">
+                        <input type="password" id="sec_adguard_password_salt" value="" autocomplete="new-password">
                         <small>Необязательно. Не меняйте после первого запуска AdGuard Home.</small>
                     </div>
                     <div class="form-group">
@@ -354,6 +354,9 @@
                 <h1 class="title" style="margin-bottom: 5px;">Проверьте ваш файл secrets.yml (обязательно сделайте себе копию)</h1>
                 <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px; max-width: 550px;">
                     Ниже представлен итоговый файл. Вы можете пролистать и проверить его.
+                </p>
+                <p class="sensitive-yaml-warning" role="alert">
+                    ВНИМАНИЕ: YAML содержит пароли, токены, API-ключи и приватный SSH-ключ в открытом виде. Не публикуйте его, не отправляйте третьим лицам и не оставляйте копии в общедоступных каталогах.
                 </p>
                 
                 <div class="preview-container">

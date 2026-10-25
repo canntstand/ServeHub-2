@@ -103,12 +103,17 @@ func (a *App) MaximizeApp() {
 }
 
 func (a *App) RunDeployment(option int, verbose bool) CheckResult {
+	_, _, logSensitiveValues, _, secretsErr := loadSecretsSource()
+	if secretsErr != nil {
+		return CheckResult{Success: false, Message: "Не удалось прочитать secrets.yml для безопасной проверки перед деплоем."}
+	}
 	if err := validateSavedSecretsForDeployment(option); err != nil {
-		return CheckResult{Success: false, Message: "Проверка конфигурации перед Ansible не пройдена: " + err.Error()}
+		message := "Проверка конфигурации перед Ansible не пройдена: " + redactSensitiveText(err.Error(), logSensitiveValues)
+		return CheckResult{Success: false, Message: message}
 	}
 	metadata, err := readInstalledProjectMetadata(filepath.Join(".", projectInstallDirName))
 	if err != nil {
-		return CheckResult{Success: false, Message: "Не удалось определить закреплённую версию проекта: " + err.Error()}
+		return CheckResult{Success: false, Message: redactSensitiveText("Не удалось определить закреплённую версию проекта: "+err.Error(), logSensitiveValues)}
 	}
 	if !isFullCommitSHA(metadata.CommitSHA) {
 		return CheckResult{Success: false, Message: "В метаданных установленного проекта отсутствует корректный commit SHA. Повторный деплой заблокирован."}
@@ -118,7 +123,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 	composeFile := filepath.Join(projectDir, "docker-compose.ansible.yaml")
 	needsBuild, err := ansibleComposeNeedsBuild(composeFile)
 	if err != nil {
-		return CheckResult{Success: false, Message: "Не удалось проверить Ansible Compose: " + err.Error()}
+		return CheckResult{Success: false, Message: redactSensitiveText("Не удалось проверить Ansible Compose: "+err.Error(), logSensitiveValues)}
 	}
 
 	var steps []string
@@ -173,7 +178,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 
 		ptty, err := pty.New()
 		if err != nil {
-			return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось создать псевдотерминал: %s", err.Error())}
+			return CheckResult{Success: false, Message: redactSensitiveText(fmt.Sprintf("Не удалось создать псевдотерминал: %s", err.Error()), logSensitiveValues)}
 		}
 		_ = ptty.Resize(200, 50)
 
@@ -181,7 +186,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 		cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 		if err := cmd.Start(); err != nil {
 			ptty.Close()
-			return CheckResult{Success: false, Message: fmt.Sprintf("Не удалось запустить Docker: %s", err.Error())}
+			return CheckResult{Success: false, Message: redactSensitiveText(fmt.Sprintf("Не удалось запустить Docker: %s", err.Error()), logSensitiveValues)}
 		}
 
 		a.ptty = ptty
@@ -192,7 +197,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 			scanner := bufio.NewScanner(p)
 			scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 			for scanner.Scan() {
-				clean := stripAnsi(scanner.Text())
+				clean := redactSensitiveText(stripAnsi(scanner.Text()), logSensitiveValues)
 				if clean == "" {
 					continue
 				}
@@ -209,14 +214,14 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 		if waitErr != nil {
 			return CheckResult{
 				Success: false,
-				Message: fmt.Sprintf("Ansible завершился с ошибкой: %s", waitErr.Error()),
+				Message: redactSensitiveText(fmt.Sprintf("Ansible завершился с ошибкой: %s", waitErr.Error()), logSensitiveValues),
 			}
 		}
 	}
 
 	return CheckResult{
 		Success: true,
-		Message: fmt.Sprintf("Все этапы деплоя Ansible успешно выполнены для commit %s.", metadata.CommitSHA),
+		Message: redactSensitiveText(fmt.Sprintf("Все этапы деплоя Ansible успешно выполнены для commit %s.", metadata.CommitSHA), logSensitiveValues),
 	}
 }
 

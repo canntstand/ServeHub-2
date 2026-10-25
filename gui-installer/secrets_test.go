@@ -131,7 +131,7 @@ func TestParseSecretsSupportsUnquotedAndNumericScalars(t *testing.T) {
 	}
 }
 
-func TestMergeSecretUpdatesDeletesOnlyBlankOptionalValues(t *testing.T) {
+func TestMergeSecretUpdatesPreservesBlankSecretsAndDeletesBlankOptionalValues(t *testing.T) {
 	document, err := parseSecretsYAML(yamlInput(
 		"server_name: example.org",
 		"adguard_password_salt: keep-me",
@@ -143,7 +143,7 @@ func TestMergeSecretUpdatesDeletesOnlyBlankOptionalValues(t *testing.T) {
 	}
 	if err := mergeSecretUpdates(document, map[string]string{
 		"adguard_password_salt": "",
-		"borgmatic_version":     "2.2.0",
+		"borgmatic_version":     "",
 		"server_name":           "new.example.org",
 	}); err != nil {
 		t.Fatal(err)
@@ -157,11 +157,14 @@ func TestMergeSecretUpdatesDeletesOnlyBlankOptionalValues(t *testing.T) {
 		t.Fatal(err)
 	}
 	values := secretScalarValues(parsed)
-	if _, exists := values["adguard_password_salt"]; exists {
-		t.Fatal("blank optional adguard salt should be removed")
+	if values["adguard_password_salt"] != "keep-me" {
+		t.Fatal("blank update must not erase an existing secret")
 	}
-	if values["borgmatic_version"] != "2.2.0" || values["custom_value"] != "keep-custom" {
-		t.Fatalf("optional or unknown value was lost: %#v", values)
+	if _, exists := values["borgmatic_version"]; exists {
+		t.Fatal("blank optional non-secret version should be removed")
+	}
+	if values["server_name"] != "new.example.org" || values["custom_value"] != "keep-custom" {
+		t.Fatalf("configuration value or unknown field was lost: %#v", values)
 	}
 }
 
@@ -452,3 +455,23 @@ func TestSaveSecretsPreservesUnchangedFieldsAndExplicitlyDeletesOptionalValues(t
 	}
 }
 
+
+func TestRedactSensitiveTextMasksValuesAndMultilinePrivateKey(t *testing.T) {
+	token := "123456789:some-sensitive-token-value"
+	password := "long-admin-password-value"
+	privateKey := "-----BEGIN PRIVATE KEY-----\nMIIEFAKEPRIVATEKEYMATERIAL123456789\n-----END PRIVATE KEY-----"
+	input := "token=" + token + "\npassword=" + password + "\n" + privateKey
+	got := redactSensitiveText(input, map[string]string{
+		"telegram_token":  token,
+		"admin_password":  password,
+		"ssh_private_key": privateKey,
+	})
+	for _, secret := range []string{token, password, "MIIEFAKEPRIVATEKEYMATERIAL123456789"} {
+		if strings.Contains(got, secret) {
+			t.Fatalf("secret value remains in redacted output: %q", secret)
+		}
+	}
+	if !strings.Contains(got, "[REDACTED]") {
+		t.Fatal("expected redaction marker in output")
+	}
+}
