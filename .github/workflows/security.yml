@@ -190,6 +190,7 @@ jobs:
             "docker.io/awinterstein/habitica-server:5.51.0"
             "docker.io/mongo:7.0.45"
             "ghcr.io/henrywhitaker3/adguard-exporter:v1.2.1"
+            "nousresearch/hermes-agent:v0.22.5"
             "nextcloud:34-apache"
             "nginx:1.30.6"
             "postgres:18.6"
