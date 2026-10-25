@@ -222,12 +222,12 @@
                     <div class="form-group">
                         <label>Фраза шифрования borgmatic:</label>
                         <div class="password-wrapper">
-                            <input type="text" id="sec_borg_pass" value="borgmatic_encryption_passphrase">
+                            <input type="password" id="sec_borg_pass" placeholder="Не менее 20 символов" autocomplete="new-password">
                         </div>
                     </div>
                     <div class="form-group">
                         <label>UUID диска для бэкапов (blkid):</label>
-                        <input type="text" id="sec_disk_uuid" value="backup_disk_uuid">
+                        <input type="text" id="sec_disk_uuid" value="" placeholder="Необязательно: пусто — /var/lib/servehub-backup/workload-repo">
                     </div>
                     <div class="form-group">
                         <label>Timeweb S3 endpoint:</label>

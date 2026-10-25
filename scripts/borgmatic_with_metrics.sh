@@ -10,7 +10,14 @@ RCLONE_REMOTE_PATH="${SERVEHUB_RCLONE_REMOTE_PATH:-}"
 COMPOSE_DIR="${SERVEHUB_COMPOSE_DIR:-}"
 COMPOSE_FILE="${SERVEHUB_COMPOSE_FILE:-}"
 KEEP_SERVICES_RAW="${SERVEHUB_BACKUP_KEEP_SERVICES:-}"
+STOP_TIMEOUT="${SERVEHUB_BACKUP_STOP_TIMEOUT:-120}"
+RESTORE_TIMEOUT="${SERVEHUB_BACKUP_RESTORE_TIMEOUT:-180}"
 BACKUP_ROLE="${SERVEHUB_BACKUP_ROLE:-unknown}"
+
+if ! [[ "$STOP_TIMEOUT" =~ ^[1-9][0-9]*$ && "$RESTORE_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[ERROR] Backup stop and restore timeouts must be positive integers." >&2
+    exit 64
+fi
 
 if ! mkdir -p "$METRICS_DIR"; then
     echo "[ERROR] Cannot create metrics directory: $METRICS_DIR" >&2
@@ -63,7 +70,7 @@ restore_services() {
 
     local attempt
     for attempt in 1 2 3; do
-        if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" up -d --no-recreate "${RUNNING_SERVICES[@]}"); then
+        if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" up -d --no-recreate --wait --wait-timeout "$RESTORE_TIMEOUT" "${RUNNING_SERVICES[@]}"); then
             STACK_START_NEEDED=0
             STACK_RESTORE_STATUS=1
             echo "[INFO] Previously running Compose services are back up." >&2
@@ -130,6 +137,63 @@ trap on_exit EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+repo_id_from_stream() {
+    awk -F= '
+        function trim(value) {
+            sub(/^[[:space:]]+/, "", value)
+            sub(/[[:space:]]+$/, "", value)
+            return value
+        }
+        /^[[:space:]]*\\[repository\\][[:space:]]*$/ { in_repository = 1; next }
+        /^[[:space:]]*\\[/ { in_repository = 0 }
+        in_repository {
+            key = trim($1)
+            if (key == "id") {
+                print trim(substr($0, index($0, "=") + 1))
+                exit
+            }
+        }
+    '
+}
+
+offsite_destination_is_safe() {
+    local local_repo_id remote_entries remote_config remote_repo_id
+
+    if [[ ! -s "$BORG_REPOSITORY/config" ]]; then
+        echo "[ERROR] Local Borg repository config is missing; refusing S3 synchronization." >&2
+        return 1
+    fi
+
+    local_repo_id="$(repo_id_from_stream < "$BORG_REPOSITORY/config")"
+    if [[ -z "$local_repo_id" ]]; then
+        echo "[ERROR] Could not read the local Borg repository ID; refusing S3 synchronization." >&2
+        return 1
+    fi
+
+    if ! remote_entries="$(/usr/bin/rclone --config "$RCLONE_CONFIG" lsf "$RCLONE_REMOTE_PATH")"; then
+        echo "[ERROR] Could not list the configured S3 prefix; refusing synchronization." >&2
+        return 1
+    fi
+
+    if [[ -z "$(printf '%s' "$remote_entries" | tr -d '[:space:]')" ]]; then
+        echo "[INFO] S3 prefix is empty; allowing initial repository synchronization." >&2
+        return 0
+    fi
+
+    if ! remote_config="$(/usr/bin/rclone --config "$RCLONE_CONFIG" cat "$RCLONE_REMOTE_PATH/config")"; then
+        echo "[ERROR] S3 prefix is not empty but has no readable Borg config; refusing sync to avoid deleting unrelated or incomplete data." >&2
+        return 1
+    fi
+
+    remote_repo_id="$(printf '%s\\n' "$remote_config" | repo_id_from_stream)"
+    if [[ -z "$remote_repo_id" || "$remote_repo_id" != "$local_repo_id" ]]; then
+        echo "[ERROR] Local and S3 Borg repository IDs differ; refusing synchronization to protect the existing S3 contents." >&2
+        return 1
+    fi
+
+    return 0
+}
+
 if [[ -z "$BORG_REPOSITORY" || -z "$RCLONE_REMOTE_PATH" || -z "$COMPOSE_DIR" || -z "$COMPOSE_FILE" ]]; then
     echo "[ERROR] Borg repository, S3 destination and Compose settings must be configured by Ansible." >&2
 else
@@ -158,7 +222,7 @@ else
 
         if (( ${#STOP_SERVICES[@]} > 0 )); then
             STACK_START_NEEDED=1
-            if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" stop "${STOP_SERVICES[@]}"); then
+            if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" stop --timeout "$STOP_TIMEOUT" "${STOP_SERVICES[@]}"); then
                 echo "[INFO] Stateful Compose services are stopped; network and metrics dependencies remain available." >&2
                 /usr/local/bin/borgmatic --config "$BORGMATIC_CONFIG" --verbosity -1
                 BORG_STATUS=$?
@@ -173,19 +237,28 @@ else
         fi
 
         # Borg has released its repository lock before the S3 mirror is updated.
+        if (( BORG_STATUS == 0 )) && [[ ! -s "$BORG_REPOSITORY/config" ]]; then
+            echo "[ERROR] Borgmatic returned success but the local repository config is missing." >&2
+            BORG_STATUS=1
+        fi
+
         if (( BORG_STATUS == 0 )); then
-            if /usr/bin/rclone --config "$RCLONE_CONFIG" sync \
-                --fast-list --transfers 4 --checkers 8 --stats 30s --log-level INFO \
-                "$BORG_REPOSITORY" "$RCLONE_REMOTE_PATH"; then
-                if /usr/bin/rclone --config "$RCLONE_CONFIG" check \
-                    --one-way --size-only \
+            if offsite_destination_is_safe; then
+                if /usr/bin/rclone --config "$RCLONE_CONFIG" sync \
+                    --fast-list --transfers 4 --checkers 8 --stats 30s --log-level INFO \
                     "$BORG_REPOSITORY" "$RCLONE_REMOTE_PATH"; then
-                    OFFSITE_STATUS=1
+                    if /usr/bin/rclone --config "$RCLONE_CONFIG" check \
+                        --one-way --size-only \
+                        "$BORG_REPOSITORY" "$RCLONE_REMOTE_PATH"; then
+                        OFFSITE_STATUS=1
+                    else
+                        echo "[ERROR] rclone size verification of the off-site copy failed." >&2
+                    fi
                 else
-                    echo "[ERROR] rclone size verification of the off-site copy failed." >&2
+                    echo "[ERROR] rclone synchronization to the off-site S3 repository failed." >&2
                 fi
             else
-                echo "[ERROR] rclone synchronization to the off-site S3 repository failed." >&2
+                echo "[ERROR] Off-site sync safety check failed; the S3 prefix was not changed." >&2
             fi
         else
             echo "[ERROR] Borgmatic failed; skipping off-site synchronization." >&2

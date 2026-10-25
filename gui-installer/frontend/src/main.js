@@ -289,6 +289,62 @@ window.generateAndReviewYaml = function() {
     const s3WorkloadPrefix = document.getElementById('sec_s3_workload_prefix').value;
     const s3EdgePrefix = document.getElementById('sec_s3_edge_prefix').value;
 
+    const backupFields = {
+        passphrase: document.getElementById('sec_borg_pass'),
+        endpoint: document.getElementById('sec_s3_endpoint'),
+        region: document.getElementById('sec_s3_region'),
+        bucket: document.getElementById('sec_s3_bucket'),
+        accessKey: document.getElementById('sec_s3_access_key'),
+        secretKey: document.getElementById('sec_s3_secret_key'),
+        workloadPrefix: document.getElementById('sec_s3_workload_prefix'),
+        edgePrefix: document.getElementById('sec_s3_edge_prefix'),
+    };
+
+    let parsedEndpoint;
+    try {
+        parsedEndpoint = new URL(s3Endpoint);
+    } catch {
+        alert('Укажите корректный HTTPS endpoint Timeweb S3.');
+        backupFields.endpoint.focus();
+        return;
+    }
+    if (parsedEndpoint.protocol !== 'https:' || !parsedEndpoint.hostname ||
+        (parsedEndpoint.pathname !== '/' && parsedEndpoint.pathname !== '') ||
+        parsedEndpoint.search || parsedEndpoint.hash) {
+        alert('Endpoint S3 должен быть HTTPS-адресом без пути, query-параметров и fragment.');
+        backupFields.endpoint.focus();
+        return;
+    }
+    if (borgPass.length < 20 || !borgPass.trim()) {
+        alert('Фраза шифрования Borg должна содержать не менее 20 символов.');
+        backupFields.passphrase.focus();
+        return;
+    }
+    if (![s3Region, s3Bucket, s3AccessKey, s3SecretKey].every(value => value.trim().length > 0)) {
+        alert('Заполните регион, имя бакета, S3 Access Key и S3 Secret Access Key.');
+        const firstEmpty = [
+            [s3Region, backupFields.region],
+            [s3Bucket, backupFields.bucket],
+            [s3AccessKey, backupFields.accessKey],
+            [s3SecretKey, backupFields.secretKey],
+        ].find(([value]) => !value.trim());
+        if (firstEmpty) firstEmpty[1].focus();
+        return;
+    }
+    const safePrefix = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+    if (!safePrefix.test(s3WorkloadPrefix.trim()) || !safePrefix.test(s3EdgePrefix.trim()) ||
+        s3WorkloadPrefix.trim() === s3EdgePrefix.trim()) {
+        alert('Префиксы Workload и Edge должны соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]* и различаться.');
+        backupFields.workloadPrefix.focus();
+        return;
+    }
+    const safeBucket = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
+    if (!safeBucket.test(s3Bucket.trim()) || s3Bucket.includes('..')) {
+        alert('Укажите корректное S3-имя бакета (латиница в нижнем регистре, цифры, точки и дефисы; без пути).');
+        backupFields.bucket.focus();
+        return;
+    }
+
     const formattedPrivateKey = privatesshKey
         .split('\n')
         .map(line => '    ' + line)

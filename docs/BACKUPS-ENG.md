@@ -10,11 +10,11 @@ Borg/Borgmatic creates an encrypted local repository on each host. After Borg ha
 - Both repositories use the same `borgmatic_encryption_passphrase` but have independent Borg repository IDs.
 - Retention: 7 daily, 4 weekly, 6 monthly; compression: `lz4`. Edge runs at 03:00 and Workload at 04:00, each with up to 15 minutes of jitter.
 
-`rclone sync` creates a mirror of the local Borg repository, not an independent Borg repository. Deletes after `prune` are reflected remotely. Do not put unrelated files in either prefix, and never run Borg simultaneously against the local repository and its S3 mirror. After sync, `rclone check --one-way --size-only` checks object presence and sizes, not the cryptographic integrity of every byte.
+`rclone sync` creates a mirror of the local Borg repository, not an independent Borg repository. Deletes after `prune` are reflected remotely. Before syncing, the script compares the Borg repository ID: a non-empty prefix without a readable `config` or with a different ID is rejected to avoid deleting unrelated data. If the first sync was interrupted before `config` reached S3, inspect and manually clear only that incomplete prefix before retrying. Do not put unrelated files in either prefix, and never run Borg simultaneously against the local repository and its S3 mirror. After sync, `rclone check --one-way --size-only` checks object presence and sizes, not the cryptographic integrity of every byte.
 
 ## Initial setup
 
-1. Create a private cold-storage bucket in Timeweb Cloud and a dedicated S3 user with read/write access only to that bucket.
+1. Create a private cold-storage bucket in Timeweb Cloud. Create an additional S3 user with read/write access only to this bucket; do not use the account's main key.
 2. Set `offsite_s3_bucket`, `offsite_s3_access_key_id`, `offsite_s3_secret_access_key`, endpoint/region, and distinct `workload`/`edge` prefixes in `ansible/vars/secrets.yml`.
 3. Set the same `borgmatic_encryption_passphrase` on both hosts (at least 20 characters). Store it separately: without it, encrypted backups cannot be recovered.
 4. Re-run the Ansible deployment from `dev`. Ansible installs Borgmatic and rclone, verifies S3 read/write/delete access with a small temporary object, creates root-only config files, and enables timers. `main` is not modified.
@@ -26,7 +26,7 @@ Borg/Borgmatic creates an encrypted local repository on each host. After Borg ha
 
 Workload: `apps-data/`, `configs/`, `.env`, `certbot/`, and `PersonalData/`. Edge: `apps-data/`, `configs/`, and `.env`. This includes generated configuration and service state that cannot be rebuilt from Git alone.
 
-Before creating an archive, the script records which Compose services are running, stops services with mutable application state, and starts only those stopped services afterwards. Workload keeps AmneziaWG, Node Exporter and cAdvisor running; Edge keeps VPN/DNS dependencies and monitoring helpers available to preserve network access during the backup window. Borg must release its repository lock before remote synchronization starts. Services will be unavailable during the backup window. If Compose restoration fails, a metric and critical alert are emitted.
+Before creating an archive, the script records which Compose services are running, stops the remaining services with a longer graceful-shutdown timeout, and then starts the previously running services again while waiting for readiness. Workload keeps AmneziaWG, Node Exporter and cAdvisor running. Edge keeps only Node Exporter and cAdvisor running, so Edge VPN and DNS services will be temporarily unavailable during its backup. Borg must release its repository lock before remote synchronization starts. Services will be unavailable during the backup window. If Compose restoration fails, a metric and critical alert are emitted.
 
 S3 stores the encrypted Borg repository. rclone receives the S3 access keys but does not get the Borg passphrase or decrypt data. The initial sync can be large; consider storage, operation, and cold-object retrieval pricing.
 
