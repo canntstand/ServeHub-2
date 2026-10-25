@@ -66,7 +66,9 @@ a[href*="hermes."]::after {
     pointer-events: none !important;
 }
 
-.card:hover::after {
+a[href*="adguard."]:hover::after,
+a[href*="wireguard."]:hover::after,
+a[href*="hermes."]:hover::after {
     color: #ffffff !important;
     border-color: rgba(255, 255, 255, 0.4) !important;
     background: rgba(255, 255, 255, 0.15) !important;
