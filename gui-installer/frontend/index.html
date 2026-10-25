@@ -142,6 +142,9 @@
             <div class="welcome-container" style="width: 100%;">
                 <div class="brand-title" style="font-size: 32px; margin-bottom: 10px;">Настройка</div>
                 <h1 class="title" style="margin-bottom: 15px;">Параметры secrets.yml</h1>
+                <p style="max-width: 650px; font-size: 12px; line-height: 1.6; color: var(--text-secondary);">
+                    При сохранении обновляются только изменённые поля. Неизвестные параметры, вложенные настройки, исходные типы YAML и дополнительные комментарии сохраняются.
+                </p>
                 
                 <div class="form-container">
                     <div class="form-section-title">1. Сеть и пользователи</div>
@@ -156,8 +159,16 @@
                     <div class="form-group">
                         <label>Пароль root VPS:</label>
                         <div class="password-wrapper">
-                            <input type="text" id="sec_vps_root_pass" value="your_vps_root_password">
+                            <input type="password" id="sec_vps_root_pass" value="your_vps_root_password" autocomplete="new-password">
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label>SSH-пароль пользователя VPS (необязательно):</label>
+                        <input type="password" id="sec_vps_ssh_pass" value="" autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль sudo пользователя VPS (необязательно):</label>
+                        <input type="password" id="sec_vps_sudo_pass" value="" autocomplete="new-password">
                     </div>
                     <div class="form-group">
                         <label>Приватный IP домашнего сервера:</label>
@@ -170,8 +181,16 @@
                     <div class="form-group">
                         <label>Пароль root домашнего сервера:</label>
                         <div class="password-wrapper">
-                            <input type="text" id="sec_local_root_pass" value="your_local_root_password">
+                            <input type="password" id="sec_local_root_pass" value="your_local_root_password" autocomplete="new-password">
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label>SSH-пароль пользователя домашнего сервера (необязательно):</label>
+                        <input type="password" id="sec_local_ssh_pass" value="" autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль sudo пользователя домашнего сервера (необязательно):</label>
+                        <input type="password" id="sec_local_sudo_pass" value="" autocomplete="new-password">
                     </div>
 
                     <div class="form-section-title">2. Глобальные параметры</div>
@@ -238,8 +257,12 @@
                     <div class="form-group">
                         <label>Homebox ключ:</label>
                         <div class="password-wrapper">
-                            <input type="text" id="sec_hbox_pepper" value="hbox_key_pepper">
+                            <input type="password" id="sec_hbox_pepper" value="hbox_key_pepper" autocomplete="new-password">
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Соль пароля AdGuard (необязательно):</label>
+                        <input type="text" id="sec_adguard_password_salt" value="" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label>Публичный SSH ключ вашего ПК:</label>
@@ -254,6 +277,10 @@
                         <div class="password-wrapper">
                             <input type="password" id="sec_borg_pass" placeholder="Не менее 20 символов" autocomplete="new-password">
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Версия borgmatic (необязательно):</label>
+                        <input type="text" id="sec_borgmatic_version" value="" placeholder="По умолчанию: версия из playbook" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label>UUID диска для бэкапов (blkid):</label>

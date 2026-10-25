@@ -1,12 +1,10 @@
 import './style.css';
-import { CheckDocker, InstallProject, GetProjectVersions, ResolveProjectVersion, SaveSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
+import { CheckDocker, InstallProject, GetProjectVersions, ResolveProjectVersion, SaveSecrets, PreviewSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
 import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
 let generatedYamlString = "";
-
-function yamlQuote(value) {
-    return JSON.stringify(String(value ?? ""));
-}
+let sourceSecretValues = {};
+let sourceSecretIsTemplate = true;
 
 const STEP_TITLES = {
     1: 'Выбор версии проекта',
@@ -129,17 +127,16 @@ window.runInstallation = async function() {
         
         if (result.success) {
             const secretsCheck = await CheckSecrets();
-            
+            const existingSecrets = await LoadSecrets();
+            if (!existingSecrets.success) {
+                throw new Error(existingSecrets.message || 'Не удалось прочитать и проверить secrets.yml или его шаблон.');
+            }
+            populateSecretsForm(existingSecrets.values, existingSecrets.isTemplate);
+
             spinner.style.display = 'none';
 
             if (secretsCheck.success) {
-                const existingSecrets = await LoadSecrets();
-                const readHermesSecret = (key) => {
-                    if (!existingSecrets.success) return '';
-                    const line = existingSecrets.content.split(/\r?\n/).find(item => item.startsWith(key + ':'));
-                    if (!line) return '';
-                    return line.slice(line.indexOf(':') + 1).trim().replace(/^["']|["']$/g, '');
-                };
+                const readHermesSecret = (key) => String(existingSecrets.values?.[key] ?? '');
                 const currentHermesBaseUrl = readHermesSecret('hermes_api_base_url');
                 const currentHermesApiKey = readHermesSecret('hermes_api_key');
                 const currentHermesModel = readHermesSecret('hermes_model');
@@ -154,7 +151,6 @@ window.runInstallation = async function() {
                 spinner.style.display = 'none';
 
                 if (!hasHermesSettings && existingSecrets.success) {
-                    populateSecretsForm(existingSecrets.content);
                     installText.innerText = 'Обнаружена существующая конфигурация. Для автоматического развёртывания обязательного Hermes Agent заполните API-ключ и проверьте Base URL и модель. Остальные сохранённые настройки загружены из secrets.yml.';
                     installText.style.color = 'var(--accent-bright)';
                     btnFinish.disabled = false;
@@ -212,12 +208,17 @@ const SECRETS_FIELD_MAP = {
     vps_public_ip: 'sec_vps_ip',
     vps_user: 'sec_vps_user',
     vps_root_password: 'sec_vps_root_pass',
+    vps_ssh_password: 'sec_vps_ssh_pass',
+    vps_sudo_password: 'sec_vps_sudo_pass',
     local_private_ip: 'sec_local_ip',
     local_user: 'sec_local_user',
     local_root_password: 'sec_local_root_pass',
+    local_ssh_password: 'sec_local_ssh_pass',
+    local_sudo_password: 'sec_local_sudo_pass',
     server_name: 'sec_server_name',
     admin_user: 'sec_admin_user',
     hbox_pepper: 'sec_hbox_pepper',
+    adguard_password_salt: 'sec_adguard_password_salt',
     admin_password: 'sec_admin_pass',
     email: 'sec_email',
     telegram_token: 'sec_tg_token',
@@ -230,6 +231,7 @@ const SECRETS_FIELD_MAP = {
     ssh_public_key: 'sec_public_ssh_key',
     ssh_private_key: 'sec_private_ssh_key',
     borgmatic_encryption_passphrase: 'sec_borg_pass',
+    borgmatic_version: 'sec_borgmatic_version',
     backup_disk_uuid: 'sec_disk_uuid',
     offsite_s3_endpoint: 'sec_s3_endpoint',
     offsite_s3_region: 'sec_s3_region',
@@ -244,56 +246,52 @@ const SECRETS_FIELD_MAP = {
     hermes_dashboard_basic_auth_secret: 'sec_hermes_dashboard_basic_auth_secret',
 };
 
-function populateSecretsForm(yamlText) {
-    const lines = yamlText.split('\n');
-    let i = 0;
+function populateSecretsForm(values, isTemplate = false) {
+    const source = values && typeof values === 'object' ? values : {};
+    sourceSecretValues = { ...source };
+    sourceSecretIsTemplate = Boolean(isTemplate);
 
-    while (i < lines.length) {
-        const line = lines[i];
-
-        const literalMatch = line.match(/^([a-z_]+):\s*\|\s*$/);
-        if (literalMatch) {
-            const fieldId = SECRETS_FIELD_MAP[literalMatch[1]];
-            i++;
-            const blockLines = [];
-            while (i < lines.length && (lines[i].startsWith('    ') || lines[i].trim() === '')) {
-                blockLines.push(lines[i].replace(/^ {4}/, ''));
-                i++;
-            }
-            while (blockLines.length && blockLines[blockLines.length - 1] === '') {
-                blockLines.pop();
-            }
-            if (fieldId) {
-                const el = document.getElementById(fieldId);
-                if (el) el.value = blockLines.join('\n');
-            }
-            continue;
-        }
-
-        const simpleMatch = line.match(/^([a-z_]+):\s*"(.*)"\s*$/);
-        if (simpleMatch) {
-            const fieldId = SECRETS_FIELD_MAP[simpleMatch[1]];
-            if (fieldId) {
-                const el = document.getElementById(fieldId);
-                if (el) {
-                    try {
-                        el.value = JSON.parse('"' + simpleMatch[2] + '"');
-                    } catch {
-                        el.value = simpleMatch[2];
-                    }
-                }
-            }
-        }
-
-        i++;
+    for (const [key, fieldId] of Object.entries(SECRETS_FIELD_MAP)) {
+        const element = document.getElementById(fieldId);
+        if (!element) continue;
+        element.value = Object.prototype.hasOwnProperty.call(source, key)
+            ? String(source[key] ?? '')
+            : '';
     }
+}
+
+function collectSecretFormValues(normalized = {}) {
+    const values = {};
+    for (const [key, fieldId] of Object.entries(SECRETS_FIELD_MAP)) {
+        const element = document.getElementById(fieldId);
+        if (!element) continue;
+        values[key] = Object.prototype.hasOwnProperty.call(normalized, key)
+            ? normalized[key]
+            : String(element.value ?? '');
+    }
+    return values;
+}
+
+// Only changed, known fields are sent to the backend. Unknown fields and
+// untouched YAML nodes never make a round trip through the HTML form.
+function buildChangedSecretUpdates(values) {
+    const updates = {};
+    for (const [key, value] of Object.entries(values)) {
+        const current = String(value ?? '');
+        const existed = Object.prototype.hasOwnProperty.call(sourceSecretValues, key);
+        const previous = existed ? String(sourceSecretValues[key] ?? '') : '';
+        if (existed && current === previous) continue;
+        if (!existed && current === '') continue;
+        updates[key] = current;
+    }
+    return updates;
 }
 
 window.editExistingSecrets = async function() {
     try {
         const result = await LoadSecrets();
         if (result.success) {
-            populateSecretsForm(result.content);
+            populateSecretsForm(result.values, result.isTemplate);
             goToStep(4);
         } else {
             alert(`Не удалось загрузить текущую конфигурацию: ${result.message}`);
@@ -303,44 +301,45 @@ window.editExistingSecrets = async function() {
     }
 }
 
-window.generateAndReviewYaml = function() {
-    const vpsIp = document.getElementById('sec_vps_ip').value;
-    const vpsUser = document.getElementById('sec_vps_user').value;
-    const vpsRootPass = document.getElementById('sec_vps_root_pass').value;
-    const localIp = document.getElementById('sec_local_ip').value;
-    const localUser = document.getElementById('sec_local_user').value;
-    const localRootPass = document.getElementById('sec_local_root_pass').value;
-    const hboxPepper = document.getElementById('sec_hbox_pepper').value;
-    
-    const serverName = document.getElementById('sec_server_name').value;
-    const adminUser = document.getElementById('sec_admin_user').value;
-    const adminPass = document.getElementById('sec_admin_pass').value;
-    const email = document.getElementById('sec_email').value;
-    
-    const tgToken = document.getElementById('sec_tg_token').value;
-    const tgChatId = document.getElementById('sec_tg_chat_id').value;
-    const webnamesKey = document.getElementById('sec_webnames').value;
-    
-    const pgUser = document.getElementById('sec_pg_user').value;
-    const pgPass = document.getElementById('sec_pg_pass').value;
-    const redisPass = document.getElementById('sec_redis_pass').value;
-    
-    const vwAdminPass = document.getElementById('sec_vw_admin_pass').value;
-    const publicsshKey = document.getElementById('sec_public_ssh_key').value;
-    const privatesshKey = document.getElementById('sec_private_ssh_key').value;
-    const borgPass = document.getElementById('sec_borg_pass').value;
-    const diskUuid = document.getElementById('sec_disk_uuid').value;
-    const s3Endpoint = document.getElementById('sec_s3_endpoint').value.trim().replace(/\/+$/, '');
-    const s3Region = document.getElementById('sec_s3_region').value.trim();
-    const s3Bucket = document.getElementById('sec_s3_bucket').value.trim();
-    const s3AccessKey = document.getElementById('sec_s3_access_key').value.trim();
-    const s3SecretKey = document.getElementById('sec_s3_secret_key').value.trim();
-    const s3WorkloadPrefix = document.getElementById('sec_s3_workload_prefix').value.trim();
-    const s3EdgePrefix = document.getElementById('sec_s3_edge_prefix').value.trim();
+window.generateAndReviewYaml = async function() {
+    const getValue = (id) => String(document.getElementById(id)?.value ?? '');
+    const vpsIp = getValue('sec_vps_ip');
+    const vpsUser = getValue('sec_vps_user');
+    const vpsRootPass = getValue('sec_vps_root_pass');
+    const localIp = getValue('sec_local_ip');
+    const localUser = getValue('sec_local_user');
+    const localRootPass = getValue('sec_local_root_pass');
+    const hboxPepper = getValue('sec_hbox_pepper');
 
-    const hermesApiBaseUrl = document.getElementById('sec_hermes_api_base_url').value.trim().replace(/\/+$/, '');
-    const hermesApiKey = document.getElementById('sec_hermes_api_key').value.trim();
-    const hermesModel = document.getElementById('sec_hermes_model').value.trim();
+    const serverName = getValue('sec_server_name');
+    const adminUser = getValue('sec_admin_user');
+    const adminPass = getValue('sec_admin_pass');
+    const email = getValue('sec_email');
+
+    const tgToken = getValue('sec_tg_token');
+    const tgChatId = getValue('sec_tg_chat_id');
+    const webnamesKey = getValue('sec_webnames');
+
+    const pgUser = getValue('sec_pg_user');
+    const pgPass = getValue('sec_pg_pass');
+    const redisPass = getValue('sec_redis_pass');
+
+    const vwAdminPass = getValue('sec_vw_admin_pass');
+    const publicsshKey = getValue('sec_public_ssh_key');
+    const privatesshKey = getValue('sec_private_ssh_key');
+    const borgPass = getValue('sec_borg_pass');
+    const diskUuid = getValue('sec_disk_uuid');
+    const s3Endpoint = getValue('sec_s3_endpoint').trim().replace(/\/+$/, '');
+    const s3Region = getValue('sec_s3_region').trim();
+    const s3Bucket = getValue('sec_s3_bucket').trim();
+    const s3AccessKey = getValue('sec_s3_access_key').trim();
+    const s3SecretKey = getValue('sec_s3_secret_key').trim();
+    const s3WorkloadPrefix = getValue('sec_s3_workload_prefix').trim();
+    const s3EdgePrefix = getValue('sec_s3_edge_prefix').trim();
+
+    const hermesApiBaseUrl = getValue('sec_hermes_api_base_url').trim().replace(/\/+$/, '');
+    const hermesApiKey = getValue('sec_hermes_api_key').trim();
+    const hermesModel = getValue('sec_hermes_model').trim();
     const hermesSecretField = document.getElementById('sec_hermes_dashboard_basic_auth_secret');
 
     const backupFields = {
@@ -354,27 +353,37 @@ window.generateAndReviewYaml = function() {
         edgePrefix: document.getElementById('sec_s3_edge_prefix'),
     };
 
-    let parsedEndpoint;
-    try {
-        parsedEndpoint = new URL(s3Endpoint);
-    } catch {
-        alert('Укажите корректный HTTPS endpoint Timeweb S3.');
+    const configIsTemplate = sourceSecretIsTemplate;
+
+    if (s3Endpoint) {
+        let parsedEndpoint;
+        try {
+            parsedEndpoint = new URL(s3Endpoint);
+        } catch {
+            alert('Укажите корректный HTTPS endpoint Timeweb S3.');
+            backupFields.endpoint.focus();
+            return;
+        }
+        if (parsedEndpoint.protocol !== 'https:' || !parsedEndpoint.hostname ||
+            (parsedEndpoint.pathname !== '/' && parsedEndpoint.pathname !== '') ||
+            parsedEndpoint.search || parsedEndpoint.hash) {
+            alert('Endpoint S3 должен быть HTTPS-адресом без пути, query-параметров и fragment.');
+            backupFields.endpoint.focus();
+            return;
+        }
+    } else if (configIsTemplate) {
+        alert('Укажите HTTPS endpoint Timeweb S3.');
         backupFields.endpoint.focus();
         return;
     }
-    if (parsedEndpoint.protocol !== 'https:' || !parsedEndpoint.hostname ||
-        (parsedEndpoint.pathname !== '/' && parsedEndpoint.pathname !== '') ||
-        parsedEndpoint.search || parsedEndpoint.hash) {
-        alert('Endpoint S3 должен быть HTTPS-адресом без пути, query-параметров и fragment.');
-        backupFields.endpoint.focus();
-        return;
-    }
-    if (borgPass.length < 20 || !borgPass.trim()) {
+
+    if ((configIsTemplate || borgPass.trim()) && (borgPass.length < 20 || !borgPass.trim())) {
         alert('Фраза шифрования Borg должна содержать не менее 20 символов.');
         backupFields.passphrase.focus();
         return;
     }
-    if (![s3Region, s3Bucket, s3AccessKey, s3SecretKey].every(value => value.trim().length > 0)) {
+    const requiredS3 = [s3Region, s3Bucket, s3AccessKey, s3SecretKey];
+    if (configIsTemplate && !requiredS3.every(value => value.trim().length > 0)) {
         alert('Заполните регион, имя бакета, S3 Access Key и S3 Secret Access Key.');
         const firstEmpty = [
             [s3Region, backupFields.region],
@@ -385,18 +394,24 @@ window.generateAndReviewYaml = function() {
         if (firstEmpty) firstEmpty[1].focus();
         return;
     }
-    const safePrefix = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
-    if (!safePrefix.test(s3WorkloadPrefix.trim()) || !safePrefix.test(s3EdgePrefix.trim()) ||
-        s3WorkloadPrefix.trim() === s3EdgePrefix.trim()) {
-        alert('Префиксы Workload и Edge должны соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]* и различаться.');
-        backupFields.workloadPrefix.focus();
-        return;
+    if (s3Bucket) {
+        const safeBucket = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
+        if (!safeBucket.test(s3Bucket) || s3Bucket.includes('..')) {
+            alert('Укажите корректное S3-имя бакета (латиница в нижнем регистре, цифры, точки и дефисы; без пути).');
+            backupFields.bucket.focus();
+            return;
+        }
     }
-    const safeBucket = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
-    if (!safeBucket.test(s3Bucket.trim()) || s3Bucket.includes('..')) {
-        alert('Укажите корректное S3-имя бакета (латиница в нижнем регистре, цифры, точки и дефисы; без пути).');
-        backupFields.bucket.focus();
-        return;
+    if (s3WorkloadPrefix || s3EdgePrefix) {
+        const safePrefix = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+        if (!safePrefix.test(s3WorkloadPrefix) || !safePrefix.test(s3EdgePrefix) ||
+            s3WorkloadPrefix === s3EdgePrefix) {
+            if (configIsTemplate || s3WorkloadPrefix || s3EdgePrefix) {
+                alert('Префиксы Workload и Edge должны соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]* и различаться.');
+                backupFields.workloadPrefix.focus();
+                return;
+            }
+        }
     }
 
     let parsedHermesEndpoint;
@@ -426,7 +441,7 @@ window.generateAndReviewYaml = function() {
         return;
     }
 
-    let hermesDashboardSecret = hermesSecretField.value.trim();
+    let hermesDashboardSecret = String(hermesSecretField?.value ?? '').trim();
     if (!/^[a-f0-9]{64}$/i.test(hermesDashboardSecret)) {
         if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') {
             alert('Не удалось автоматически создать секрет сессии Hermes. Используйте защищённую версию установщика и повторите попытку.');
@@ -438,62 +453,51 @@ window.generateAndReviewYaml = function() {
         hermesSecretField.value = hermesDashboardSecret;
     }
 
-    const formattedPrivateKey = privatesshKey
-        .split('\n')
-        .map(line => '    ' + line)
-        .join('\n');
+    const normalizedValues = collectSecretFormValues({
+        offsite_s3_endpoint: s3Endpoint,
+        offsite_s3_region: s3Region,
+        offsite_s3_bucket: s3Bucket,
+        offsite_s3_access_key_id: s3AccessKey,
+        offsite_s3_secret_access_key: s3SecretKey,
+        offsite_s3_workload_prefix: s3WorkloadPrefix,
+        offsite_s3_edge_prefix: s3EdgePrefix,
+        hermes_api_base_url: hermesApiBaseUrl,
+        hermes_api_key: hermesApiKey,
+        hermes_model: hermesModel,
+        hermes_dashboard_basic_auth_secret: hermesDashboardSecret,
+    });
+    const updates = buildChangedSecretUpdates(normalizedValues);
 
-    generatedYamlString = `vps_public_ip: ${yamlQuote(vpsIp)}
-vps_user: ${yamlQuote(vpsUser)}
-vps_root_password: ${yamlQuote(vpsRootPass)}
-local_private_ip: ${yamlQuote(localIp)}
-local_user: ${yamlQuote(localUser)}
-local_root_password: ${yamlQuote(localRootPass)}
-
-server_name: ${yamlQuote(serverName)}
-admin_user: ${yamlQuote(adminUser)}
-admin_password: ${yamlQuote(adminPass)}
-email: ${yamlQuote(email)}
-
-telegram_token: ${yamlQuote(tgToken)}
-telegram_chat_id: ${yamlQuote(tgChatId)}
-
-webnames_apikey: ${yamlQuote(webnamesKey)}
-
-postgres_user: ${yamlQuote(pgUser)}
-postgres_password: ${yamlQuote(pgPass)}
-nextcloud_redis_pass: ${yamlQuote(redisPass)}
-
-secret_vaultwarden_password: ${yamlQuote(vwAdminPass)}
-hbox_pepper: ${yamlQuote(hboxPepper)}
-ssh_public_key: ${yamlQuote(publicsshKey)}
-ssh_private_key: |
-${formattedPrivateKey}
-borgmatic_encryption_passphrase: ${yamlQuote(borgPass)}
-backup_disk_uuid: ${yamlQuote(diskUuid)}
-offsite_s3_endpoint: ${yamlQuote(s3Endpoint)}
-offsite_s3_region: ${yamlQuote(s3Region)}
-offsite_s3_bucket: ${yamlQuote(s3Bucket)}
-offsite_s3_access_key_id: ${yamlQuote(s3AccessKey)}
-offsite_s3_secret_access_key: ${yamlQuote(s3SecretKey)}
-offsite_s3_workload_prefix: ${yamlQuote(s3WorkloadPrefix)}
-offsite_s3_edge_prefix: ${yamlQuote(s3EdgePrefix)}
-
-hermes_api_base_url: ${yamlQuote(hermesApiBaseUrl)}
-hermes_api_key: ${yamlQuote(hermesApiKey)}
-hermes_model: ${yamlQuote(hermesModel)}
-hermes_dashboard_basic_auth_secret: ${yamlQuote(hermesDashboardSecret)}
-`;
-
-    document.getElementById('yaml-preview').innerText = generatedYamlString;
-
-    const btnStep6Back = document.getElementById('btn-step6-back');
-    if (btnStep6Back) {
-        btnStep6Back.setAttribute('onclick', 'goToStep(5)');
+    const previewButton = document.querySelector('#step-4 .button-group .btn-primary');
+    const originalButtonText = previewButton ? previewButton.innerText : '';
+    if (previewButton) {
+        previewButton.disabled = true;
+        previewButton.innerText = 'Проверка YAML...';
     }
-    
-    goToStep(5);
-}
+
+    try {
+        const preview = await PreviewSecrets(updates);
+        if (!preview.success) {
+            alert('Итоговый secrets.yml не прошёл проверку: ' + preview.message);
+            return;
+        }
+        generatedYamlString = preview.content;
+        document.getElementById('yaml-preview').innerText = generatedYamlString;
+
+        const btnStep6Back = document.getElementById('btn-step6-back');
+        if (btnStep6Back) {
+            btnStep6Back.setAttribute('onclick', 'goToStep(5)');
+        }
+        goToStep(5);
+    } catch (err) {
+        alert('Не удалось объединить и проверить конфигурацию YAML: ' + err);
+    } finally {
+        if (previewButton) {
+            previewButton.disabled = false;
+            previewButton.innerText = originalButtonText || 'Продолжить';
+        }
+    }
+};
 
 window.copyYamlToClipboard = async function() {
     const btn = document.getElementById('btn-copy-yaml');
