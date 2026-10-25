@@ -91,11 +91,27 @@ func generateSSHKeyPair() (privateKey string, publicKey string, err error) {
 	return privateKey, publicKey, nil
 }
 
+func hasSecretMappingKey(document *yaml.Node, key string) bool {
+	if document == nil || document.Kind != yaml.DocumentNode || len(document.Content) != 1 {
+		return false
+	}
+	root := document.Content[0]
+	if root.Kind != yaml.MappingNode {
+		return false
+	}
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if root.Content[i].Kind == yaml.ScalarNode && root.Content[i].Tag == "!!str" && root.Content[i].Value == key {
+			return true
+		}
+	}
+	return false
+}
+
 // GenerateSecretDefaults creates fresh high-entropy values only for empty or
 // known template values. It never rotates an existing non-placeholder secret.
 // Generated values are returned for preview; only SaveSecrets persists them.
 func (a *App) GenerateSecretDefaults() SecretsResult {
-	_, _, values, isTemplate, err := loadSecretsSource()
+	_, document, values, isTemplate, err := loadSecretsSource()
 	if err != nil {
 		return SecretsResult{Success: false, Message: "Не удалось прочитать исходную конфигурацию: " + err.Error()}
 	}
@@ -105,10 +121,11 @@ func (a *App) GenerateSecretDefaults() SecretsResult {
 		if !isUnsafeDefaultValue(value) {
 			continue
 		}
-		// An empty value in an existing secrets.yml may be intentional or tied
-		// to an existing deployment; don't silently rotate it. Template blanks
-		// and explicit weak placeholders are safe to replace.
-		if !isTemplate && value == "" {
+		// An explicitly empty value in an existing secrets.yml may be intentional
+		// or tied to an existing deployment; don't rotate it. A missing key is
+		// different: it has no existing value and can safely receive a generated
+		// default which is shown in the form and persisted on save.
+		if !isTemplate && value == "" && hasSecretMappingKey(document, key) {
 			continue
 		}
 		value, err := randomHexSecret(32)
@@ -120,9 +137,13 @@ func (a *App) GenerateSecretDefaults() SecretsResult {
 
 	privateNeeds := isUnsafeDefaultValue(values["ssh_private_key"])
 	publicNeeds := isUnsafeDefaultValue(values["ssh_public_key"])
-	if !isTemplate && (strings.TrimSpace(values["ssh_private_key"]) == "" || strings.TrimSpace(values["ssh_public_key"]) == "") {
-		privateNeeds = false
-		publicNeeds = false
+	if !isTemplate {
+		privateIsExplicitBlank := hasSecretMappingKey(document, "ssh_private_key") && strings.TrimSpace(values["ssh_private_key"]) == ""
+		publicIsExplicitBlank := hasSecretMappingKey(document, "ssh_public_key") && strings.TrimSpace(values["ssh_public_key"]) == ""
+		if privateIsExplicitBlank || publicIsExplicitBlank {
+			privateNeeds = false
+			publicNeeds = false
+		}
 	}
 	if privateNeeds && publicNeeds {
 		privateKey, publicKey, err := generateSSHKeyPair()

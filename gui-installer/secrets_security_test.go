@@ -235,3 +235,23 @@ func TestValidateDeploymentRequiresOnlyS3PrefixForSelectedTarget(t *testing.T) {
 		t.Fatalf("both-server deployment must require Workload prefix: %v", err)
 	}
 }
+
+func TestGenerateSecretDefaultsGeneratesMissingButNotExplicitlyBlankExistingValues(t *testing.T) {
+	varsDir := setupSecretsTestProject(t)
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml"),
+		"server_name: server.example.org\nadmin_password: \"\"\n", 0600)
+
+	result := (&App{}).GenerateSecretDefaults()
+	if !result.Success {
+		t.Fatalf("generation failed: %s", result.Message)
+	}
+	if _, exists := result.Values["admin_password"]; exists {
+		t.Fatal("explicitly blank existing secret should not be silently replaced")
+	}
+	if len(result.Values["postgres_password"]) != 64 {
+		t.Fatal("missing password key should receive a generated secure value")
+	}
+	if len(result.Values["ssh_private_key"]) == 0 || len(result.Values["ssh_public_key"]) == 0 {
+		t.Fatal("missing SSH key pair should be generated for an existing config that has no key entries")
+	}
+}
