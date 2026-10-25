@@ -963,3 +963,4 @@ window.continueFromVersionSelection = function() {
 
 
 updateStepProgress(1);
+window.initializeProjectVersions();
