@@ -8,6 +8,7 @@ services:
   wg-easy:
     image: ghcr.io/wg-easy/wg-easy:15.5.0
     container_name: wg-easy
+    logging: *default-logging
     environment:
       - LANG=en
       - PORT=51821
