@@ -149,7 +149,7 @@
       fi
       $IPT -N SERVEHUB_DOCKER_USER 2>/dev/null || true
       $IPT -F SERVEHUB_DOCKER_USER
-      for port in 3000 3100 9093; do
+      for port in 3000 3100 9093 9119; do
         $IPT -A SERVEHUB_DOCKER_USER -i wg0 -s 10.8.0.2 -p tcp -m conntrack --ctorigdst 10.8.0.1 --ctorigdstport "$port" -j RETURN
         $IPT -A SERVEHUB_DOCKER_USER -i wg0 -p tcp -m conntrack --ctorigdst 10.8.0.1 --ctorigdstport "$port" -j DROP
       done
