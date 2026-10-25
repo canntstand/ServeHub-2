@@ -291,7 +291,7 @@ func TestLoadSecretsReturnsYAMLValuesInsteadOfRegexParsing(t *testing.T) {
 		"  line-one",
 		"  line-two",
 		"custom_setting: unquoted-value",
-	}, string(rune(10))), 0600)
+	}, string(rune(10)))+string(rune(10)), 0600)
 	result := (&App{}).LoadSecrets()
 	if !result.Success || result.IsTemplate {
 		t.Fatalf("unexpected load result: %#v", result)

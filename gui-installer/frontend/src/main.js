@@ -251,6 +251,10 @@ function isTemplatePlaceholder(value) {
     const text = String(value ?? '').trim().toLowerCase();
     return text.startsWith('replace_with_') ||
         text.includes('replace_with_your_') ||
+        text.startsWith('your_') ||
+        text.includes('of_the_bot_you_created') ||
+        text.includes('where_ansible_is_installed') ||
+        text.startsWith('change_this_to_') ||
         text === 'ssh-ed25519 replace_with_your_public_key';
 }
 
@@ -270,9 +274,10 @@ function populateSecretsForm(values, isTemplate = false) {
             continue;
         }
         const originalValue = String(source[key] ?? '');
-        if (sourceSecretIsTemplate && isTemplatePlaceholder(originalValue)) {
+        const exampleChatID = key === 'telegram_chat_id' && originalValue === '-1001234567890';
+        if (sourceSecretIsTemplate && (isTemplatePlaceholder(originalValue) || exampleChatID)) {
             const fallback = String(element.defaultValue ?? '');
-            element.value = isTemplatePlaceholder(fallback) ? '' : fallback;
+            element.value = exampleChatID || isTemplatePlaceholder(fallback) ? '' : fallback;
         } else {
             element.value = originalValue;
         }
