@@ -163,11 +163,11 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>SSH-пароль пользователя VPS (необязательно):</label>
+                        <label>SSH-пароль пользователя VPS (необязательно при пароле root; иначе нужен вместе с sudo):</label>
                         <input type="password" id="sec_vps_ssh_pass" value="" autocomplete="new-password">
                     </div>
                     <div class="form-group">
-                        <label>Пароль sudo пользователя VPS (необязательно):</label>
+                        <label>Пароль sudo пользователя VPS (необязательно при пароле root; иначе нужен вместе с SSH):</label>
                         <input type="password" id="sec_vps_sudo_pass" value="" autocomplete="new-password">
                     </div>
                     <div class="form-group">
@@ -185,11 +185,11 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>SSH-пароль пользователя домашнего сервера (необязательно):</label>
+                        <label>SSH-пароль домашнего пользователя (необязательно при пароле root; иначе нужен вместе с sudo):</label>
                         <input type="password" id="sec_local_ssh_pass" value="" autocomplete="new-password">
                     </div>
                     <div class="form-group">
-                        <label>Пароль sudo пользователя домашнего сервера (необязательно):</label>
+                        <label>Пароль sudo домашнего пользователя (необязательно при пароле root; иначе нужен вместе с SSH):</label>
                         <input type="password" id="sec_local_sudo_pass" value="" autocomplete="new-password">
                     </div>
 
@@ -309,11 +309,11 @@
                         <input type="password" id="sec_s3_secret_key" autocomplete="new-password" placeholder="Secret Access Key">
                     </div>
                     <div class="form-group">
-                        <label>Префикс репозитория Workload:</label>
+                        <label>Префикс Workload (обязателен для локального сервера; можно пустым для VPS-only):</label>
                         <input type="text" id="sec_s3_workload_prefix" value="workload">
                     </div>
                     <div class="form-group">
-                        <label>Префикс репозитория Edge:</label>
+                        <label>Префикс Edge (обязателен для VPS; можно пустым для local-only):</label>
                         <input type="text" id="sec_s3_edge_prefix" value="edge">
                     </div>
 

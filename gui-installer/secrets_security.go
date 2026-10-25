@@ -236,7 +236,7 @@ func validateBootstrapCredentials(values map[string]string, prefix, label string
 	return nil
 }
 
-func validateS3Configuration(values map[string]string) error {
+func validateS3Configuration(values map[string]string, usesLocal, usesVPS bool) error {
 	required := []struct{ key, label string }{
 		{"borgmatic_encryption_passphrase", "borgmatic_encryption_passphrase"},
 		{"offsite_s3_endpoint", "offsite_s3_endpoint"},
@@ -244,8 +244,6 @@ func validateS3Configuration(values map[string]string) error {
 		{"offsite_s3_bucket", "offsite_s3_bucket"},
 		{"offsite_s3_access_key_id", "offsite_s3_access_key_id"},
 		{"offsite_s3_secret_access_key", "offsite_s3_secret_access_key"},
-		{"offsite_s3_workload_prefix", "offsite_s3_workload_prefix"},
-		{"offsite_s3_edge_prefix", "offsite_s3_edge_prefix"},
 	}
 	for _, field := range required {
 		value := strings.TrimSpace(values[field.key])
@@ -273,8 +271,14 @@ func validateS3Configuration(values map[string]string) error {
 	}
 	workload := strings.TrimSpace(values["offsite_s3_workload_prefix"])
 	edge := strings.TrimSpace(values["offsite_s3_edge_prefix"])
-	if !s3PrefixRegexp.MatchString(workload) || !s3PrefixRegexp.MatchString(edge) || workload == edge {
-		return errors.New("offsite_s3_workload_prefix/offsite_s3_edge_prefix: задайте разные корректные префиксы")
+	if usesLocal && (workload == "" || !s3PrefixRegexp.MatchString(workload)) {
+		return errors.New("offsite_s3_workload_prefix: требуется корректный префикс для локального Workload")
+	}
+	if usesVPS && (edge == "" || !s3PrefixRegexp.MatchString(edge)) {
+		return errors.New("offsite_s3_edge_prefix: требуется корректный префикс для VPS/Edge")
+	}
+	if usesLocal && usesVPS && workload == edge {
+		return errors.New("offsite_s3_workload_prefix/offsite_s3_edge_prefix: для развёртывания обоих серверов задайте разные префиксы")
 	}
 	return nil
 }
@@ -341,7 +345,7 @@ func validateDeploymentValues(values map[string]string, option int) error {
 	if err := validateStrongSecret(values, "admin_password", "admin_password", 32); err != nil {
 		return err
 	}
-	if err := validateS3Configuration(values); err != nil {
+	if err := validateS3Configuration(values, usesLocal, usesVPS); err != nil {
 		return err
 	}
 

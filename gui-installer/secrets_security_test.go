@@ -216,3 +216,22 @@ func TestValidateFullBootstrapRejectsWeakRootPassword(t *testing.T) {
 		t.Fatalf("weak root password should be rejected for full bootstrap, got %v", err)
 	}
 }
+
+func TestValidateDeploymentRequiresOnlyS3PrefixForSelectedTarget(t *testing.T) {
+	values := validTestDeploymentValues(t)
+	values["offsite_s3_edge_prefix"] = ""
+	if err := validateDeploymentValues(values, 4); err != nil {
+		t.Fatalf("local-only deployment should not require Edge prefix: %v", err)
+	}
+	if err := validateDeploymentValues(values, 2); err == nil || !strings.Contains(err.Error(), "offsite_s3_edge_prefix") {
+		t.Fatalf("both-server deployment must require Edge prefix: %v", err)
+	}
+	values = validTestDeploymentValues(t)
+	values["offsite_s3_workload_prefix"] = ""
+	if err := validateDeploymentValues(values, 6); err != nil {
+		t.Fatalf("VPS-only deployment should not require Workload prefix: %v", err)
+	}
+	if err := validateDeploymentValues(values, 2); err == nil || !strings.Contains(err.Error(), "offsite_s3_workload_prefix") {
+		t.Fatalf("both-server deployment must require Workload prefix: %v", err)
+	}
+}
