@@ -55,7 +55,7 @@ restore_services() {
         return 0
     fi
 
-    if [[ -z "$COMPOSE_DIR" || -z "$COMPOSE_FILE" || ${#STOP_SERVICES[@]} -eq 0 ]]; then
+    if [[ -z "$COMPOSE_DIR" || -z "$COMPOSE_FILE" || ${#RUNNING_SERVICES[@]} -eq 0 ]]; then
         STACK_START_NEEDED=0
         STACK_RESTORE_STATUS=1
         return 0
@@ -63,10 +63,10 @@ restore_services() {
 
     local attempt
     for attempt in 1 2 3; do
-        if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" start "${STOP_SERVICES[@]}"); then
+        if (cd "$COMPOSE_DIR" && docker compose -f "$COMPOSE_FILE" up -d --no-recreate "${RUNNING_SERVICES[@]}"); then
             STACK_START_NEEDED=0
             STACK_RESTORE_STATUS=1
-            echo "[INFO] Previously running backup-stopped Compose services are back up." >&2
+            echo "[INFO] Previously running Compose services are back up." >&2
             return 0
         fi
         echo "[WARN] Compose restoration attempt $attempt/3 failed." >&2
