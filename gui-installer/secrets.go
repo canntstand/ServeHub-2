@@ -98,6 +98,12 @@ func parseSecretsYAML(content []byte) (*yaml.Node, error) {
 	if root.Kind != yaml.MappingNode || root.Tag != "!!map" {
 		return nil, errors.New("корень secrets.yml должен быть YAML-словарём")
 	}
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		key := root.Content[i]
+		if key.Kind != yaml.ScalarNode || key.Tag != "!!str" {
+			return nil, fmt.Errorf("$: ключи верхнего уровня должны быть строками (пара %d)", i/2+1)
+		}
+	}
 	if err := validateSecretYAMLNode(root, "$"); err != nil {
 		return nil, err
 	}
@@ -115,8 +121,10 @@ func validateSecretYAMLNode(node *yaml.Node, location string) error {
 		seen := make(map[string]struct{}, len(node.Content)/2)
 		for i := 0; i < len(node.Content); i += 2 {
 			key := node.Content[i]
+			// YAML permits non-string mapping keys and merge keys in nested
+			// values. The secrets root is validated separately as string-keyed.
 			if key.Kind != yaml.ScalarNode || key.Tag != "!!str" {
-				return fmt.Errorf("%s: ключи YAML-словаря должны быть строками", location)
+				continue
 			}
 			identity := key.Tag + "\x00" + key.Value
 			if _, exists := seen[identity]; exists {

@@ -246,17 +246,35 @@ const SECRETS_FIELD_MAP = {
     hermes_dashboard_basic_auth_secret: 'sec_hermes_dashboard_basic_auth_secret',
 };
 
+function isTemplatePlaceholder(value) {
+    const text = String(value ?? '').trim().toLowerCase();
+    return text.startsWith('replace_with_') ||
+        text.includes('replace_with_your_') ||
+        text === 'ssh-ed25519 replace_with_your_public_key';
+}
+
 function populateSecretsForm(values, isTemplate = false) {
     const source = values && typeof values === 'object' ? values : {};
+    // Keep the parsed source values as the baseline. Template placeholders are
+    // hidden in the UI so the user is not tricked into treating them as secrets;
+    // they will count as changes when the form is previewed.
     sourceSecretValues = { ...source };
     sourceSecretIsTemplate = Boolean(isTemplate);
 
     for (const [key, fieldId] of Object.entries(SECRETS_FIELD_MAP)) {
         const element = document.getElementById(fieldId);
         if (!element) continue;
-        element.value = Object.prototype.hasOwnProperty.call(source, key)
-            ? String(source[key] ?? '')
-            : '';
+        if (!Object.prototype.hasOwnProperty.call(source, key)) {
+            element.value = '';
+            continue;
+        }
+        const originalValue = String(source[key] ?? '');
+        if (sourceSecretIsTemplate && isTemplatePlaceholder(originalValue)) {
+            const fallback = String(element.defaultValue ?? '');
+            element.value = isTemplatePlaceholder(fallback) ? '' : fallback;
+        } else {
+            element.value = originalValue;
+        }
     }
 }
 
