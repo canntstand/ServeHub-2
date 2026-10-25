@@ -1,6 +1,9 @@
 model:
-  provider: openai-api
+  provider: custom
   default: {{ hermes_model | string | to_json }}
+  base_url: {{ hermes_api_base_url | string | to_json }}
+  api_key: "${OPENAI_API_KEY}"
+  api_mode: chat_completions
 
 dashboard:
   public_url: {{ ('https://hermes.' ~ server_name) | to_json }}
