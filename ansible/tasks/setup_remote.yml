@@ -1,5 +1,47 @@
 
 
+
+- name: "[Hermes] Проверка обязательной конфигурации API и Dashboard"
+  ansible.builtin.assert:
+    that:
+      - hermes_api_base_url is defined and (hermes_api_base_url | string | trim | length) > 0
+      - hermes_api_base_url is match('^https?://[^[:space:]]+$')
+      - hermes_api_key is defined and (hermes_api_key | string | trim | length) > 0
+      - hermes_model is defined and (hermes_model | string | trim | length) > 0
+      - hermes_dashboard_basic_auth_secret is defined and (hermes_dashboard_basic_auth_secret | string | trim) is match('^[A-Fa-f0-9]{64}$')
+    fail_msg: >-
+      Hermes is a required Edge service. Set hermes_api_base_url, hermes_api_key, hermes_model,
+      and a 64-character hexadecimal hermes_dashboard_basic_auth_secret in ansible/vars/secrets.yml.
+  no_log: true
+
+- name: "[Hermes] Создание каталога постоянных данных"
+  ansible.builtin.file:
+    path: "/home/{{ deploy_user }}/ServeHub-2/apps-data/hermes"
+    state: directory
+    owner: "10000"
+    group: "10000"
+    mode: "0700"
+
+- name: "[Hermes] Начальная конфигурация модели и доверенного reverse proxy"
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/templates/hermes_config.yaml.j2"
+    dest: "/home/{{ deploy_user }}/ServeHub-2/apps-data/hermes/config.yaml"
+    owner: "10000"
+    group: "10000"
+    mode: "0600"
+    force: false
+  no_log: true
+
+- name: "[Hermes] Начальные API credentials (не перезаписывать настройки Dashboard)"
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/templates/hermes_env.j2"
+    dest: "/home/{{ deploy_user }}/ServeHub-2/apps-data/hermes/.env"
+    owner: "10000"
+    group: "10000"
+    mode: "0600"
+    force: false
+  no_log: true
+
 - name: "[FS] Создание корневого каталога apps-data на VPS"
   ansible.builtin.file:
     path: "/home/{{ deploy_user }}/ServeHub-2/apps-data"
