@@ -38,25 +38,30 @@ func writeTestFile(t *testing.T, path, content string, mode os.FileMode) {
 	}
 }
 
+func yamlInput(lines ...string) []byte {
+	return []byte(strings.Join(lines, string(rune(10))))
+}
+
 func TestMergeSecretUpdatesPreservesUnknownFieldsCommentsAndTypes(t *testing.T) {
-	const source = `# retain this file comment
-server_name: old.example # retain this inline comment
-telegram_chat_id: -1001234567890
-feature_enabled: true
-custom_numeric: 42
-custom_nested:
-  token: unquoted-value
-  retry_count: 3
-ssh_private_key: |
-  private-key-line-one
-  private-key-line-two
-`
-	document, err := parseSecretsYAML([]byte(source))
+	source := yamlInput(
+		"# retain this file comment",
+		"server_name: old.example # retain this inline comment",
+		"telegram_chat_id: -1001234567890",
+		"feature_enabled: true",
+		"custom_numeric: 42",
+		"custom_nested:",
+		"  token: unquoted-value",
+		"  retry_count: 3",
+		"ssh_private_key: |",
+		"  private-key-line-one",
+		"  private-key-line-two",
+	)
+	document, err := parseSecretsYAML(source)
 	if err != nil {
 		t.Fatalf("parse YAML: %v", err)
 	}
 	err = mergeSecretUpdates(document, map[string]string{
-		"server_name": "new.example",
+		"server_name":     "new.example",
 		"vps_ssh_password": "ssh password",
 	})
 	if err != nil {
@@ -68,8 +73,7 @@ ssh_private_key: |
 	}
 	if !strings.Contains(string(serialized), "retain this file comment") ||
 		!strings.Contains(string(serialized), "retain this inline comment") {
-		t.Fatalf("comments were not preserved:
-%s", serialized)
+		t.Fatalf("comments were not preserved: %s", serialized)
 	}
 
 	reparsed, err := parseSecretsYAML(serialized)
@@ -83,12 +87,8 @@ ssh_private_key: |
 	if values["custom_numeric"] != "42" || values["custom_nested"] != "" {
 		t.Fatalf("unknown scalar/nested fields lost: %#v", values)
 	}
-	if values["custom_nested"] != "" {
-		t.Fatalf("nested map unexpectedly appeared as scalar: %#v", values)
-	}
-	if values["ssh_private_key"] != "private-key-line-one
-private-key-line-two
-" {
+	wantPrivateKey := strings.Join([]string{"private-key-line-one", "private-key-line-two", ""}, string(rune(10)))
+	if values["ssh_private_key"] != wantPrivateKey {
 		t.Fatalf("multiline scalar was not decoded correctly: %q", values["ssh_private_key"])
 	}
 	root := reparsed.Content[0]
@@ -109,21 +109,21 @@ private-key-line-two
 }
 
 func TestParseSecretsSupportsUnquotedAndNumericScalars(t *testing.T) {
-	content := []byte("server_name: example.org
-telegram_chat_id: -100123
-enabled: true
-null_value: null
-")
-	document, err := parseSecretsYAML(content)
+	document, err := parseSecretsYAML(yamlInput(
+		"server_name: example.org",
+		"telegram_chat_id: -100123",
+		"enabled: true",
+		"null_value: null",
+	))
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	values := secretScalarValues(document)
 	for key, want := range map[string]string{
-		"server_name": "example.org",
+		"server_name":      "example.org",
 		"telegram_chat_id": "-100123",
-		"enabled": "true",
-		"null_value": "",
+		"enabled":          "true",
+		"null_value":       "",
 	} {
 		if values[key] != want {
 			t.Errorf("%s = %q, want %q", key, values[key], want)
@@ -132,18 +132,19 @@ null_value: null
 }
 
 func TestMergeSecretUpdatesDeletesOnlyBlankOptionalValues(t *testing.T) {
-	document, err := parseSecretsYAML([]byte("server_name: example.org
-adguard_password_salt: keep-me
-borgmatic_version: 2.1.10
-custom_value: keep-custom
-"))
+	document, err := parseSecretsYAML(yamlInput(
+		"server_name: example.org",
+		"adguard_password_salt: keep-me",
+		"borgmatic_version: 2.1.10",
+		"custom_value: keep-custom",
+	))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := mergeSecretUpdates(document, map[string]string{
 		"adguard_password_salt": "",
-		"borgmatic_version": "2.2.0",
-		"server_name": "new.example.org",
+		"borgmatic_version":     "2.2.0",
+		"server_name":           "new.example.org",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -165,9 +166,7 @@ custom_value: keep-custom
 }
 
 func TestMergeRejectsUnknownUpdateKeysAndPreservesUnknownConfigKeys(t *testing.T) {
-	document, err := parseSecretsYAML([]byte("server_name: example.org
-custom_key: retained
-"))
+	document, err := parseSecretsYAML(yamlInput("server_name: example.org", "custom_key: retained"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,39 +183,30 @@ custom_key: retained
 }
 
 func TestParseSecretsRejectsDuplicateKeysAndMultipleDocuments(t *testing.T) {
-	for _, invalid := range []string{
-		"server_name: first
-server_name: second
-",
-		"server_name: first
----
-server_name: second
-",
-		"server_name: example.org
-nested:
-  enabled: true
-  enabled: false
-",
-		"- not-a-mapping
-",
-	} {
-		if _, err := parseSecretsYAML([]byte(invalid)); err == nil {
-			t.Errorf("expected YAML rejection for %q", invalid)
+	cases := [][]string{
+		{"server_name: first", "server_name: second"},
+		{"server_name: first", "---", "server_name: second"},
+		{"server_name: example.org", "nested:", "  enabled: true", "  enabled: false"},
+		{"- not-a-mapping"},
+	}
+	for _, lines := range cases {
+		if _, err := parseSecretsYAML(yamlInput(lines...)); err == nil {
+			t.Errorf("expected YAML rejection for %q", strings.Join(lines, string(rune(10))))
 		}
 	}
 }
 
 func TestPreviewSecretsPreservesConfigurationAndUsesTemplateWhenMissing(t *testing.T) {
 	varsDir := setupSecretsTestProject(t)
-	const template = "server_name: example.org
-telegram_chat_id: -100123
-custom_config:
-  feature: true
-"
+	template := strings.Join([]string{
+		"server_name: example.org",
+		"telegram_chat_id: -100123",
+		"custom_config:",
+		"  feature: true",
+	}, string(rune(10)))
 	writeTestFile(t, filepath.Join(varsDir, "secrets.yml.example"), template, 0600)
 
-	app := &App{}
-	preview := app.PreviewSecrets(map[string]string{"server_name": "changed.example.org"})
+	preview := (&App{}).PreviewSecrets(map[string]string{"server_name": "changed.example.org"})
 	if !preview.Success {
 		t.Fatalf("preview failed: %s", preview.Message)
 	}
@@ -232,20 +222,20 @@ custom_config:
 		t.Fatalf("numeric scalar lost: %#v", values)
 	}
 	if !strings.Contains(preview.Content, "custom_config:") || !strings.Contains(preview.Content, "feature: true") {
-		t.Fatalf("unknown nested config was lost:
-%s", preview.Content)
+		t.Fatalf("unknown nested config was lost: %s", preview.Content)
 	}
 }
 
 func TestSaveSecretsValidatesReadbackAndSets0600(t *testing.T) {
 	varsDir := setupSecretsTestProject(t)
+	content := strings.Join([]string{
+		"# preserve custom settings",
+		"server_name: example.org",
+		"telegram_chat_id: -100123",
+		"custom_setting:",
+		"  nested: yes",
+	}, string(rune(10)))
 	app := &App{}
-	content := "# preserve custom settings
-server_name: example.org
-telegram_chat_id: -100123
-custom_setting:
-  nested: yes
-"
 	saved := app.SaveSecrets(content)
 	if !saved.Success {
 		t.Fatalf("save failed: %s", saved.Message)
@@ -267,14 +257,11 @@ custom_setting:
 		t.Fatalf("saved YAML failed readback parsing: %v", err)
 	}
 	if !strings.Contains(string(readBack), "custom_setting:") {
-		t.Fatalf("custom setting missing after save:
-%s", readBack)
+		t.Fatalf("custom setting missing after save: %s", readBack)
 	}
 
 	before := string(readBack)
-	invalid := app.SaveSecrets("server_name: first
-server_name: second
-")
+	invalid := app.SaveSecrets(strings.Join([]string{"server_name: first", "server_name: second"}, string(rune(10))))
 	if invalid.Success {
 		t.Fatal("invalid YAML should not be saved")
 	}
@@ -283,32 +270,30 @@ server_name: second
 		t.Fatal(err)
 	}
 	if string(after) != before {
-		t.Fatalf("invalid save changed existing file:
-before=%s
-after=%s", before, after)
+		t.Fatalf("invalid save changed existing file: before=%s after=%s", before, after)
 	}
 }
 
 func TestLoadSecretsReturnsYAMLValuesInsteadOfRegexParsing(t *testing.T) {
 	varsDir := setupSecretsTestProject(t)
-	writeTestFile(t, filepath.Join(varsDir, "secrets.yml"), "server_name: example.org
-telegram_chat_id: -100123
-ssh_private_key: |
-  line-one
-  line-two
-custom_setting: unquoted-value
-", 0600)
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml"), strings.Join([]string{
+		"server_name: example.org",
+		"telegram_chat_id: -100123",
+		"ssh_private_key: |",
+		"  line-one",
+		"  line-two",
+		"custom_setting: unquoted-value",
+	}, string(rune(10)), 0600)
 	result := (&App{}).LoadSecrets()
 	if !result.Success || result.IsTemplate {
 		t.Fatalf("unexpected load result: %#v", result)
 	}
+	wantPrivateKey := strings.Join([]string{"line-one", "line-two", ""}, string(rune(10)))
 	for key, want := range map[string]string{
-		"server_name": "example.org",
+		"server_name":      "example.org",
 		"telegram_chat_id": "-100123",
-		"ssh_private_key": "line-one
-line-two
-",
-		"custom_setting": "unquoted-value",
+		"ssh_private_key":  wantPrivateKey,
+		"custom_setting":   "unquoted-value",
 	} {
 		if result.Values[key] != want {
 			t.Errorf("%s = %q, want %q", key, result.Values[key], want)
@@ -318,9 +303,7 @@ line-two
 
 func TestTemplateFallbackIsValidatedAndMarked(t *testing.T) {
 	varsDir := setupSecretsTestProject(t)
-	writeTestFile(t, filepath.Join(varsDir, "secrets.yml.example"), "server_name: example.org
-custom_setting: retained
-", 0600)
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml.example"), "server_name: example.org" + string(rune(10)) + "custom_setting: retained", 0600)
 	result := (&App{}).LoadSecrets()
 	if !result.Success || !result.IsTemplate {
 		t.Fatalf("expected validated template fallback, got %#v", result)
@@ -331,13 +314,12 @@ custom_setting: retained
 }
 
 func TestYamlNodeSemanticEqualityDetectsTypeChanges(t *testing.T) {
-	left, err := parseSecretsYAML([]byte("telegram_chat_id: -100123
-"))
+	left, err := parseSecretsYAML(yamlInput("telegram_chat_id: -100123"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	right, err := parseSecretsYAML([]byte("telegram_chat_id: "-100123"
-"))
+	quoted := "telegram_chat_id: " + string(rune(34)) + "-100123" + string(rune(34))
+	right, err := parseSecretsYAML([]byte(quoted))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -356,9 +338,8 @@ func TestSecretFormFieldNamesAreUnique(t *testing.T) {
 			t.Errorf("missing supported form field %s", required)
 		}
 	}
-	// yaml.v3 is also the parser used by the installer, not a regex approximation.
 	var node yaml.Node
-	if err := yaml.Unmarshal([]byte("value: unquoted\n"), &node); err != nil {
+	if err := yaml.Unmarshal([]byte("value: unquoted"), &node); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -387,19 +368,20 @@ func TestEditableSecretFieldsCoverExampleAndFrontend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read frontend form: %v", err)
 	}
-	mappingPattern := regexp.MustCompile("(?m)^\\s*([a-z_][a-z0-9_]*):\\s*'([^']+)'")
+	mappingPattern := regexp.MustCompile("(?m)^[[:space:]]*([a-z_][a-z0-9_]*):[[:space:]]*'([^']+)'")
 	matches := mappingPattern.FindAllSubmatch(js, -1)
 	formIDs := make(map[string]string, len(matches))
 	for _, match := range matches {
 		formIDs[string(match[1])] = string(match[2])
 	}
+	quote := string(rune(34))
 	for key := range editableSecretFields {
 		fieldID, mapped := formIDs[key]
 		if !mapped {
 			t.Errorf("supported secret %q is missing from the frontend field map", key)
 			continue
 		}
-		if !strings.Contains(string(html), "id=\""+fieldID+"\"") {
+		if !strings.Contains(string(html), "id="+quote+fieldID+quote) {
 			t.Errorf("mapped frontend control id %q for %q is missing from index.html", fieldID, key)
 		}
 	}
