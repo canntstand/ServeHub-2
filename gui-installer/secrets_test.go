@@ -39,7 +39,7 @@ func writeTestFile(t *testing.T, path, content string, mode os.FileMode) {
 }
 
 func yamlInput(lines ...string) []byte {
-	return []byte(strings.Join(lines, string(rune(10))))
+	return []byte(strings.Join(lines, string(rune(10))) + string(rune(10)))
 }
 
 func TestMergeSecretUpdatesPreservesUnknownFieldsCommentsAndTypes(t *testing.T) {
