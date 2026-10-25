@@ -11,6 +11,7 @@ services:
     environment:
       - LANG=en
       - PORT=51821
+      - TRUSTED_PROXIES=10.8.0.2
       - DISABLE_IPV6=true
       - EXPERIMENTAL_AWG=true
       - OVERRIDE_AUTO_AWG=awg
