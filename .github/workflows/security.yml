@@ -76,10 +76,10 @@ jobs:
         id: prometheus_rules_validation
         continue-on-error: true
         run: |
-          docker run --rm \
+          docker run --rm --entrypoint promtool \
             -v "$GITHUB_WORKSPACE/configs/monitoring:/etc/prometheus:ro" \
             prom/prometheus:v3.15.1 \
-            promtool test rules /etc/prometheus/alert_rules.test.yml
+            test rules /etc/prometheus/alert_rules.test.yml
 
       - name: Validate shell and embedded firewall syntax
         id: shell_syntax
