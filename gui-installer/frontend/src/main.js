@@ -122,6 +122,34 @@ window.runInstallation = async function() {
             spinner.style.display = 'none';
 
             if (secretsCheck.success) {
+                const existingSecrets = await LoadSecrets();
+                const hermesFields = [
+                    'hermes_api_base_url',
+                    'hermes_api_key',
+                    'hermes_model',
+                    'hermes_dashboard_basic_auth_secret',
+                ];
+                const hasHermesSettings = existingSecrets.success && hermesFields.every((key) => {
+                    const match = existingSecrets.content.match(new RegExp('^' + key + ':\\s*(.*)$', 'm'));
+                    return Boolean(match && match[1].trim() && !['""', "''"].includes(match[1].trim()));
+                });
+
+                spinner.style.display = 'none';
+
+                if (!hasHermesSettings && existingSecrets.success) {
+                    populateSecretsForm(existingSecrets.content);
+                    installText.innerText = 'Обнаружена существующая конфигурация. Для автоматического развёртывания обязательного Hermes Agent заполните API-ключ и проверьте Base URL и модель. Остальные сохранённые настройки загружены из secrets.yml.';
+                    installText.style.color = 'var(--accent-bright)';
+                    btnFinish.disabled = false;
+                    btnFinish.innerText = 'Настроить Hermes';
+                    btnFinish.setAttribute('onclick', 'goToStep(4)');
+                    btnEditSecrets.style.display = 'none';
+                    if (btnStep6Back) {
+                        btnStep6Back.setAttribute('onclick', 'goToStep(3)');
+                    }
+                    return;
+                }
+
                 installText.innerHTML = `✓ ${result.message}<br><br><span style="color: var(--accent-soft); font-weight: bold;">ℹ Конфигурация найдена:</span> Файл <code style="background: var(--bg-3); padding: 2px 6px; border-radius: 4px;">secrets.yml</code> уже существует в проекте. Шаги создания и настройки будут пропущены.`;
                 installText.style.color = 'var(--accent-bright)';
                 
@@ -193,6 +221,10 @@ const SECRETS_FIELD_MAP = {
     offsite_s3_secret_access_key: 'sec_s3_secret_key',
     offsite_s3_workload_prefix: 'sec_s3_workload_prefix',
     offsite_s3_edge_prefix: 'sec_s3_edge_prefix',
+    hermes_api_base_url: 'sec_hermes_api_base_url',
+    hermes_api_key: 'sec_hermes_api_key',
+    hermes_model: 'sec_hermes_model',
+    hermes_dashboard_basic_auth_secret: 'sec_hermes_dashboard_basic_auth_secret',
 };
 
 function populateSecretsForm(yamlText) {
@@ -289,6 +321,11 @@ window.generateAndReviewYaml = function() {
     const s3WorkloadPrefix = document.getElementById('sec_s3_workload_prefix').value.trim();
     const s3EdgePrefix = document.getElementById('sec_s3_edge_prefix').value.trim();
 
+    const hermesApiBaseUrl = document.getElementById('sec_hermes_api_base_url').value.trim().replace(/\\/+$/, '');
+    const hermesApiKey = document.getElementById('sec_hermes_api_key').value.trim();
+    const hermesModel = document.getElementById('sec_hermes_model').value.trim();
+    const hermesSecretField = document.getElementById('sec_hermes_dashboard_basic_auth_secret');
+
     const backupFields = {
         passphrase: document.getElementById('sec_borg_pass'),
         endpoint: document.getElementById('sec_s3_endpoint'),
@@ -345,6 +382,45 @@ window.generateAndReviewYaml = function() {
         return;
     }
 
+    let parsedHermesEndpoint;
+    try {
+        parsedHermesEndpoint = new URL(hermesApiBaseUrl);
+    } catch {
+        alert('Укажите корректный Base URL API для Hermes.');
+        document.getElementById('sec_hermes_api_base_url').focus();
+        return;
+    }
+    if (!['https:', 'http:'].includes(parsedHermesEndpoint.protocol) ||
+        !parsedHermesEndpoint.hostname || parsedHermesEndpoint.username ||
+        parsedHermesEndpoint.password || parsedHermesEndpoint.search ||
+        parsedHermesEndpoint.hash || /[\\r\\n]/.test(hermesApiBaseUrl)) {
+        alert('Hermes API Base URL должен быть HTTP(S)-адресом без логина, пароля, query-параметров и fragment.');
+        document.getElementById('sec_hermes_api_base_url').focus();
+        return;
+    }
+    if (!hermesApiKey || /[\\r\\n]/.test(hermesApiKey)) {
+        alert('Введите API-ключ для Hermes. Ключ не должен содержать переносы строк.');
+        document.getElementById('sec_hermes_api_key').focus();
+        return;
+    }
+    if (!hermesModel || /[\\r\\n]/.test(hermesModel)) {
+        alert('Введите идентификатор модели Hermes без переносов строк.');
+        document.getElementById('sec_hermes_model').focus();
+        return;
+    }
+
+    let hermesDashboardSecret = hermesSecretField.value.trim();
+    if (!/^[a-f0-9]{64}$/i.test(hermesDashboardSecret)) {
+        if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') {
+            alert('Не удалось автоматически создать секрет сессии Hermes. Используйте защищённую версию установщика и повторите попытку.');
+            return;
+        }
+        const secretBytes = new Uint8Array(32);
+        window.crypto.getRandomValues(secretBytes);
+        hermesDashboardSecret = Array.from(secretBytes, byte => byte.toString(16).padStart(2, '0')).join('');
+        hermesSecretField.value = hermesDashboardSecret;
+    }
+
     const formattedPrivateKey = privatesshKey
         .split('\n')
         .map(line => '    ' + line)
@@ -385,6 +461,11 @@ offsite_s3_access_key_id: ${yamlQuote(s3AccessKey)}
 offsite_s3_secret_access_key: ${yamlQuote(s3SecretKey)}
 offsite_s3_workload_prefix: ${yamlQuote(s3WorkloadPrefix)}
 offsite_s3_edge_prefix: ${yamlQuote(s3EdgePrefix)}
+
+hermes_api_base_url: ${yamlQuote(hermesApiBaseUrl)}
+hermes_api_key: ${yamlQuote(hermesApiKey)}
+hermes_model: ${yamlQuote(hermesModel)}
+hermes_dashboard_basic_auth_secret: ${yamlQuote(hermesDashboardSecret)}
 `;
 
     document.getElementById('yaml-preview').innerText = generatedYamlString;
