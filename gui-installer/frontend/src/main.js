@@ -268,6 +268,53 @@ const SENSITIVE_SECRET_FIELDS = new Set([
     'hermes_dashboard_basic_auth_secret',
 ]);
 
+const SECRET_REMOVAL_CONTROL_FIELD = '__servehub_remove_secret_fields';
+const BOOTSTRAP_AUTH_FIELDS = {
+    vps: { root: 'vps_root_password', user: ['vps_ssh_password', 'vps_sudo_password'] },
+    local: { root: 'local_root_password', user: ['local_ssh_password', 'local_sudo_password'] },
+};
+let bootstrapAuthModes = { vps: 'root', local: 'root' };
+
+function inferBootstrapAuthMode(values, server) {
+    const fields = BOOTSTRAP_AUTH_FIELDS[server];
+    const rootValue = String(values?.[fields.root] ?? '').trim();
+    const userValues = fields.user.map(key => String(values?.[key] ?? '').trim());
+    const hasUsableRoot = rootValue !== '' && !isTemplatePlaceholder(rootValue);
+    const hasUserCredentials = userValues.some(value => value !== '' && !isTemplatePlaceholder(value));
+
+    // For older configurations with both methods, keep Ansible's current root-first preference.
+    if (hasUsableRoot) return 'root';
+    if (hasUserCredentials) return 'user';
+    return 'root';
+}
+
+function applyBootstrapAuthMode(server, mode) {
+    if (!Object.prototype.hasOwnProperty.call(BOOTSTRAP_AUTH_FIELDS, server)) return;
+    const selectedMode = mode === 'user' ? 'user' : 'root';
+    bootstrapAuthModes[server] = selectedMode;
+
+    const selector = document.getElementById(`sec_${server}_auth_mode`);
+    if (selector && selector.value !== selectedMode) selector.value = selectedMode;
+
+    document.querySelectorAll(`[data-bootstrap-auth^="${server}:"]`).forEach((field) => {
+        const fieldMode = String(field.getAttribute('data-bootstrap-auth') || '').split(':')[1];
+        field.hidden = fieldMode !== selectedMode;
+    });
+}
+
+window.setBootstrapAuthMode = function(server, mode) {
+    applyBootstrapAuthMode(server, mode);
+};
+
+function bootstrapAuthFieldsToRemove() {
+    const remove = [];
+    for (const [server, fields] of Object.entries(BOOTSTRAP_AUTH_FIELDS)) {
+        if ((bootstrapAuthModes[server] || 'root') === 'root') remove.push(...fields.user);
+        else remove.push(fields.root);
+    }
+    return [...new Set(remove)];
+}
+
 function isTemplatePlaceholder(value) {
     const text = String(value ?? '').trim().toLowerCase();
     return text.startsWith('replace_with_') ||
@@ -297,6 +344,10 @@ function populateSecretsForm(values, isTemplate = false) {
 
         element.value = nextValue;
     }
+
+    for (const server of Object.keys(BOOTSTRAP_AUTH_FIELDS)) {
+        applyBootstrapAuthMode(server, inferBootstrapAuthMode(source, server));
+    }
 }
 
 function collectSecretFormValues(normalized = {}) {
@@ -316,7 +367,9 @@ function collectSecretFormValues(normalized = {}) {
 function buildChangedSecretUpdates(values) {
     const updates = {};
     let retainedBlankSecret = false;
+    const fieldsToRemove = new Set(bootstrapAuthFieldsToRemove());
     for (const [key, value] of Object.entries(values)) {
+        if (fieldsToRemove.has(key)) continue;
         const current = String(value ?? '');
         const existed = Object.prototype.hasOwnProperty.call(sourceSecretValues, key);
         const previous = existed ? String(sourceSecretValues[key] ?? '') : '';
@@ -332,6 +385,10 @@ function buildChangedSecretUpdates(values) {
         if (!existed && current === '') continue;
         updates[key] = current;
     }
+    // Explicitly remove only credentials for the unselected bootstrap mode.
+    // Regular blank fields still preserve existing secrets.
+    updates[SECRET_REMOVAL_CONTROL_FIELD] = JSON.stringify([...fieldsToRemove]);
+
     if (retainedBlankSecret) {
         alert('Пустое поле не удаляет уже сохранённый секрет: прежнее значение будет сохранено. Чтобы заменить секрет, введите новое значение.');
     }
