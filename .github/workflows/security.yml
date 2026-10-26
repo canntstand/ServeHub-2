@@ -49,6 +49,7 @@ jobs:
             docker-compose.ansible.yaml docker-compose.local.yaml docker-compose.remote.yaml \
             ansible/deploy.yml ansible/requirements.yml \
             ansible/group_vars/*.yml ansible/tasks/*.yml \
+            gui-installer/preflight_edge.yml \
             configs/blackbox/blackbox.yml configs/monitoring/alert_rules.yml \
             configs/monitoring/alert_rules.test.yml
 
@@ -63,6 +64,7 @@ jobs:
             "git+https://github.com/ansible-collections/ansible.posix.git,2.2.2" \
             "git+https://github.com/ansible-collections/community.docker.git,5.4.0"
           ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --syntax-check
+          ansible-playbook -i ansible/inventory.ini gui-installer/preflight_edge.yml --syntax-check
 
 
       - name: Validate Docker Compose configuration
