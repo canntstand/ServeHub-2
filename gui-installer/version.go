@@ -742,8 +742,6 @@ func (a *App) PerformProjectAction(action, mode, ref, expectedSHA string, confir
 			Success: true, Exists: true,
 			Message: fmt.Sprintf("Используется текущая версия %s (commit %s). Каталог и версия не изменялись: %s", state.Metadata.DisplayName, state.Metadata.CommitSHA, targetDir),
 		}
-	case "recover":
-		return a.RecoverProjectInstallation()
 	case "install", "update":
 		ctx, finish, err := a.beginProjectInstallContext()
 		if err != nil {
