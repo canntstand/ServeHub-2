@@ -69,7 +69,7 @@
                             <span class="intro-feature-index" aria-hidden="true">01</span>
                             <div class="intro-feature-copy">
                                 <h2>Выберите версию</h2>
-                                <p>Релиз, тег или точный commit SHA — выбранный код будет закреплён перед загрузкой.</p>
+                                <p>Опубликованный тег — выбранный код будет закреплён перед загрузкой.</p>
                             </div>
                         </article>
                         <article class="intro-feature">
@@ -111,7 +111,7 @@
                 
                 
                 
-                <p class="subtitle">Выберите точный источник проекта. Перед загрузкой установщик разрешит его в commit SHA и закрепит эту версию на обоих серверах.</p>
+                <p class="subtitle">Выберите тег проекта и способ работы с каталогом установки. Стандартная установка заменяет текущий код после загрузки и проверки новой версии; прежний каталог сохраняется в резервной копии.</p>
 
                 <div class="version-picker">
                     <div class="install-directory-settings">
@@ -125,37 +125,18 @@
                     </div>
                     <fieldset class="project-action-list">
                         <legend>Что сделать с проектом</legend>
-                        <label class="project-action-option"><input type="radio" name="project-action" value="use" onchange="updateProjectActionUI()"><span><strong>Использовать текущую установку</strong><small>Ничего не скачивать и не менять установленную версию.</small></span></label>
-                        <label class="project-action-option"><input type="radio" name="project-action" value="install" onchange="updateProjectActionUI()" checked><span><strong>Установить выбранную версию</strong><small>Загрузить в пустой каталог и проверить до активации.</small></span></label>
-                        <label class="project-action-option"><input type="radio" name="project-action" value="update" onchange="updateProjectActionUI()"><span><strong>Обновить / переключить версию</strong><small>Сначала загрузить и проверить новый код; старый каталог сохранить в резервной копии.</small></span></label>
-                        <label class="project-action-option"><input type="radio" name="project-action" value="recover" onchange="updateProjectActionUI()"><span><strong>Восстановить неполную установку</strong><small>Очистить временные загрузки и сохранить повреждённый каталог отдельно.</small></span></label>
+                        <label class="project-action-option"><input type="radio" name="project-action" value="install" onchange="updateProjectActionUI()" checked><span><strong>Стандартная установка</strong><small>Загрузить выбранный тег. Если ServeHub-2 уже установлен, заменить код, сохранив прежний каталог в резервной копии.</small></span></label>
+                        <label class="project-action-option"><input type="radio" name="project-action" value="use" onchange="updateProjectActionUI()"><span><strong>Использовать уже установленный репозиторий</strong><small>Не скачивать и не заменять код; продолжить с текущей проверенной установкой.</small></span></label>
                     </fieldset>
-                    <label class="version-sha-toggle update-replacement-consent" id="confirm-replace-install-wrapper" style="display:none;">
-                        <input type="checkbox" id="confirm-replace-install" onchange="updateProjectActionUI()">
-                        Подтверждаю замену кода. Перед переключением старая папка будет сохранена; БД и данные контейнеров этим действием не откатываются.
-                    </label>
-                    <label for="project-version-select">Источник и версия ServeHub-2</label>
+                    <label for="project-version-select">Тег версии ServeHub-2</label>
                     <select id="project-version-select" onchange="updateProjectVersionPreview()" disabled>
                         <option value="release">Загружаем список релизов...</option>
                     </select>
                     <div id="project-version-summary" class="version-summary" role="status">Получаем опубликованные версии GitHub...</div>
                     <div class="version-warning" id="project-version-warning">
-                        Релизы и ветка dev могут содержать разный набор сервисов и разную архитектуру. Будет установлен именно выбранный источник, а не автоматически последняя разработческая версия.
+                        Выберите опубликованный тег. Установка будет закреплена на commit этого тега; выбор произвольного commit SHA и ветки dev недоступен.
                     </div>
-                    <details class="version-advanced">
-                        <summary>Расширенные настройки</summary>
-                        <label class="version-sha-toggle" for="use-project-commit-sha">
-                            <input type="checkbox" id="use-project-commit-sha" onchange="toggleProjectCommitMode()" disabled>
-                            Указать конкретный commit SHA
-                        </label>
-                        <input type="text" id="project-commit-sha" placeholder="Например: 1432dd50e35c54c8..." autocomplete="off" spellcheck="false" disabled oninput="markProjectCommitChanged()" onblur="previewProjectCommit()">
-                        <div id="project-commit-summary" class="version-summary">Укажите SHA, чтобы проверить его перед загрузкой.</div>
-                    </details>
                     <div id="project-installed-note" class="project-installed-note" role="status" style="display:none;"></div>
-                    <label class="version-sha-toggle legacy-migration-consent" id="legacy-migration-consent-wrapper" for="replace-legacy-project" style="display:none;">
-                        <input type="checkbox" id="replace-legacy-project" onchange="updateProjectVersionPreview()">
-                        Подтверждаю замену старой установки без данных о версии. Прежняя папка будет сохранена, настройки secrets.yml перенесены.
-                    </label>
                     <div class="version-actions">
                         <button type="button" class="btn-secondary" id="btn-refresh-project-versions" onclick="refreshProjectVersions()">Обновить список версий</button>
                     </div>
