@@ -5,12 +5,6 @@
     font-style: normal;
 }
 
-/* ==========================================================================
-   Palette — taken from ServeHub-2-logo-violet-banner-dark.svg
-   #16181B / #2B1778  deep indigo (logo background gradient)
-   #FF8AD8            logo pink — used here only in a muted, dusty form (--accent)
-   #E9E6E1            white (logo strokes)
-   ========================================================================== */
 :root {
     --accent: #C4B29C;
     --accent-bright: #E9E6E1;

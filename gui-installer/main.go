@@ -25,7 +25,6 @@ func main() {
 		MinHeight: 640,
 		WindowStartState: options.Maximised,
 		Frameless: true,
-		Icon: appIcon,
 		BackgroundColour: options.NewRGB(22, 24, 27),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
