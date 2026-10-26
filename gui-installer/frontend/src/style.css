@@ -2729,3 +2729,20 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
         transition: none !important;
     }
 }
+
+/* Explicit dependency notice shown only for local-only deployment modes. */
+.deployment-dependency-note {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 18px;
+    padding: 13px 16px;
+    border-left: 3px solid var(--accent);
+    border-radius: 5px;
+    background: rgba(196, 178, 156, .07);
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.7;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
