@@ -1049,6 +1049,12 @@ window.markProjectInstallDirectoryChanged = function() {
     projectInstallDirectoryVerified = false;
     projectInstallState = null;
     updateProjectDirectoryStatus('Путь изменён. Нажмите «Проверить каталог» перед продолжением.', true);
+    const note = document.getElementById('project-installed-note');
+    if (note) {
+        note.style.display = 'block';
+        note.classList.remove('is-warning');
+        note.textContent = 'Проверьте новый каталог, чтобы определить, установлен ли в нём ServeHub-2.';
+    }
     window.updateProjectActionUI();
 };
 
@@ -1060,6 +1066,12 @@ window.verifyProjectInstallDirectory = async function() {
             projectInstallDirectoryVerified = false;
             projectInstallState = null;
             updateProjectDirectoryStatus(result.message || 'Каталог не прошёл проверку.', true);
+            const note = document.getElementById('project-installed-note');
+            if (note) {
+                note.style.display = 'block';
+                note.classList.add('is-warning');
+                note.textContent = (result.message || 'Каталог не прошёл проверку.') + ' Автоматическое определение установки не завершено.';
+            }
             window.updateProjectActionUI();
             return;
         }
