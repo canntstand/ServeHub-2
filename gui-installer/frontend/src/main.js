@@ -273,6 +273,27 @@ const BOOTSTRAP_AUTH_FIELDS = {
     local: { root: 'local_root_password', user: ['local_ssh_password', 'local_sudo_password'] },
 };
 let bootstrapAuthModes = { vps: 'root', local: 'root' };
+let separateSudoPasswords = { vps: false, local: false };
+
+function inferSeparateSudoPassword(values, server) {
+    const [sshKey, sudoKey] = BOOTSTRAP_AUTH_FIELDS[server].user;
+    const sshValue = String(values?.[sshKey] ?? '').trim();
+    const sudoValue = String(values?.[sudoKey] ?? '').trim();
+    return sudoValue !== '' && sudoValue !== sshValue;
+}
+
+function applySeparateSudoPassword(server, enabled) {
+    if (!Object.prototype.hasOwnProperty.call(BOOTSTRAP_AUTH_FIELDS, server)) return;
+    separateSudoPasswords[server] = Boolean(enabled);
+
+    const checkbox = document.getElementById(`sec_${server}_separate_sudo`);
+    if (checkbox) checkbox.checked = separateSudoPasswords[server];
+
+    const sudoField = document.querySelector(`[data-separate-sudo-field="${server}"]`);
+    if (sudoField) {
+        sudoField.hidden = bootstrapAuthModes[server] !== 'user' || !separateSudoPasswords[server];
+    }
+}
 
 function addInactiveBootstrapCredentialRemovals(updates) {
     for (const [server, fields] of Object.entries(BOOTSTRAP_AUTH_FIELDS)) {
@@ -307,10 +328,15 @@ function applyBootstrapAuthMode(server, mode) {
         const fieldMode = String(field.getAttribute('data-bootstrap-auth') || '').split(':')[1];
         field.hidden = fieldMode !== selectedMode;
     });
+    applySeparateSudoPassword(server, separateSudoPasswords[server]);
 }
 
 window.setBootstrapAuthMode = function(server, mode) {
     applyBootstrapAuthMode(server, mode);
+};
+
+window.setSeparateSudoPassword = function(server, enabled) {
+    applySeparateSudoPassword(server, enabled);
 };
 
 function isTemplatePlaceholder(value) {
@@ -345,6 +371,7 @@ function populateSecretsForm(values, isTemplate = false) {
 
     for (const server of Object.keys(BOOTSTRAP_AUTH_FIELDS)) {
         applyBootstrapAuthMode(server, inferBootstrapAuthMode(source, server));
+        applySeparateSudoPassword(server, inferSeparateSudoPassword(source, server));
     }
 }
 
@@ -353,6 +380,22 @@ function collectSecretFormValues(normalized = {}) {
     for (const [key, fieldId] of Object.entries(SECRETS_FIELD_MAP)) {
         const element = document.getElementById(fieldId);
         if (!element) continue;
+        // When the passwords match, populate both Ansible variables from
+        // the single SSH input. The separate sudo input is only authoritative
+        // when the user explicitly enables its checkbox.
+        const [server, credential] = (() => {
+            if (key.startsWith('vps_')) return ['vps', key];
+            if (key.startsWith('local_')) return ['local', key];
+            return ['', key];
+        })();
+        const authFields = BOOTSTRAP_AUTH_FIELDS[server];
+        if (authFields && key === authFields.user[1] &&
+            bootstrapAuthModes[server] === 'user' && !separateSudoPasswords[server]) {
+            const sshField = document.getElementById(SECRETS_FIELD_MAP[authFields.user[0]]);
+            values[key] = String(sshField?.value ?? '');
+            continue;
+        }
+
         // Hidden credentials are omitted from the form values. The explicit
         // removal operations added below remove their old YAML keys on save.
         const credentialGroup = element.closest('.bootstrap-auth-field');
