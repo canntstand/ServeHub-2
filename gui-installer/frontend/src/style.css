@@ -7,48 +7,43 @@
 
 /* ==========================================================================
    Palette — taken from ServeHub-2-logo-violet-banner-dark.svg
-   #06031A / #2B1778  deep indigo (logo background gradient)
+   #16181B / #2B1778  deep indigo (logo background gradient)
    #FF8AD8            logo pink — used here only in a muted, dusty form (--accent)
-   #FFFFFF            white (logo strokes)
+   #E9E6E1            white (logo strokes)
    ========================================================================== */
 :root {
-    --accent: #c08ab8;
-    --accent-bright: #d0a0c8;
-    --accent-soft: #e2c4dc;
-    --accent-dim: rgba(192, 138, 184, 0.09);
-    --accent-muted: rgba(192, 138, 184, 0.38);
-    --violet: #2b1778;
-    --violet-hover: #34208a;
-
-    --bg-0: #06031a;
-    --bg-1: #0a0624;
-    --bg-2: #0f0a30;
-    --bg-3: #160f3f;
-
-    --border-1: rgba(255, 255, 255, 0.08);
-    --border-2: rgba(255, 255, 255, 0.16);
-
-    --text-primary: #ffffff;
-    --text-secondary: #b9b3d9;
-    --text-muted: #7f78a8;
-
-    --danger: #d9636b;
-    --success: #6fbf9f;
-
-    --radius: 6px;
-    --radius-lg: 8px;
+    --accent: #C4B29C;
+    --accent-bright: #E9E6E1;
+    --accent-soft: #D7C8B4;
+    --accent-dim: rgba(196, 178, 156, 0.11);
+    --accent-muted: rgba(196, 178, 156, 0.38);
+    --violet: #2C3036;
+    --violet-hover: #41464D;
+    --bg-0: #16181B;
+    --bg-1: #1B1E22;
+    --bg-2: #202327;
+    --bg-3: #2C3036;
+    --border-1: rgba(233, 230, 225, 0.09);
+    --border-2: rgba(233, 230, 225, 0.17);
+    --text-primary: #E9E6E1;
+    --text-secondary: #C7C3BC;
+    --text-muted: #969188;
+    --danger: #C77870;
+    --success: #9DB6A0;
+    --radius: 7px;
+    --radius-lg: 10px;
 }
 
 * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+    scrollbar-color: rgba(233, 230, 225, 0.16) transparent;
 }
 
 body {
-    background: linear-gradient(135deg, #06031a 0%, #090522 60%, #140b3a 100%);
+    background: linear-gradient(135deg, #16181B 0%, #202327 60%, #2C3036 100%);
     background-attachment: fixed;
     color: var(--text-secondary);
-    font-family: 'Cascadia', monospace;
+    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
     margin: 0;
     padding: 0;
     height: 100vh;
@@ -200,7 +195,7 @@ button {
 .btn-secondary:hover:not(:disabled) {
     color: var(--text-primary);
     border-color: var(--border-2);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: rgba(233, 230, 225, 0.04);
 }
 
 .btn-secondary:active:not(:disabled) {
@@ -241,7 +236,7 @@ button {
 .github-link {
     color: var(--text-secondary);
     text-decoration: none;
-    font-family: 'Cascadia', monospace;
+    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
     font-size: 13px;
     opacity: 0.7;
     transition: opacity 0.2s ease, color 0.2s ease;
@@ -320,7 +315,7 @@ button {
 
 .form-container::-webkit-scrollbar-thumb,
 .preview-container::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.14);
+    background-color: rgba(233, 230, 225, 0.14);
     border-radius: 4px;
 }
 
@@ -384,7 +379,7 @@ textarea {
     border-radius: var(--radius);
     color: var(--text-primary);
     padding: 10px 12px;
-    font-family: 'Cascadia', monospace;
+    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
     font-size: 13px;
     box-sizing: border-box;
     resize: vertical;
@@ -491,7 +486,7 @@ textarea:focus {
     padding: 44px 18px 18px 18px;
     font-size: 12px;
     line-height: 1.6;
-    color: #cfc9f0;
+    color: #E9E6E1;
     white-space: pre-wrap;
     word-break: break-all;
     user-select: text;
@@ -546,7 +541,7 @@ textarea:focus {
 }
 
 .deploy-option-card:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(233, 230, 225, 0.03);
     border-color: var(--border-2);
 }
 
@@ -650,7 +645,7 @@ textarea:focus {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(233, 230, 225, 0.14);
     border-radius: 6px;
     transition: background 0.2s ease;
 }
@@ -686,7 +681,7 @@ textarea:focus {
 .window-title {
     font-size: 12px;
     color: var(--text-muted);
-    font-family: 'Cascadia', monospace;
+    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
     user-select: none;
     pointer-events: none;
     letter-spacing: 0.4px;
@@ -714,7 +709,7 @@ textarea:focus {
 }
 
 .btn-close:hover {
-    color: #ffffff;
+    color: #E9E6E1;
     background: var(--danger);
 }
 
@@ -832,8 +827,8 @@ textarea:focus {
     border: none;
     border-radius: 0;
     overflow-y: auto;
-    color: #cfc9f0;
-    font-family: 'Cascadia', monospace;
+    color: #E9E6E1;
+    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
     font-size: 12px;
     line-height: 1.6;
     user-select: text;
@@ -884,7 +879,7 @@ textarea:focus {
 }
 
 .guide-scroll::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.14);
+    background-color: rgba(233, 230, 225, 0.14);
     border-radius: 4px;
 }
 
@@ -933,7 +928,7 @@ textarea:focus {
 }
 
 .guide-section summary:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(233, 230, 225, 0.03);
 }
 
 .guide-content {
@@ -979,7 +974,7 @@ textarea:focus {
     color: var(--accent-soft);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: 'Cascadia', monospace;
+    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
     font-size: 11.5px;
 }
 
@@ -995,7 +990,7 @@ textarea:focus {
     gap: 10px;
     align-items: flex-start;
     background: transparent;
-    border: 1px solid rgba(217, 99, 107, 0.4);
+    border: 1px solid rgba(178, 100, 95, 0.4);
     border-radius: var(--radius-lg);
     padding: 10px 14px;
     margin: 10px 0;
@@ -1075,7 +1070,7 @@ textarea:focus {
     padding: 2px 4px;
     border-radius: 4px;
     color: var(--accent-soft);
-    font-family: 'Cascadia', monospace;
+    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
     font-size: 11px;
 }
 
@@ -1148,7 +1143,7 @@ textarea:focus {
 
 .project-installed-note.is-warning {
     border-left-color: var(--danger);
-    background: rgba(217, 99, 107, 0.08);
+    background: rgba(178, 100, 95, 0.08);
 }
 
 .version-advanced {
@@ -1236,7 +1231,7 @@ textarea:focus {
     margin: 0 auto 14px;
     padding: 10px 12px;
     border-left: 2px solid var(--danger);
-    background: rgba(217, 99, 107, 0.08);
+    background: rgba(178, 100, 95, 0.08);
     color: var(--text-primary);
     font-size: 12px;
     line-height: 1.55;
@@ -1301,7 +1296,7 @@ textarea:focus {
 }
 
 .project-action-option:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(233, 230, 225, 0.03);
 }
 
 .project-action-option:has(input:checked) {
@@ -1375,4 +1370,179 @@ textarea:focus {
         scroll-behavior: auto !important;
         transition-duration: .01ms !important;
     }
+}
+
+
+/* Full-window workspace; form pages no longer sit inside a second framed pane. */
+html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; }
+body {
+    display:block;
+    background:linear-gradient(145deg,#16181B 0%,#1B1E22 58%,#24282D 100%);
+    color:var(--text-secondary);
+    font-family:'Segoe UI','Aptos',system-ui,sans-serif;
+}
+#app {
+    width:100%; height:100vh; min-height:0;
+    padding:112px clamp(22px,3vw,52px) 34px;
+    box-sizing:border-box; display:block; overflow-x:hidden; overflow-y:auto;
+    text-align:left; background:transparent;
+}
+.step { display:none; width:100%; }
+.step.active {
+    display:block; width:100%; max-width:none; min-width:0; height:auto;
+    min-height:calc(100vh - 146px); margin:0 auto;
+    animation:fadeIn .2s ease-out;
+}
+.welcome-container {
+    display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start;
+    width:100%; max-width:1640px; min-width:0; margin:0 auto;
+}
+.title,.brand-title { display:none !important; }
+
+/* Minimal chrome: brand in the custom titlebar, current step in the progress area. */
+.window-drag-zone {
+    height:42px; padding:0 18px; background:rgba(22,24,27,.97);
+    border-bottom:1px solid rgba(196,178,156,.16); backdrop-filter:blur(12px);
+}
+.window-title { display:flex; align-items:center; height:100%; opacity:.94; }
+.window-brand-logo { display:block; width:112px; height:37px; object-fit:contain; border-radius:4px; pointer-events:none; }
+.window-controls { gap:5px; }
+.btn-control { width:30px; height:30px; border-radius:6px; }
+.btn-minimize:hover,.btn-maximize:hover { background:rgba(233,230,225,.08); }
+.btn-close:hover { background:#B95F58; }
+
+.step-progress {
+    top:42px; padding:14px clamp(22px,3vw,52px) 12px;
+    background:linear-gradient(180deg,rgba(22,24,27,.99),rgba(22,24,27,.94));
+    border-bottom:1px solid rgba(196,178,156,.12); gap:8px;
+}
+.step-progress-track { height:4px; background:rgba(233,230,225,.11); border-radius:99px; overflow:hidden; }
+.step-progress-fill { background:linear-gradient(90deg,#8E7C66 0%,#C4B29C 55%,#E9E6E1 100%); border-radius:99px; }
+.step-progress-dots { top:-3px; }
+.step-dot { width:8px; height:8px; background:#26292E; border:1px solid rgba(233,230,225,.22); box-shadow:none; }
+.step-dot.completed { background:#8F9E89; border-color:#8F9E89; }
+.step-dot.active { width:10px; height:10px; background:var(--accent); border-color:var(--accent); box-shadow:0 0 0 3px rgba(196,178,156,.13); }
+.step-progress-label { margin-top:0; color:#C7C3BC; font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-size:12px; font-weight:550; letter-spacing:.1px; text-align:left; }
+#step-progress-current,#step-progress-title { color:#E9E6E1; font-weight:650; }
+
+/* No fixed-height, rounded "window in the window": one document scroll region instead. */
+.form-container {
+    width:100%; height:auto; max-height:none; min-height:0; overflow:visible;
+    background:transparent; border:0; border-radius:0; padding:4px 0 12px;
+    box-sizing:border-box; text-align:left; display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:clamp(22px,3vw,44px); align-content:start;
+}
+.form-container>.form-section-title,.form-container>small,.form-container>.options-group-block { grid-column:1 / -1; }
+.form-container .form-section-title {
+    border-bottom:1px solid rgba(196,178,156,.22); color:var(--accent);
+    margin-top:25px; padding-bottom:9px; font-size:11px; letter-spacing:1.25px;
+}
+.form-container .form-section-title:first-child { margin-top:0; }
+.form-container>small { display:block; margin:2px 0 12px; line-height:1.6; color:var(--text-muted); }
+.form-group { min-width:0; margin-bottom:15px; animation:none; }
+.form-group label { margin-bottom:7px; color:#CBC5BA; font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-size:12px; letter-spacing:0; line-height:1.45; }
+.form-group input,.form-container textarea,.version-picker input[type="text"],.version-picker select,.install-directory-controls input {
+    width:100%; min-width:0; color:var(--text-primary); background:#202327;
+    border:1px solid rgba(233,230,225,.13); border-radius:7px; padding:11px 13px;
+    font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-size:13px; box-sizing:border-box;
+    transition:border-color .18s ease,background .18s ease,box-shadow .18s ease;
+}
+.form-container textarea { font-family:'Cascadia',ui-monospace,Consolas,monospace; line-height:1.55; resize:vertical; }
+.form-group input:hover,.form-container textarea:hover,.version-picker input[type="text"]:hover,.version-picker select:hover { border-color:rgba(196,178,156,.35); }
+input:focus,select:focus,textarea:focus { border-color:var(--accent)!important; background:#25292F; outline:none; box-shadow:0 0 0 3px rgba(196,178,156,.1); }
+.form-group small { margin-top:6px; line-height:1.5; font-size:11px; color:var(--text-muted); }
+
+/* Step 1 is also full-width, no card wrapped around the version form. */
+#step-1 .version-picker { width:100%; max-width:none; margin:0; padding:0; background:transparent; border:0; border-radius:0; text-align:left; }
+#step-1 .install-directory-settings { margin:0 0 18px; padding:0 0 16px; border-bottom:1px solid rgba(196,178,156,.17); }
+#step-1 .project-action-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:12px 0 18px; padding:0; border:0; }
+#step-1 .project-action-list legend { grid-column:1/-1; padding:0; margin-bottom:5px; color:var(--text-primary); font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-size:13px; font-weight:650; }
+#step-1 .project-action-option { min-width:0; min-height:86px; padding:13px 14px; border:1px solid rgba(233,230,225,.11); border-radius:9px; background:rgba(233,230,225,.025); }
+#step-1 .project-action-option:hover { border-color:rgba(196,178,156,.36); background:rgba(196,178,156,.055); }
+#step-1 .project-action-option:has(input:checked) { border-color:rgba(196,178,156,.64); background:rgba(196,178,156,.09); box-shadow:inset 0 0 0 1px rgba(196,178,156,.12); }
+#step-1 .project-action-option strong { color:var(--text-primary); font-size:12px; line-height:1.45; }
+#step-1 .project-action-option small { color:var(--text-muted); font-size:11px; line-height:1.45; }
+#step-1 .project-action-option input { accent-color:var(--accent); margin-top:2px; }
+#step-1 .version-picker>label { margin-top:8px; color:#CBC5BA; font-size:12px; }
+#step-1 .version-warning,#step-1 .project-installed-note { background:rgba(196,178,156,.07); border-left-color:var(--accent); border-radius:0 7px 7px 0; }
+#step-1 .version-advanced { border-color:rgba(233,230,225,.12); border-radius:8px; margin-top:10px; }
+#step-1 .version-actions { margin-top:12px; }
+.install-directory-controls { grid-template-columns:minmax(0,1fr) auto auto; gap:9px; }
+.install-directory-controls button { min-height:40px; padding:8px 14px; font-size:12px; }
+
+/* Status and actions use the same content area as the active step. */
+.status-box {
+    width:100%; max-width:none; margin:16px 0 20px; padding:18px 0;
+    border:0; border-top:1px solid rgba(196,178,156,.16); border-bottom:1px solid rgba(196,178,156,.16);
+    border-radius:0; background:transparent;
+}
+.status-box #status-text,.status-box #install-text { max-width:900px; text-align:center; }
+.deployment-summary { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:28px; align-items:start; }
+.button-group { width:100%; justify-content:flex-end; gap:10px; margin-top:22px; padding:17px 0 2px; border-top:1px solid rgba(196,178,156,.15); }
+.button-group button { min-width:128px; }
+.btn-primary,.btn-primary.btn-accent,.btn-accent {
+    background:#C4B29C; color:#16181B; border:1px solid #C4B29C; border-radius:7px;
+    font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-weight:700; padding:11px 22px;
+}
+.btn-primary:hover:not(:disabled),.btn-primary.btn-accent:hover:not(:disabled),.btn-accent:hover:not(:disabled) { background:#D2C2AB; border-color:#D2C2AB; color:#16181B; }
+.btn-primary:disabled { color:#969188; border-color:rgba(233,230,225,.1)!important; background:rgba(233,230,225,.035)!important; }
+.btn-secondary { border:1px solid rgba(233,230,225,.17); color:#C7C3BC; background:transparent; border-radius:7px; padding:10px 18px; font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-size:13px; }
+.btn-secondary:hover:not(:disabled) { color:#E9E6E1; border-color:rgba(196,178,156,.54); background:rgba(196,178,156,.06); }
+.version-summary { font-size:12px; line-height:1.6; }
+.sensitive-yaml-warning { max-width:none; margin:0 0 16px; padding:13px 16px; border-left:3px solid #C4B29C; background:rgba(196,178,156,.075); color:#E9E6E1; border-radius:0 8px 8px 0; line-height:1.65; }
+.preview-container { width:100%; height:min(52vh,660px); max-height:none; min-height:260px; background:#191B1F; border:1px solid rgba(196,178,156,.2); border-radius:8px; }
+#yaml-preview { font-family:'Cascadia',ui-monospace,Consolas,monospace; color:#E9E6E1; overflow-wrap:anywhere; word-break:normal; }
+#step-6 .form-container { display:block; padding:2px 0 10px; }
+#step-6 .options-group-block { margin:0 0 22px; }
+#step-6 .options-group-title { padding-left:12px; border-left:3px solid var(--accent); color:#E9E6E1; letter-spacing:.25px; text-transform:none; font-size:13px; }
+#step-6 .options-grid { gap:12px; }
+#step-6 .deploy-option-card { min-height:110px; border:1px solid rgba(233,230,225,.13); border-radius:9px; background:rgba(233,230,225,.025); padding:17px 18px; }
+#step-6 .deploy-option-card:hover { background:rgba(196,178,156,.055); border-color:rgba(196,178,156,.38); }
+#step-6 .deploy-option-card.selected { background:rgba(196,178,156,.1); border-color:rgba(196,178,156,.68); box-shadow:inset 0 0 0 1px rgba(196,178,156,.12); }
+#step-6 .option-title { color:#E9E6E1; font-size:13px; font-weight:700; }
+#step-6 .option-desc { color:#B7B4AE; font-size:12px; line-height:1.6; }
+.verbose-logs-toggle { margin-top:16px; justify-content:flex-start; }
+.github-link { font-family:'Segoe UI','Aptos',system-ui,sans-serif; }
+.post-deploy-guide { margin-top:25px; }
+.guide-header { text-align:left; }
+.guide-title { color:var(--text-primary); font-family:'Segoe UI','Aptos',system-ui,sans-serif; }
+.guide-scroll { max-height:none; overflow-y:visible; padding-right:0; }
+.guide-section { border-color:rgba(196,178,156,.16); border-radius:8px; }
+.guide-section[open] { border-color:rgba(196,178,156,.36); }
+.guide-section summary { font-family:'Segoe UI','Aptos',system-ui,sans-serif; }
+.guide-section summary::after { color:var(--accent); }
+input,select,textarea,pre,code { user-select:text; }
+input[type="checkbox"],input[type="radio"] { accent-color:var(--accent); }
+:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+::selection { background:rgba(196,178,156,.28); color:#FFFFFF; }
+#step-5 .yaml-actions { margin-top:20px!important; }
+#step-7 .deployment-summary { text-align:left; }
+#step-7 .deployment-summary>div:nth-child(odd) { color:var(--text-muted)!important; }
+#step-7 #confirm-option-text,#step-7 #confirm-verbose-text { color:var(--text-primary)!important; }
+@media (max-width:1040px) {
+    #app { padding-left:24px; padding-right:24px; }
+    #step-1 .project-action-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:760px) {
+    #app { padding-top:118px; padding-left:16px; padding-right:16px; }
+    .step.active { min-height:calc(100vh - 150px); }
+    .form-container { grid-template-columns:minmax(0,1fr); }
+    .form-container>.form-section-title,.form-container>small,.form-container>.options-group-block { grid-column:1; }
+    .deployment-summary { grid-template-columns:1fr; }
+    .install-directory-controls { grid-template-columns:1fr 1fr; }
+    .install-directory-controls input { grid-column:1/-1; }
+    #step-1 .project-action-list { grid-template-columns:minmax(0,1fr); }
+    #step-1 .project-action-option { min-height:unset; }
+    .button-group button { min-width:0; flex:1 1 auto; }
+    .step-progress { padding-left:16px; padding-right:16px; }
+}
+@media (max-width:480px) {
+    #app { padding-top:120px; padding-bottom:20px; }
+    .window-brand-logo { width:92px; height:31px; }
+    .step-progress-label { font-size:11px; }
+    .install-directory-controls { grid-template-columns:1fr; }
+    .install-directory-controls input { grid-column:auto; }
+    .button-group { flex-direction:column-reverse; align-items:stretch; }
+    .button-group button { width:100%; }
+    .preview-container { height:44vh; min-height:210px; }
 }

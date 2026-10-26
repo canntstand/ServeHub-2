@@ -11,14 +11,22 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed build/appicon.png
+var appIcon []byte
+
 func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
 		Title: "ServeHub-2 Installer",
-		Width: 1024,
-		Height: 768,
+		Width: 1440,
+		Height: 960,
+		MinWidth: 960,
+		MinHeight: 640,
+		WindowStartState: options.Maximised,
 		Frameless: true,
+		Icon: appIcon,
+		BackgroundColour: options.NewRGB(22, 24, 27),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

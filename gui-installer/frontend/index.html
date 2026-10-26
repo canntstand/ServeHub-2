@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="window-drag-zone">
-        <span class="window-title">ServeHub-2 Installer</span>
+        <span class="window-title" aria-label="ServeHub-2 Installer"><img class="window-brand-logo" src="./src/assets/servehub-logo.svg" alt="ServeHub-2"></span>
         
         <div class="window-controls">
             <button type="button" onclick="minimizeWindow()" class="btn-control btn-minimize" title="Свернуть" aria-label="Свернуть окно">
@@ -50,9 +50,9 @@
     <div id="app">
         <div id="step-1" class="step active">
             <div class="welcome-container">
-                <div class="brand-title">ServeHub-2</div>
                 
-                <h1 class="title">Мастер установки</h1>
+                
+                
                 <p class="subtitle">Выберите точный источник проекта. Перед загрузкой установщик разрешит его в commit SHA и закрепит эту версию на обоих серверах.</p>
 
                 <div class="version-picker">
@@ -106,12 +106,9 @@
                 <button type="button" id="btn-version-continue" class="btn-primary" onclick="continueFromVersionSelection()" disabled>Продолжить</button>
                 
                 <div style="margin-top: auto; padding-top: 30px;">
-                    <a href="https://github.com/canntstand/ServeHub-2" target="_blank" 
-                    class="github-link"
-                    onmouseover="this.style.opacity='1'; this.style.transform='translateY(-1px)'" 
-                    onmouseout="this.style.opacity='0.65'; this.style.transform='none'">
+                    <a href="https://github.com/canntstand/ServeHub-2" target="_blank" rel="noopener noreferrer" class="github-link">
                         
-                        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" style="display: block;">
+                        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" class="github-icon">
                             <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
                         </svg>
                         
@@ -123,8 +120,8 @@
 
         <div id="step-2" class="step">
             <div class="welcome-container">
-                <div class="brand-title">ServeHub-2</div>
-                <h1 class="title">Проверка требований</h1>
+                
+                
                 
                 <div class="status-box">
                     <div id="status-loading" class="spinner"></div>
@@ -141,8 +138,8 @@
 
         <div id="step-3" class="step">
             <div class="welcome-container">
-                <div class="brand-title">ServeHub-2</div>
-                <h1 class="title">Установка компонентов</h1>
+                
+                
                 
                 <div class="status-box">
                     <div id="install-loading" class="spinner"></div>
@@ -159,9 +156,9 @@
         </div>
 
         <div id="step-4" class="step">
-            <div class="welcome-container" style="width: 100%;">
-                <div class="brand-title" style="font-size: 32px; margin-bottom: 10px;">Настройка</div>
-                <h1 class="title" style="margin-bottom: 15px;">Параметры secrets.yml</h1>
+            <div class="welcome-container">
+                
+                
                 <p style="max-width: 650px; font-size: 12px; line-height: 1.6; color: var(--text-secondary);">
                     При сохранении обновляются только изменённые поля. Неизвестные параметры, вложенные настройки, исходные типы YAML и дополнительные комментарии сохраняются.
                 </p>
@@ -180,7 +177,7 @@
                     <div class="form-group">
                         <label>Пароль root VPS (для полного bootstrap):</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_vps_root_pass" value="" autocomplete="new-password" placeholder="Для полного bootstrap" autocomplete="new-password">
+                            <input type="password" id="sec_vps_root_pass" value="" autocomplete="new-password" placeholder="Для полного bootstrap">
                         </div>
                     </div>
                     <div class="form-group">
@@ -202,7 +199,7 @@
                     <div class="form-group">
                         <label>Пароль root домашнего сервера (для полного bootstrap):</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_local_root_pass" value="" autocomplete="new-password" placeholder="Для полного bootstrap" autocomplete="new-password">
+                            <input type="password" id="sec_local_root_pass" value="" autocomplete="new-password" placeholder="Для полного bootstrap">
                         </div>
                     </div>
                     <div class="form-group">
@@ -346,12 +343,12 @@
                     <div class="form-section-title">7. Hermes Agent (API и панель Edge)</div>
                     <div class="form-group">
                         <label>OpenAI-compatible API Base URL:</label>
-                        <input type="url" id="sec_hermes_api_base_url" value="" autocomplete="url" placeholder="https://provider.example/v1" autocomplete="url">
+                        <input type="url" id="sec_hermes_api_base_url" value="" autocomplete="url" placeholder="https://provider.example/v1">
                         <small>Адрес API провайдера, включая /v1 при необходимости.</small>
                     </div>
                     <div class="form-group">
                         <label>Модель Hermes:</label>
-                        <input type="text" id="sec_hermes_model" value="" autocomplete="off" placeholder="Имя модели у провайдера" autocomplete="off">
+                        <input type="text" id="sec_hermes_model" value="" autocomplete="off" placeholder="Имя модели у провайдера">
                     </div>
                     <div class="form-group">
                         <label>API-ключ провайдера:</label>
@@ -369,14 +366,14 @@
         </div>
 
         <div id="step-5" class="step">
-            <div class="welcome-container" style="width: 100%;">
-                <div class="brand-title" style="font-size: 32px; margin-bottom: 10px;">Проверка</div>
-                <h1 class="title" style="margin-bottom: 5px;">Проверьте ваш файл secrets.yml (обязательно сделайте себе копию)</h1>
+            <div class="welcome-container">
+                
+                
                 <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px; max-width: 550px;">
                     Ниже представлен итоговый файл. Вы можете пролистать и проверить его.
                 </p>
                 <p class="sensitive-yaml-warning" role="alert">
-                    ВНИМАНИЕ: YAML содержит пароли, токены, API-ключи и приватный SSH-ключ в открытом виде. Не публикуйте его, не отправляйте третьим лицам и не оставляйте копии в общедоступных каталогах.
+                    ВНИМАНИЕ: YAML содержит пароли, токены, API-ключи и приватный SSH-ключ в открытом виде. Перед продолжением сохраните резервную копию. Не публикуйте файл, не отправляйте третьим лицам и не оставляйте копии в общедоступных каталогах.
                 </p>
                 
                 <div class="preview-container">
@@ -390,7 +387,7 @@
                     <pre id="yaml-preview"></pre>
                 </div>
 
-                <div class="button-group" style="margin-top: 25px;">
+                <div class="button-group yaml-actions">
                     <button type="button" class="btn-secondary" onclick="goToStep(4)">Переделать</button>
                     <button type="button" class="btn-primary" onclick="saveYamlAndFinish()">Записать и продолжить</button>
                 </div>
@@ -398,9 +395,9 @@
         </div>
 
         <div id="step-6" class="step">
-            <div class="welcome-container" style="width: 100%;">
-                <div class="brand-title" style="font-size: 32px; margin-bottom: 10px;">Деплой</div>
-                <h1 class="title" style="margin-bottom: 5px;">Выберите сценарий развертывания</h1>
+            <div class="welcome-container">
+                
+                
                 <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
                     Выберите конфигурацию деплоя Ansible в соответствии с вашей инфраструктурой.
                 </p>
@@ -451,7 +448,7 @@
 
                 </div>
 
-                <div class="toggle-container" style="margin-top: 15px; justify-content: center;">
+                <div class="toggle-container verbose-logs-toggle">
                     <label class="switch-label">
                         <input type="checkbox" id="verbose-logs-toggle">
                         <span class="custom-checkbox"></span>
@@ -466,12 +463,12 @@
             </div>
         </div>
 
-        <div id="step-7" class="step" style="max-width: 950px; width: 100%;">
-            <div class="welcome-container" style="width: 100%; max-width: 100%;">
-                <div class="brand-title">ServeHub-2</div>
-                <h1 class="title" style="margin-bottom: 15px;">Подтверждение деплоя</h1>
+        <div id="step-7" class="step">
+            <div class="welcome-container">
                 
-                <div class="status-box" style="text-align: left; width: 100%; background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; box-sizing: border-box; margin-bottom: 15px;">
+                
+                
+                <div class="status-box deployment-summary">
                     <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Выбранный режим развертывания:</div>
                     <div id="confirm-option-text" style="color: var(--text-primary); font-size: 14px; font-weight: bold; margin-bottom: 10px; line-height: 1.4;">-</div>
                     
