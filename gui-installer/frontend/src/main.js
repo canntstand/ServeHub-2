@@ -1109,12 +1109,14 @@ window.updateProjectActionUI = function() {
     const versionWarning = document.getElementById('project-version-warning');
     const versionActions = document.querySelector('.version-actions');
 
-    if (select) select.disabled = !projectVersionsLoaded || !projectInstallDirectoryVerified || reusingExisting;
-    if (versionLabel) versionLabel.hidden = reusingExisting;
-    if (select) select.hidden = reusingExisting;
-    if (versionSummary) versionSummary.hidden = reusingExisting;
-    if (versionWarning) versionWarning.hidden = reusingExisting;
-    if (versionActions) versionActions.hidden = reusingExisting;
+    if (select) {
+        select.disabled = !projectVersionsLoaded || !projectInstallDirectoryVerified || reusingExisting;
+        select.style.display = reusingExisting ? 'none' : '';
+    }
+    if (versionLabel) versionLabel.style.display = reusingExisting ? 'none' : '';
+    if (versionSummary) versionSummary.style.display = reusingExisting ? 'none' : '';
+    if (versionWarning) versionWarning.style.display = reusingExisting ? 'none' : '';
+    if (versionActions) versionActions.style.display = reusingExisting ? 'none' : '';
 
     const button = document.getElementById('btn-version-continue');
     if (button) {
