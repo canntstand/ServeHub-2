@@ -1078,7 +1078,7 @@ window.verifyProjectInstallDirectory = async function() {
         projectInstallDirectory = result.directory;
         projectInstallState = result.installed;
         projectInstallDirectoryVerified = true;
-        updateProjectDirectoryStatus(result.message || ('Каталог проверен: ' + result.directory), Boolean(result.installed?.partial));
+        updateProjectDirectoryStatus('Каталог проверен: ' + result.directory + '.', Boolean(result.installed?.partial));
         renderInstalledProjectState(projectInstallState, false);
         window.updateProjectActionUI();
     } catch (error) {
@@ -1102,7 +1102,7 @@ window.chooseProjectInstallDirectory = async function() {
         projectInstallDirectoryVerified = true;
         const input = document.getElementById('project-install-directory');
         if (input) input.value = result.directory;
-        updateProjectDirectoryStatus(result.message || ('Каталог: ' + result.directory), Boolean(result.installed?.partial));
+        updateProjectDirectoryStatus('Каталог проверен: ' + result.directory + '.', Boolean(result.installed?.partial));
         renderInstalledProjectState(projectInstallState, true);
         window.updateProjectActionUI();
     } catch (error) {
@@ -1245,9 +1245,11 @@ function renderInstalledProjectState(state, initialLoad) {
         note.textContent = 'ServeHub-2 в выбранном каталоге не обнаружен. Будет выполнена новая установка выбранного тега или ветки dev. Файлы в непустом каталоге, не относящиеся к ServeHub-2, не будут перезаписаны.';
     }
 
+    // Keep this line focused on the path and verification result. Installation
+    // details belong in project-installed-note, otherwise the same state appears twice.
     const pathStatus = state && state.directory
-        ? ('Каталог: ' + state.directory + '. ' + (state.message || ''))
-        : (state?.message || '');
+        ? ('Каталог проверен: ' + state.directory + '.')
+        : '';
     if (projectInstallDirectoryVerified && pathStatus) updateProjectDirectoryStatus(pathStatus, Boolean(state?.partial));
     window.updateProjectActionUI();
 }
