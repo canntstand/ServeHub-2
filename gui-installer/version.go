@@ -733,7 +733,7 @@ func (a *App) PerformProjectAction(action, mode, ref, expectedSHA string, confir
 		defer projectInstallMu.Unlock()
 		state := getProjectInstallState(targetDir)
 		if !state.Exists || !state.Complete || !state.KnownVersion || !state.IntegrityVerified {
-			return CheckResult{Success: false, Message: "Текущая установка не подтверждена как полная версия ServeHub-2. Выберите установку или восстановление неполной установки."}
+			return CheckResult{Success: false, Message: "Текущая установка не подтверждена как полная версия ServeHub-2."}
 		}
 		if err := verifyProjectDirectory(targetDir); err != nil {
 			return CheckResult{Success: false, Message: "Текущая установка не прошла повторную проверку: " + err.Error()}
