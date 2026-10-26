@@ -1029,8 +1029,12 @@ function selectedVersionOption() {
 }
 
 function selectedProjectAction() {
-    // The installation action is derived from the selected directory state,
-    // never from a separate mode selector.
+    // A fully verified existing installation is reused automatically.
+    // Missing or unknown installations follow the normal install/update path.
+    const state = projectInstallState;
+    if (state && state.exists && state.complete && state.knownVersion && state.integrityVerified) {
+        return 'use';
+    }
     return 'install';
 }
 
@@ -1097,10 +1101,15 @@ window.chooseProjectInstallDirectory = async function() {
 };
 
 window.updateProjectActionUI = function() {
+    const action = selectedProjectAction();
     const select = document.getElementById('project-version-select');
-    if (select) select.disabled = !projectVersionsLoaded || !projectInstallDirectoryVerified;
+    if (select) select.disabled = !projectVersionsLoaded || !projectInstallDirectoryVerified || action === 'use';
     const button = document.getElementById('btn-version-continue');
-    if (button) button.textContent = 'Продолжить с выбранной версией';
+    if (button) {
+        button.textContent = action === 'use'
+            ? 'Продолжить с установленным репозиторием'
+            : 'Установить выбранную версию';
+    }
     window.updateProjectVersionPreview();
 };
 
@@ -1108,8 +1117,16 @@ function setProjectVersionContinueEnabled(versionEnabled) {
     const button = document.getElementById('btn-version-continue');
     if (!button) return;
     const pathReady = projectInstallDirectoryVerified && Boolean(document.getElementById('project-install-directory')?.value.trim());
-    const canInstall = !(projectInstallState && projectInstallState.partial);
-    button.disabled = !(pathReady && projectVersionsLoaded && versionEnabled && canInstall);
+    const state = projectInstallState;
+    if (!pathReady || (state && state.partial)) {
+        button.disabled = true;
+        return;
+    }
+    if (selectedProjectAction() === 'use') {
+        button.disabled = !(state && state.exists && state.complete && state.knownVersion && state.integrityVerified);
+        return;
+    }
+    button.disabled = !(projectVersionsLoaded && versionEnabled);
 }
 
 function getSelectedProjectVersion() {
@@ -1197,7 +1214,7 @@ function renderInstalledProjectState(state, initialLoad) {
             ' Если продолжить стандартную установку, текущий каталог будет сохранён в резервной копии перед заменой.';
     } else if (canVerifyExisting) {
         note.textContent = 'Обнаружен существующий ServeHub-2: ' + state.metadata.display_name +
-            ' (commit ' + state.metadata.commit_sha + '). При продолжении выбранный тег или dev будет загружен и проверен, затем код в этом каталоге будет заменён. Прежний каталог сохранится в резервной копии.';
+            ' (commit ' + state.metadata.commit_sha + '). Установщик автоматически использует этот репозиторий без повторной загрузки и замены кода. Для установки другой версии выберите пустую директорию.';
     } else {
         note.textContent = 'ServeHub-2 в выбранном каталоге не обнаружен. Будет выполнена новая установка выбранного тега или ветки dev. Файлы в непустом каталоге, не относящиеся к ServeHub-2, не будут перезаписаны.';
     }
@@ -1226,6 +1243,7 @@ window.initializeProjectVersions = async function(preserveChoice = false) {
         populateProjectVersionChoices(result, preserveChoice);
         renderInstalledProjectState(result.installed, !preserveChoice);
         projectVersionsLoaded = true;
+        window.updateProjectActionUI();
         window.updateProjectVersionPreview();
     } catch (error) {
         projectVersionsLoaded = false;
@@ -1252,6 +1270,15 @@ window.updateProjectVersionPreview = function() {
         summary.textContent = 'В выбранном каталоге обнаружена неполная установка; автоматическая установка заблокирована.';
         warning.textContent = 'Выберите другой каталог или устраните повреждение вручную. Установщик не будет автоматически заменять непроверенные данные.';
         setProjectVersionContinueEnabled(false);
+        return;
+    }
+
+    if (selectedProjectAction() === 'use') {
+        summary.textContent = 'Обнаружен установленный ServeHub-2: ' +
+            (projectInstallState?.metadata?.display_name || 'версия не указана') +
+            '. Будет использован текущий проверенный репозиторий без загрузки новой версии.';
+        warning.textContent = 'Выбор тега или dev не изменит существующую установку, пока выбран этот каталог.';
+        setProjectVersionContinueEnabled(true);
         return;
     }
 
@@ -1293,6 +1320,15 @@ window.continueFromVersionSelection = async function() {
     if (projectInstallState && projectInstallState.partial) {
         const summary = document.getElementById('project-version-summary');
         if (summary) summary.textContent = 'Автоматическая установка заблокирована: в выбранном каталоге найдена неполная установка. Выберите другой каталог или устраните проблему вручную.';
+        return;
+    }
+    if (selectedProjectAction() === 'use') {
+        const state = projectInstallState;
+        if (!(state && state.exists && state.complete && state.knownVersion && state.integrityVerified)) {
+            updateProjectDirectoryStatus('Не удалось подтвердить существующий репозиторий. Проверьте каталог ещё раз.', true);
+            return;
+        }
+        window.goToStep(2);
         return;
     }
     const selection = getSelectedProjectVersion();
