@@ -2833,3 +2833,13 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
         padding: 14px 12px 4px;
     }
 }
+
+
+/* Bootstrap credential mode selector */
+.bootstrap-auth-field[hidden] {
+    display: none !important;
+}
+
+.bootstrap-auth-selector select {
+    width: 100%;
+}
