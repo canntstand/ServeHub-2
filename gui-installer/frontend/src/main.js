@@ -1,5 +1,5 @@
 import './style.css';
-import { CheckDocker, GetProjectVersions, ResolveProjectVersion, GetProjectInstallDirectory, InspectProjectInstallDirectory, SetProjectInstallDirectory, ChooseProjectInstallDirectory, PerformProjectAction, RecoverProjectInstallation, CancelProjectInstallation, SaveSecrets, PreviewSecrets, GenerateSecretDefaults, ValidateDeploymentSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
+import { CheckDocker, GetProjectVersions, ResolveProjectVersion, GetProjectInstallDirectory, InspectProjectInstallDirectory, SetProjectInstallDirectory, ChooseProjectInstallDirectory, PerformProjectAction, CancelProjectInstallation, SaveSecrets, PreviewSecrets, GenerateSecretDefaults, ValidateDeploymentSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
 import { EventsOn } from '../wailsjs/runtime/runtime.js';
 
 let generatedYamlString = "";
@@ -130,17 +130,6 @@ window.runInstallation = async function() {
     try {
         const action = selectedProjectAction();
         let selection = null;
-        if (action === 'recover') {
-            const recovery = await RecoverProjectInstallation();
-            spinner.style.display = 'none';
-            installText.innerText = recovery.message || 'Восстановление завершено.';
-            installText.style.color = recovery.success ? 'var(--accent-bright)' : 'var(--danger)';
-            btnFinish.innerText = 'Вернуться к выбору версии';
-            btnFinish.disabled = false;
-            btnFinish.setAttribute('onclick', 'goToStep(1)');
-            btnRetry.style.display = 'none';
-            return;
-        }
         if (action !== 'use') {
             selection = getSelectedProjectVersion();
             if (!selection.valid) {
@@ -832,14 +821,23 @@ let selectedOptionNum = 0;
 
 window.selectDeployOption = function(num) {
     selectedOptionNum = num;
-    
+
     document.querySelectorAll('.deploy-option-card').forEach(card => {
         card.classList.remove('selected');
     });
-    
+
     const selectedCard = document.getElementById(`opt-${num}`);
     if (selectedCard) {
         selectedCard.classList.add('selected');
+    }
+
+    const dependencyNote = document.getElementById('deploy-dependency-note');
+    if (dependencyNote) {
+        const needsExistingEdge = num === 3 || num === 4;
+        dependencyNote.style.display = needsExistingEdge ? 'block' : 'none';
+        dependencyNote.textContent = needsExistingEdge
+            ? 'Зависимость от Edge/VPS: сценарии 3 и 4 настраивают Workload, но не развёртывают Edge. До любых изменений на Workload установщик проверит SSH-доступ к VPS и состояние контейнера wg-easy. Edge должен быть уже развёрнут, доступен по SSH, а wg-easy должен быть в состоянии healthy. Если проверка не пройдёт, развёртывание Workload не начнётся.'
+            : '';
     }
 
     const btnNext = document.getElementById('btn-deploy-next');
