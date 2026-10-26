@@ -323,7 +323,7 @@
                     <div class="form-group">
                         <label>Пароль Redis для Nextcloud:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_redis_pass" value="" autocomplete="new-password" placeholder="Введите собственное значение">
+                            <input type="password" id="sec_redis_pass" value="" autocomplete="new-password" placeholder="Введите пароль Redis">
                         </div>
                     </div>
 
@@ -338,20 +338,22 @@
 <div class="form-group">
                         <label>Пароль админ-панели Vaultwarden:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_vw_admin_pass" value="" autocomplete="new-password" placeholder="Введите собственное значение">
+                            <input type="password" id="sec_vw_admin_pass" value="" autocomplete="new-password" placeholder="Введите пароль Vaultwarden">
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Homebox ключ:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_hbox_pepper" value="" autocomplete="new-password" placeholder="Введите собственное значение">
+                            <input type="password" id="sec_hbox_pepper" value="" autocomplete="new-password" placeholder="Введите ключ Homebox">
                         </div>
                     </div>
                     
 
 </div>
 
-<div class="form-group">
+<div class="form-field-grid">
+                        <div class="form-subsection-title">SSH-доступ и шифрование резервных копий</div>
+                    <div class="form-group">
                         <label>Публичный SSH-ключ для установки на серверы:</label>
                         <input type="text" id="sec_public_ssh_key" value="" placeholder="Публичный ключ из пары ниже">
                     </div>
@@ -366,6 +368,8 @@
                             <input type="password" id="sec_borg_pass" placeholder="Парольная фраза для шифрования бэкапов" autocomplete="new-password">
                         </div>
                     </div>
+                    
+</div>
                     
 <div class="form-group">
                         <label>UUID диска для бэкапов (blkid):</label>
@@ -387,7 +391,7 @@
                     </div>
                     <div class="form-group">
                         <label>S3 Secret Access Key:</label>
-                        <input type="password" id="sec_s3_secret_key" autocomplete="new-password" placeholder="Secret Access Key">
+                        <input type="password" id="sec_s3_secret_key" autocomplete="new-password" placeholder="S3 Secret Access Key">
                     </div>
                     
 
