@@ -497,3 +497,129 @@ func TestRedactSensitiveTextMasksValuesAndMultilinePrivateKey(t *testing.T) {
 		t.Fatal("expected redaction marker in output")
 	}
 }
+
+
+func TestMergeSecretUpdatesRemovesInactiveBootstrapCredentials(t *testing.T) {
+	document, err := parseSecretsYAML(yamlInput(
+		"vps_root_password: vps-root",
+		"vps_ssh_password: vps-ssh",
+		"vps_sudo_password: vps-sudo",
+		"local_root_password: local-root",
+		"local_ssh_password: local-ssh",
+		"local_sudo_password: local-sudo",
+		"admin_password: keep-admin-secret",
+		"custom_option: keep-custom-value",
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// VPS selects root; Workload selects the ordinary user.
+	updates := map[string]string{
+		"__delete_auth__vps_ssh_password":   "true",
+		"__delete_auth__vps_sudo_password":  "true",
+		"__delete_auth__local_root_password": "true",
+	}
+	if err := mergeSecretUpdates(document, updates); err != nil {
+		t.Fatalf("merge explicit removals: %v", err)
+	}
+	values := secretScalarValues(document)
+
+	if values["vps_root_password"] != "vps-root" {
+		t.Fatalf("selected VPS root credential was not preserved: %#v", values)
+	}
+	for _, key := range []string{"vps_ssh_password", "vps_sudo_password", "local_root_password"} {
+		if _, exists := values[key]; exists {
+			t.Errorf("inactive credential %q was not removed", key)
+		}
+	}
+	for key, want := range map[string]string{
+		"local_ssh_password": "local-ssh",
+		"local_sudo_password": "local-sudo",
+		"admin_password": "keep-admin-secret",
+		"custom_option": "keep-custom-value",
+	} {
+		if got, exists := values[key]; !exists || got != want {
+			t.Errorf("%s = %q (present=%t), want %q", key, got, exists, want)
+		}
+	}
+}
+
+func TestMergeSecretUpdatesRejectsInvalidBootstrapCredentialRemoval(t *testing.T) {
+	document, err := parseSecretsYAML(yamlInput(
+		"vps_root_password: root-password",
+		"admin_password: admin-password",
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []map[string]string{
+		{"__delete_auth__admin_password": "true"},
+		{"__delete_auth__vps_root_password": "false"},
+	}
+	for _, updates := range cases {
+		if err := mergeSecretUpdates(document, updates); err == nil {
+			t.Errorf("invalid removal operation was accepted: %#v", updates)
+		}
+	}
+}
+
+func TestPreviewAndSaveRemoveInactiveBootstrapCredentials(t *testing.T) {
+	varsDir := setupSecretsTestProject(t)
+	template := strings.Join([]string{
+		"vps_root_password: vps-root",
+		"vps_ssh_password: vps-ssh",
+		"vps_sudo_password: vps-sudo",
+		"local_root_password: local-root",
+		"local_ssh_password: local-ssh",
+		"local_sudo_password: local-sudo",
+		"custom_setting: keep-me",
+	}, "\n")
+	writeTestFile(t, filepath.Join(varsDir, "secrets.yml.example"), template, 0600)
+
+	app := &App{}
+	updates := map[string]string{
+		"__delete_auth__vps_ssh_password":    "true",
+		"__delete_auth__vps_sudo_password":   "true",
+		"__delete_auth__local_root_password": "true",
+	}
+	preview := app.PreviewSecrets(updates)
+	if !preview.Success {
+		t.Fatalf("preview failed: %s", preview.Message)
+	}
+	previewDocument, err := parseSecretsYAML([]byte(preview.Content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	previewValues := secretScalarValues(previewDocument)
+	if _, exists := previewValues["vps_ssh_password"]; exists {
+		t.Fatal("preview retained inactive VPS SSH password")
+	}
+	if _, exists := previewValues["local_root_password"]; exists {
+		t.Fatal("preview retained inactive Workload root password")
+	}
+	if previewValues["custom_setting"] != "keep-me" {
+		t.Fatal("preview lost an unrelated setting")
+	}
+
+	saved := app.SaveSecrets(updates, preview.Content)
+	if !saved.Success {
+		t.Fatalf("save failed: %s", saved.Message)
+	}
+	_, _, savedValues, _, err := loadSecretsSource()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"vps_ssh_password", "vps_sudo_password", "local_root_password"} {
+		if _, exists := savedValues[key]; exists {
+			t.Errorf("saved secrets.yml retained inactive key %q", key)
+		}
+	}
+	if savedValues["vps_root_password"] != "vps-root" ||
+		savedValues["local_ssh_password"] != "local-ssh" ||
+		savedValues["local_sudo_password"] != "local-sudo" ||
+		savedValues["custom_setting"] != "keep-me" {
+		t.Fatalf("selected credentials or unrelated data were changed: %#v", savedValues)
+	}
+}
