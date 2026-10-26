@@ -76,7 +76,7 @@ window.runDockerCheck = async function() {
     spinner.style.display = 'block';
     spinner.className = 'spinner';
     statusText.innerText = 'Проверяем Docker и Docker Compose...';
-    statusText.style.color = '#9a9aa0';
+    statusText.style.color = 'var(--text-secondary)';
     btnNext.disabled = true;
     btnRetry.style.display = 'none';
 

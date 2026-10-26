@@ -5,31 +5,48 @@
     font-style: normal;
 }
 
+/* ==========================================================================
+   Palette — taken from ServeHub-2-logo-violet-banner-dark.svg
+   #06031A / #2B1778  deep indigo (logo background gradient)
+   #FF8AD8            logo pink — used here only in a muted, dusty form (--accent)
+   #FFFFFF            white (logo strokes)
+   ========================================================================== */
 :root {
-    --accent: #4f7cff;
-    --accent-bright: #7aa2ff;
-    --accent-soft: #b4c9ff;
-    --accent-dim: rgba(79, 124, 255, 0.15);
-    --bg-0: #0b1018;
-    --bg-1: #101722;
-    --bg-2: #172131;
-    --bg-3: #1d293a;
-    --border-1: rgba(169, 194, 235, 0.12);
-    --border-2: rgba(169, 194, 235, 0.2);
-    --text-primary: #f2f6ff;
-    --text-secondary: #aab7ca;
-    --text-muted: #7e8da4;
-    --danger: #e5484d;
-    --success: #48c7a5;
+    --accent: #c08ab8;
+    --accent-bright: #d0a0c8;
+    --accent-soft: #e2c4dc;
+    --accent-dim: rgba(192, 138, 184, 0.09);
+    --accent-muted: rgba(192, 138, 184, 0.38);
+    --violet: #2b1778;
+    --violet-hover: #34208a;
+
+    --bg-0: #06031a;
+    --bg-1: #0a0624;
+    --bg-2: #0f0a30;
+    --bg-3: #160f3f;
+
+    --border-1: rgba(255, 255, 255, 0.08);
+    --border-2: rgba(255, 255, 255, 0.16);
+
+    --text-primary: #ffffff;
+    --text-secondary: #b9b3d9;
+    --text-muted: #7f78a8;
+
+    --danger: #d9636b;
+    --success: #6fbf9f;
+
+    --radius: 6px;
+    --radius-lg: 8px;
 }
 
 * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(79, 124, 255, 0.4) rgba(0, 0, 0, 0.3);
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
 }
 
 body {
-    background: radial-gradient(ellipse at 50% -15%, #1a2b46 0%, #0b1018 58%, #080c12 100%);
+    background: linear-gradient(135deg, #06031a 0%, #090522 60%, #140b3a 100%);
+    background-attachment: fixed;
     color: var(--text-secondary);
     font-family: 'Cascadia', monospace;
     margin: 0;
@@ -48,18 +65,15 @@ body {
     padding: 78px 50px 40px;
     text-align: center;
     box-sizing: border-box;
-
-    background-color: rgba(11, 16, 24, 0.96);
-    border: none;
-    border-radius: 0;
-    box-shadow: inset 0 0 200px rgba(0, 0, 0, 0.5);
-
+    background: transparent;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     overflow: auto;
 }
+
+/* ---------- Steps ---------- */
 
 .step {
     display: none;
@@ -73,27 +87,29 @@ body {
     width: 100%;
     height: 100%;
     max-width: 750px;
-    animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: fadeIn 0.3s ease;
 }
 
 .welcome-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: fadeIn 0.3s ease;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(14px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
+/* ---------- Typography ---------- */
+
 .brand-title {
-    font-size: 40px;
-    font-weight: 700;
+    font-size: 36px;
+    font-weight: 800;
     color: var(--text-primary);
-    letter-spacing: 3px;
-    margin-bottom: 25px;
+    letter-spacing: -1.2px;
+    margin-bottom: 28px;
     position: relative;
     display: inline-block;
 }
@@ -102,11 +118,11 @@ body {
     content: "";
     position: absolute;
     left: 50%;
-    bottom: -10px;
+    bottom: -12px;
     transform: translateX(-50%);
-    width: 46px;
+    width: 28px;
     height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent-bright), transparent);
+    background: var(--accent);
     border-radius: 2px;
 }
 
@@ -115,7 +131,7 @@ body {
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 15px;
-    letter-spacing: 0.3px;
+    letter-spacing: -0.4px;
 }
 
 .subtitle {
@@ -123,75 +139,51 @@ body {
     color: var(--text-secondary);
     line-height: 1.7;
     margin-bottom: 35px;
-    max-width: 460px;
+    max-width: 620px;
+    text-wrap: pretty;
 }
+
+/* ---------- Buttons ---------- */
 
 button {
     font-family: inherit;
     box-sizing: border-box;
+    transition: color .18s ease, background-color .18s ease, border-color .18s ease, opacity .18s ease;
 }
 
-button:focus-visible {
-    outline: 2px solid var(--accent-bright);
-    outline-offset: 2px;
+:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 3px;
 }
 
 .btn-primary {
     font-family: inherit;
-    background-color: #1c1c1f;
+    background-color: transparent;
     color: var(--text-primary);
     border: 1px solid var(--border-2);
     padding: 12px 42px;
     font-size: 14px;
     font-weight: 600;
-    letter-spacing: 0.4px;
-    border-radius: 6px;
+    letter-spacing: 0.2px;
+    border-radius: var(--radius);
     cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    z-index: 0;
-
-    transition: border-color 0.3s ease,
-                color 0.3s ease,
-                transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1),
-                box-shadow 0.3s ease;
 }
 
-.btn-primary::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.08), transparent);
-    transform: translateX(-120%);
-    transition: transform 0.6s ease;
-    z-index: -1;
-}
-
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     border-color: var(--accent);
-    color: #ffffff;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55),
-                0 0 0 1px var(--accent-dim),
-                0 0 18px rgba(99, 102, 241, 0.25);
+    color: var(--accent);
 }
 
-.btn-primary:hover::before {
-    transform: translateX(120%);
-}
-
-.btn-primary:active {
-    transform: translateY(0) scale(0.98);
-    transition: transform 0.1s ease;
+.btn-primary:active:not(:disabled) {
+    opacity: 0.8;
 }
 
 .btn-primary:disabled {
-    background-color: #131315 !important;
-    color: #55555a;
+    background-color: transparent !important;
+    color: var(--text-muted);
     border-color: var(--border-1) !important;
     cursor: not-allowed;
-    transform: none !important;
-    box-shadow: none !important;
+    opacity: 0.55;
 }
 
 .btn-secondary {
@@ -201,74 +193,78 @@ button:focus-visible {
     border: 1px solid var(--border-1);
     padding: 10px 24px;
     font-size: 13.5px;
-    border-radius: 6px;
+    border-radius: var(--radius);
     cursor: pointer;
-    transition: border-color 0.25s ease, color 0.25s ease, background-color 0.25s ease, transform 0.2s ease;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
     color: var(--text-primary);
-    border-color: var(--accent);
-    background-color: var(--accent-dim);
-    transform: translateY(-1px);
+    border-color: var(--border-2);
+    background-color: rgba(255, 255, 255, 0.04);
 }
 
-.btn-secondary:active {
-    transform: translateY(0) scale(0.98);
+.btn-secondary:active:not(:disabled) {
+    opacity: 0.8;
 }
 
 .btn-secondary:disabled {
-    color: #55555a;
+    color: var(--text-muted);
     border-color: var(--border-1) !important;
     background-color: transparent !important;
     cursor: not-allowed;
-    transform: none !important;
-    box-shadow: none !important;
+    opacity: 0.55;
 }
 
-.btn-accent {
-    border-color: var(--accent-soft);
-    background-color: var(--accent);
-    color: #ffffff;
+/* Call-to-action: dark violet fill, muted pink only as the edge highlight */
+.btn-accent,
+.btn-primary.btn-accent {
+    background-color: var(--violet);
+    border-color: var(--accent-muted);
+    color: var(--text-primary);
 }
 
-.btn-accent:hover {
-    border-color: var(--accent-soft);
-    background-color: var(--accent);
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55),
-                0 0 18px rgba(99, 102, 241, 0.35);
+.btn-accent:hover:not(:disabled),
+.btn-primary.btn-accent:hover:not(:disabled) {
+    background-color: var(--violet-hover);
+    border-color: var(--accent);
+    color: var(--text-primary);
 }
 
 .button-group {
     display: flex;
-    gap: 15px;
+    gap: 12px;
     justify-content: center;
     margin-top: 20px;
     flex-wrap: wrap;
 }
 
 .github-link {
-    color: var(--accent-bright);
+    color: var(--text-secondary);
     text-decoration: none;
     font-family: 'Cascadia', monospace;
     font-size: 13px;
-    opacity: 0.65;
-    transition: all 0.2s ease;
+    opacity: 0.7;
+    transition: opacity 0.2s ease, color 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
 }
 
+.github-link:hover {
+    opacity: 1;
+    color: var(--accent);
+}
+
 .github-link:focus-visible {
-    outline: 2px solid var(--accent-bright);
-    outline-offset: 2px;
     opacity: 1;
 }
 
+/* ---------- Status ---------- */
+
 .status-box {
-    background-color: var(--bg-1);
-    border-radius: 10px;
+    background-color: transparent;
+    border-radius: var(--radius-lg);
     padding: 22px;
     width: 100%;
     max-width: 400px;
@@ -278,7 +274,7 @@ button:focus-visible {
     align-items: center;
     gap: 15px;
     border: 1px solid var(--border-1);
-    animation: fadeIn 0.35s ease;
+    animation: fadeIn 0.3s ease;
 }
 
 #status-text {
@@ -288,10 +284,10 @@ button:focus-visible {
 }
 
 .spinner {
-    width: 28px;
-    height: 28px;
-    border: 3px solid rgba(99, 102, 241, 0.15);
-    border-top: 3px solid var(--accent);
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-1);
+    border-top: 2px solid var(--accent);
     border-radius: 50%;
     animation: spin 0.9s linear infinite;
 }
@@ -301,6 +297,8 @@ button:focus-visible {
     100% { transform: rotate(360deg); }
 }
 
+/* ---------- Forms ---------- */
+
 .form-container {
     width: 100%;
     height: 52vh;
@@ -308,32 +306,36 @@ button:focus-visible {
     min-height: 250px;
     overflow-y: auto;
     background: var(--bg-1);
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     padding: 22px 28px;
     box-sizing: border-box;
     border: 1px solid var(--border-1);
     text-align: left;
 }
 
-.form-container::-webkit-scrollbar, .preview-container::-webkit-scrollbar {
+.form-container::-webkit-scrollbar,
+.preview-container::-webkit-scrollbar {
     width: 6px;
 }
-.form-container::-webkit-scrollbar-thumb, .preview-container::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.18);
+
+.form-container::-webkit-scrollbar-thumb,
+.preview-container::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.14);
     border-radius: 4px;
 }
 
 .form-section-title {
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 700;
-    color: var(--accent-soft);
-    margin-top: 20px;
+    color: var(--accent);
+    margin-top: 22px;
     margin-bottom: 12px;
-    border-bottom: 1px solid var(--accent-dim);
-    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border-1);
+    padding-bottom: 6px;
     text-transform: uppercase;
     letter-spacing: 1.4px;
 }
+
 .form-section-title:first-child {
     margin-top: 0;
 }
@@ -342,7 +344,7 @@ button:focus-visible {
     display: flex;
     flex-direction: column;
     margin-bottom: 13px;
-    animation: fadeIn 0.3s ease;
+    animation: fadeIn 0.25s ease;
 }
 
 .form-group label {
@@ -352,33 +354,34 @@ button:focus-visible {
     letter-spacing: 0.2px;
 }
 
+input,
+select,
+textarea {
+    color-scheme: dark;
+    accent-color: var(--accent);
+}
+
 .form-group input {
     font-family: inherit;
     background-color: var(--bg-2);
     border: 1px solid var(--border-1);
     color: var(--text-primary);
     padding: 9px 12px;
-    border-radius: 5px;
+    border-radius: var(--radius);
     font-size: 13px;
     outline: none;
-    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .form-group input:hover {
     border-color: var(--border-2);
 }
 
-.form-group input:focus {
-    border-color: var(--accent);
-    background-color: var(--bg-3);
-    box-shadow: 0 0 0 3px var(--accent-dim);
-}
-
 .form-container textarea {
     width: 100%;
     background: var(--bg-2);
     border: 1px solid var(--border-1);
-    border-radius: 6px;
+    border-radius: var(--radius);
     color: var(--text-primary);
     padding: 10px 12px;
     font-family: 'Cascadia', monospace;
@@ -386,17 +389,20 @@ button:focus-visible {
     box-sizing: border-box;
     resize: vertical;
     outline: none;
-    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .form-container textarea:hover {
     border-color: var(--border-2);
 }
 
-.form-container textarea:focus {
-    border-color: var(--accent);
-    background: var(--bg-3);
-    box-shadow: 0 0 0 3px var(--accent-dim);
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--accent) !important;
+    background-color: var(--bg-3);
+    outline: none;
+    box-shadow: none;
 }
 
 .password-wrapper {
@@ -426,17 +432,13 @@ button:focus-visible {
     justify-content: center;
     outline: none;
     user-select: none;
-    transition: transform 0.15s ease, color 0.2s ease;
 }
 
 .password-toggle:hover {
-    transform: scale(1.15);
-    color: var(--accent-soft);
+    color: var(--accent);
 }
 
-.password-toggle:active {
-    transform: scale(0.9);
-}
+/* ---------- YAML preview ---------- */
 
 .preview-container {
     width: 100%;
@@ -446,7 +448,7 @@ button:focus-visible {
     overflow-y: auto;
     background-color: var(--bg-0);
     border: 1px solid var(--border-1);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     text-align: left;
     box-sizing: border-box;
     position: relative;
@@ -460,30 +462,28 @@ button:focus-visible {
     display: flex;
     align-items: center;
     gap: 6px;
-    background-color: var(--bg-3);
+    background-color: var(--bg-2);
     color: var(--text-secondary);
-    border: 1px solid var(--border-2);
+    border: 1px solid var(--border-1);
     padding: 6px 12px;
     font-size: 12px;
     font-family: inherit;
-    border-radius: 5px;
+    border-radius: var(--radius);
     cursor: pointer;
-    transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
 }
 
 .btn-copy:hover {
     color: var(--text-primary);
-    border-color: var(--accent);
-    background-color: var(--accent-dim);
+    border-color: var(--border-2);
 }
 
 .btn-copy:active {
-    transform: scale(0.96);
+    opacity: 0.8;
 }
 
 .btn-copy.copied {
-    color: var(--accent-bright);
-    border-color: var(--accent-bright);
+    color: var(--accent);
+    border-color: var(--accent);
 }
 
 #yaml-preview {
@@ -491,11 +491,13 @@ button:focus-visible {
     padding: 44px 18px 18px 18px;
     font-size: 12px;
     line-height: 1.6;
-    color: #b4b9f7;
+    color: #cfc9f0;
     white-space: pre-wrap;
     word-break: break-all;
     user-select: text;
 }
+
+/* ---------- Deployment options ---------- */
 
 .options-group-block {
     margin-bottom: 26px;
@@ -513,14 +515,14 @@ button:focus-visible {
     margin-bottom: 12px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    border-left: 3px solid var(--accent);
+    border-left: 2px solid var(--accent);
     padding-left: 9px;
 }
 
 .options-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
 }
 
 @media (max-width: 680px) {
@@ -530,12 +532,12 @@ button:focus-visible {
 }
 
 .deploy-option-card {
-    background: var(--bg-2);
+    background: transparent;
     border: 1px solid var(--border-1);
-    border-radius: 7px;
+    border-radius: var(--radius);
     padding: 14px 16px;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-color 0.2s ease, background-color 0.2s ease;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -543,22 +545,14 @@ button:focus-visible {
     position: relative;
 }
 
-.deploy-option-card:focus-visible {
-    outline: 2px solid var(--accent-bright);
-    outline-offset: 2px;
-}
-
 .deploy-option-card:hover {
-    background: var(--bg-3);
-    border-color: var(--accent);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 0 0 14px rgba(99, 102, 241, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-2);
 }
 
 .deploy-option-card.selected {
     background: var(--accent-dim);
     border-color: var(--accent);
-    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35), 0 8px 20px rgba(0, 0, 0, 0.4);
 }
 
 .deploy-option-card.selected::before {
@@ -566,11 +560,10 @@ button:focus-visible {
     position: absolute;
     top: 12px;
     right: 12px;
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    background: var(--success);
-    box-shadow: 0 0 8px rgba(99, 102, 241, 0.8);
+    background: var(--accent);
 }
 
 .option-title {
@@ -610,14 +603,14 @@ button:focus-visible {
 }
 
 .custom-checkbox {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border: 1px solid var(--border-2);
-    border-radius: 4px;
-    background: var(--bg-2);
+    border-radius: 3px;
+    background: transparent;
     display: inline-block;
     position: relative;
-    transition: all 0.18s ease;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
 }
 
 .switch-label:hover .custom-checkbox {
@@ -625,46 +618,48 @@ button:focus-visible {
 }
 
 .switch-label input:checked + .custom-checkbox {
-    background: var(--accent);
+    background: var(--violet);
     border-color: var(--accent);
 }
 
 .switch-label input:focus-visible + .custom-checkbox {
-    outline: 2px solid var(--accent-bright);
-    outline-offset: 2px;
+    outline: 1px solid var(--accent);
+    outline-offset: 3px;
 }
 
 .switch-label input:checked + .custom-checkbox::after {
     content: "✓";
     position: absolute;
-    color: var(--text-primary);
-    font-size: 12px;
+    color: var(--accent-soft);
+    font-size: 11px;
     font-weight: bold;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
 }
 
+/* ---------- Scrollbars ---------- */
+
 ::-webkit-scrollbar {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.35);
-    border-radius: 10px;
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.35);
-    border-radius: 10px;
-    border: 1px solid rgba(10, 10, 11, 0.5);
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
     transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(99, 102, 241, 0.6);
+    background: rgba(255, 255, 255, 0.28);
 }
+
+/* ---------- Window chrome ---------- */
 
 .window-drag-zone {
     position: absolute;
@@ -679,13 +674,13 @@ button:focus-visible {
     align-items: center;
     padding: 0 15px;
     box-sizing: border-box;
-    background: linear-gradient(180deg, rgba(8, 13, 21, 0.92), rgba(8, 13, 21, 0.3));
+    background: transparent;
 }
 
 .window-controls {
     --wails-draggable: no-drag;
     display: flex;
-    gap: 8px;
+    gap: 6px;
 }
 
 .window-title {
@@ -695,93 +690,6 @@ button:focus-visible {
     user-select: none;
     pointer-events: none;
     letter-spacing: 0.4px;
-}
-
-.step-progress {
-    position: fixed;
-    top: 40px;
-    left: 0;
-    width: 100%;
-    z-index: 9998;
-    box-sizing: border-box;
-    padding: 12px 50px 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 7px;
-    background: linear-gradient(180deg, rgba(11, 16, 24, 0.98), rgba(11, 16, 24, 0.82) 70%, transparent);
-    pointer-events: none;
-    user-select: none;
-}
-
-.step-progress-track {
-    position: relative;
-    width: min(460px, 70%);
-    height: 4px;
-    background: var(--border-1);
-    border-radius: 4px;
-}
-
-.step-progress-fill {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, var(--accent), var(--accent-bright));
-    border-radius: 4px;
-    transition: width 0.4s cubic-bezier(0.65, 0, 0.35, 1);
-}
-
-.step-progress-dots {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.step-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: var(--bg-1);
-    border: 2px solid var(--border-2);
-    box-sizing: border-box;
-    transition: all 0.3s ease;
-}
-
-.step-dot.completed {
-    background: var(--accent);
-    border-color: var(--accent);
-}
-
-.step-dot.active {
-    width: 11px;
-    height: 11px;
-    background: var(--accent-bright);
-    border-color: var(--accent-bright);
-    box-shadow: 0 0 10px rgba(122, 162, 255, 0.65);
-}
-
-.step-progress-label {
-    font-size: 11.5px;
-    color: var(--text-muted);
-    letter-spacing: 0.3px;
-}
-
-.step-progress-label span {
-    color: var(--accent-soft);
-    font-weight: 700;
-}
-
-@media (max-width: 480px) {
-    .step-progress-track {
-        width: 85%;
-    }
-    .step-progress-label {
-        font-size: 10.5px;
-    }
 }
 
 .btn-control {
@@ -795,15 +703,11 @@ button:focus-visible {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: color 0.2s ease, background-color 0.2s ease;
     padding: 0;
 }
 
-.btn-minimize:hover {
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.06);
-}
-
+.btn-minimize:hover,
 .btn-maximize:hover {
     color: var(--text-primary);
     background: rgba(255, 255, 255, 0.06);
@@ -815,17 +719,105 @@ button:focus-visible {
 }
 
 .btn-control:active {
-    transform: scale(0.92);
+    opacity: 0.8;
 }
+
+/* ---------- Step progress ---------- */
+
+.step-progress {
+    position: fixed;
+    top: 40px;
+    left: 0;
+    width: 100%;
+    z-index: 9998;
+    box-sizing: border-box;
+    padding: 12px 50px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(180deg, rgba(6, 3, 26, 0.9), transparent);
+    pointer-events: none;
+    user-select: none;
+}
+
+.step-progress-track {
+    position: relative;
+    width: min(460px, 70%);
+    height: 2px;
+    background: var(--border-1);
+    border-radius: 2px;
+}
+
+.step-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.4s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.step-progress-dots {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.step-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--bg-0);
+    border: 1px solid var(--border-2);
+    box-sizing: border-box;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.step-dot.completed {
+    background: var(--accent-muted);
+    border-color: var(--accent-muted);
+}
+
+.step-dot.active {
+    width: 9px;
+    height: 9px;
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.step-progress-label {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+}
+
+.step-progress-label span {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+@media (max-width: 480px) {
+    .step-progress-track {
+        width: 85%;
+    }
+    .step-progress-label {
+        font-size: 10.5px;
+    }
+}
+
+/* ---------- Deploy logs ---------- */
 
 #deploy-logs-container {
     resize: both;
     overflow: auto;
-
     height: 400px;
     min-height: 200px;
     min-width: 300px;
-
     max-width: 90vw;
     max-height: 85vh;
 }
@@ -836,14 +828,11 @@ button:focus-visible {
     margin: 0;
     box-sizing: border-box;
     padding: 16px;
-
     background: transparent;
     border: none;
     border-radius: 0;
-
     overflow-y: auto;
-
-    color: #b4b9f7;
+    color: #cfc9f0;
     font-family: 'Cascadia', monospace;
     font-size: 12px;
     line-height: 1.6;
@@ -853,12 +842,14 @@ button:focus-visible {
     word-break: break-all;
 }
 
+/* ---------- Post-deploy guide ---------- */
+
 .post-deploy-guide {
     width: 100%;
     margin-top: 20px;
     margin-bottom: 20px;
     text-align: left;
-    animation: fadeIn 0.4s ease;
+    animation: fadeIn 0.3s ease;
 }
 
 .guide-header {
@@ -882,16 +873,25 @@ button:focus-visible {
 .guide-scroll {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     max-height: 48vh;
     overflow-y: auto;
     padding-right: 6px;
 }
 
+.guide-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.guide-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
+}
+
 .guide-section {
-    background: var(--bg-1);
+    background: transparent;
     border: 1px solid var(--border-1);
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     overflow: hidden;
     transition: border-color 0.2s ease;
 }
@@ -922,7 +922,7 @@ button:focus-visible {
     content: "+";
     font-size: 18px;
     font-weight: 400;
-    color: var(--accent-soft);
+    color: var(--accent);
     transition: transform 0.25s ease;
     flex-shrink: 0;
     margin-left: 12px;
@@ -933,7 +933,7 @@ button:focus-visible {
 }
 
 .guide-section summary:hover {
-    background: var(--bg-2);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .guide-content {
@@ -966,7 +966,7 @@ button:focus-visible {
 }
 
 .guide-content li::marker {
-    color: var(--accent-soft);
+    color: var(--accent);
     font-weight: 700;
 }
 
@@ -976,7 +976,7 @@ button:focus-visible {
 
 .guide-content code {
     background: var(--bg-3);
-    color: var(--accent-bright);
+    color: var(--accent-soft);
     padding: 2px 6px;
     border-radius: 4px;
     font-family: 'Cascadia', monospace;
@@ -994,27 +994,20 @@ button:focus-visible {
     display: flex;
     gap: 10px;
     align-items: flex-start;
-    background: rgba(229, 72, 77, 0.08);
-    border: 1px solid rgba(229, 72, 77, 0.35);
-    border-radius: 8px;
+    background: transparent;
+    border: 1px solid rgba(217, 99, 107, 0.4);
+    border-radius: var(--radius-lg);
     padding: 10px 14px;
     margin: 10px 0;
     font-size: 12px;
-    color: #f0a4a7;
+    color: #ffb0b0;
 }
 
 .guide-warning strong {
-    color: #f4b8ba;
+    color: #ffc9c9;
 }
 
-.guide-scroll::-webkit-scrollbar {
-    width: 6px;
-}
-
-.guide-scroll::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.18);
-    border-radius: 4px;
-}
+/* ---------- Tooltips ---------- */
 
 .tooltip-wrapper {
     position: relative;
@@ -1029,21 +1022,19 @@ button:focus-visible {
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
+    background: transparent;
     color: var(--text-secondary);
     font-size: 13px;
     font-weight: bold;
     cursor: help;
-    transition: all 0.2s ease;
+    transition: color 0.2s ease, border-color 0.2s ease;
     border: 1px solid var(--border-2);
     user-select: none;
 }
 
 .tooltip-icon:hover {
-    background: var(--accent-bright);
-    color: #ffffff;
-    border-color: var(--accent-bright);
-    box-shadow: 0 0 10px rgba(129, 140, 248, 0.4);
+    color: var(--accent);
+    border-color: var(--accent);
 }
 
 .tooltip-content {
@@ -1056,12 +1047,11 @@ button:focus-visible {
     background: var(--bg-3);
     color: var(--text-primary);
     padding: 12px 14px;
-    border-radius: 6px;
+    border-radius: var(--radius);
     width: 320px;
     font-size: 12px;
     line-height: 1.4;
     border: 1px solid var(--border-2);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
     z-index: 999;
     transition: opacity 0.2s ease, visibility 0.2s ease;
     pointer-events: none;
@@ -1077,14 +1067,14 @@ button:focus-visible {
     transform: translateX(-50%);
     border-width: 6px;
     border-style: solid;
-    border-color: var(--bg-3) transparent transparent transparent;
+    border-color: var(--border-2) transparent transparent transparent;
 }
 
 .tooltip-content code {
     background: rgba(0, 0, 0, 0.3);
     padding: 2px 4px;
     border-radius: 4px;
-    color: var(--accent-bright);
+    color: var(--accent-soft);
     font-family: 'Cascadia', monospace;
     font-size: 11px;
 }
@@ -1094,46 +1084,46 @@ button:focus-visible {
     opacity: 1;
 }
 
-/* Version selection on the installer welcome step */
+/* ---------- Version selection (welcome step) ---------- */
+
 .version-picker {
     width: min(620px, 92vw);
     box-sizing: border-box;
     text-align: left;
     margin: 0 0 18px;
     padding: 16px 18px;
-    border: 1px solid var(--border-2);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius-lg);
+    background: transparent;
 }
+
 .version-picker > label {
     display: block;
     color: var(--text-primary);
     font-size: 13px;
     margin-bottom: 9px;
 }
+
 .version-picker select,
 .version-picker input[type="text"] {
     width: 100%;
     box-sizing: border-box;
     padding: 10px 12px;
     color: var(--text-primary);
-    background: var(--bg-3, #171719);
-    border: 1px solid var(--border-2);
-    border-radius: 6px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius);
     font: inherit;
     font-size: 12px;
 }
-.version-picker select:focus,
-.version-picker input[type="text"]:focus {
-    outline: 1px solid var(--accent-bright);
-    border-color: var(--accent-bright);
-}
+
 .version-picker select:disabled,
 .version-picker input:disabled,
 .version-picker button:disabled {
     opacity: 0.55;
     cursor: not-allowed;
 }
+
 .version-summary {
     margin-top: 10px;
     color: var(--text-secondary);
@@ -1142,32 +1132,37 @@ button:focus-visible {
     overflow-wrap: anywhere;
     user-select: text;
 }
+
 .version-warning,
 .project-installed-note {
     margin-top: 11px;
     padding: 10px 11px;
-    border-left: 2px solid var(--accent-bright);
-    background: rgba(129, 140, 248, 0.07);
+    border-left: 2px solid var(--accent);
+    background: var(--accent-dim);
     color: var(--text-secondary);
     font-size: 11px;
     line-height: 1.55;
     overflow-wrap: anywhere;
     user-select: text;
 }
+
 .project-installed-note.is-warning {
     border-left-color: var(--danger);
-    background: rgba(229, 72, 77, 0.08);
+    background: rgba(217, 99, 107, 0.08);
 }
+
 .version-advanced {
     margin-top: 13px;
     font-size: 12px;
     color: var(--text-secondary);
 }
+
 .version-advanced summary {
     cursor: pointer;
     color: var(--text-primary);
     margin-bottom: 10px;
 }
+
 .version-sha-toggle {
     display: flex;
     align-items: center;
@@ -1175,174 +1170,186 @@ button:focus-visible {
     margin: 8px 0;
     cursor: pointer;
 }
-.version-sha-toggle input {
-    accent-color: var(--accent-bright);
-}
+
 .version-actions {
     display: flex;
     justify-content: flex-end;
     margin-top: 12px;
 }
+
 .version-actions .btn-secondary {
     padding: 7px 10px;
     font-size: 11px;
 }
 
+/* ---------- Secret fields (masked by default, revealed per field) ---------- */
 
-/* Secret fields are masked by default and can be revealed per field. */
 .secret-field-control {
     display: flex;
     align-items: center;
     gap: 8px;
     width: 100%;
 }
+
 .secret-field-control > input {
     flex: 1 1 auto;
     width: auto;
     min-width: 0;
     box-sizing: border-box;
 }
+
 .password-wrapper.secret-field-control > input {
     padding-right: 12px;
 }
+
 .secret-field-control > textarea {
     flex: 1 1 auto;
     width: auto;
     min-width: 0;
     box-sizing: border-box;
 }
+
 .secret-textarea-control {
     align-items: stretch;
 }
+
 .secret-visibility-toggle {
     flex: 0 0 auto;
     white-space: nowrap;
     padding: 8px 10px;
     border: 1px solid var(--border-1);
-    border-radius: 6px;
-    background: var(--bg-2);
+    border-radius: var(--radius);
+    background: transparent;
     color: var(--text-secondary);
     font: inherit;
     font-size: 11px;
     cursor: pointer;
 }
+
 .secret-visibility-toggle:hover {
     color: var(--text-primary);
-    border-color: var(--accent);
-    background: var(--accent-dim);
+    border-color: var(--border-2);
 }
-.secret-visibility-toggle:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
+
 .sensitive-yaml-warning {
     max-width: 760px;
     margin: 0 auto 14px;
     padding: 10px 12px;
-    border-left: 3px solid var(--danger);
-    background: rgba(229, 72, 77, 0.08);
+    border-left: 2px solid var(--danger);
+    background: rgba(217, 99, 107, 0.08);
     color: var(--text-primary);
     font-size: 12px;
     line-height: 1.55;
     text-align: left;
 }
 
+/* ---------- Install location and project actions ---------- */
 
-/* Installation location and explicit project actions */
-.install-directory-settings { margin: 10px 0 16px; }
-.install-directory-controls { display: grid; grid-template-columns: minmax(160px, 1fr) auto auto; gap: 7px; align-items: stretch; }
-.install-directory-controls input { width: 100%; min-width: 0; box-sizing: border-box; padding: 10px 12px; color: var(--text-primary); background: var(--bg-3, #171719); border: 1px solid var(--border-2); border-radius: 6px; font: inherit; font-size: 12px; }
-.install-directory-controls button { padding: 7px 10px; font-size: 11px; white-space: nowrap; }
-.project-action-list { margin: 14px 0; padding: 10px; border: 1px solid var(--border-1); border-radius: 8px; min-width: 0; }
-.project-action-list legend { color: var(--text-primary); font-size: 12px; padding: 0 5px; }
-.project-action-option { display: flex; gap: 9px; align-items: flex-start; padding: 9px 7px; border-radius: 6px; cursor: pointer; }
-.project-action-option:hover { background: rgba(255,255,255,0.035); }
-.project-action-option input { margin-top: 3px; accent-color: var(--accent-bright); }
-.project-action-option span { display: flex; flex-direction: column; gap: 3px; }
-.project-action-option strong { color: var(--text-primary); font-size: 12px; font-weight: 600; }
-.project-action-option small { color: var(--text-secondary); font-size: 11px; line-height: 1.4; font-weight: 400; }
-.update-replacement-consent { line-height: 1.5; font-size: 11px; }
-#project-install-directory-status.is-warning { border-left: 2px solid var(--danger); padding-left: 8px; color: var(--text-primary); }
-@media (max-width: 700px) { .install-directory-controls { grid-template-columns: 1fr 1fr; } .install-directory-controls input { grid-column: 1 / -1; } }
+.install-directory-settings {
+    margin: 10px 0 16px;
+}
 
+.install-directory-controls {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) auto auto;
+    gap: 7px;
+    align-items: stretch;
+}
 
-/* Visual consistency and compact-window responsiveness */
-:focus-visible {
-    outline: 2px solid var(--accent-bright);
-    outline-offset: 3px;
-}
-button, input, select, textarea {
-    accent-color: var(--accent);
-}
-button {
-    transition: color .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
-}
-button:disabled {
-    filter: saturate(.55);
-}
-.brand-title {
+.install-directory-controls input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 10px 12px;
     color: var(--text-primary);
-    letter-spacing: -1.2px;
-    font-weight: 800;
-    text-shadow: 0 8px 28px rgba(79, 124, 255, .16);
+    background: var(--bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius);
+    font: inherit;
+    font-size: 12px;
 }
-.title {
+
+.install-directory-controls button {
+    padding: 7px 10px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.project-action-list {
+    margin: 14px 0;
+    padding: 10px;
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius-lg);
+    min-width: 0;
+}
+
+.project-action-list legend {
     color: var(--text-primary);
-    letter-spacing: -.45px;
+    font-size: 12px;
+    padding: 0 5px;
 }
-.subtitle {
-    max-width: 620px;
-    line-height: 1.7;
-    text-wrap: pretty;
-}
-.version-picker, .form-container, .status-box, .preview-container, #deploy-logs-container {
-    box-shadow: 0 16px 42px rgba(0, 0, 0, .16);
-}
-.version-picker {
-    background: linear-gradient(145deg, rgba(28, 43, 64, .7), rgba(16, 23, 34, .88));
-    border-color: rgba(122, 162, 255, .2);
-}
-.version-picker input[type="text"]:focus,
-.version-picker select:focus,
-.install-directory-controls input:focus {
-    box-shadow: 0 0 0 3px rgba(79, 124, 255, .14);
-}
+
 .project-action-option {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    padding: 9px 7px;
     border: 1px solid transparent;
-    transition: background .18s ease, border-color .18s ease;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
 }
+
+.project-action-option:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
 .project-action-option:has(input:checked) {
-    background: rgba(79, 124, 255, .09);
-    border-color: rgba(122, 162, 255, .28);
+    background: var(--accent-dim);
+    border-color: var(--accent-muted);
 }
-.btn-primary {
-    box-shadow: 0 8px 22px rgba(79, 124, 255, .2);
+
+.project-action-option input {
+    margin-top: 3px;
 }
-.btn-primary:hover:not(:disabled) {
-    box-shadow: 0 10px 28px rgba(79, 124, 255, .3);
-    transform: translateY(-1px);
+
+.project-action-option span {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
 }
-.btn-secondary:hover:not(:disabled) {
-    border-color: var(--accent);
-    background: rgba(122, 162, 255, .08);
+
+.project-action-option strong {
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
 }
-.form-section-title {
-    color: var(--accent-soft);
+
+.project-action-option small {
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.4;
+    font-weight: 400;
 }
-input, select, textarea {
-    color-scheme: dark;
+
+.update-replacement-consent {
+    line-height: 1.5;
+    font-size: 11px;
 }
-input:focus, select:focus, textarea:focus {
-    border-color: var(--accent-bright) !important;
-    box-shadow: 0 0 0 3px rgba(79, 124, 255, .12);
+
+#project-install-directory-status.is-warning {
+    border-left: 2px solid var(--danger);
+    padding-left: 8px;
+    color: var(--text-primary);
 }
-.step-progress-track {
-    box-shadow: 0 0 0 1px rgba(169, 194, 235, .06);
+
+/* ---------- Responsiveness ---------- */
+
+@media (max-width: 700px) {
+    .install-directory-controls { grid-template-columns: 1fr 1fr; }
+    .install-directory-controls input { grid-column: 1 / -1; }
 }
-.step-dot.completed {
-    background: var(--success);
-    border-color: var(--success);
-}
+
 @media (max-height: 760px) {
     #app { padding-top: 72px; padding-bottom: 24px; }
     .step.active { justify-content: flex-start; }
@@ -1350,6 +1357,7 @@ input:focus, select:focus, textarea:focus {
     .version-picker { padding: 12px 14px; margin-bottom: 12px; }
     .step-progress { padding-top: 8px; padding-bottom: 7px; }
 }
+
 @media (max-width: 560px) {
     #app { padding-left: 16px; padding-right: 16px; }
     .install-directory-controls { grid-template-columns: 1fr; }
@@ -1359,6 +1367,7 @@ input:focus, select:focus, textarea:focus {
     .secret-visibility-toggle { margin-left: auto; }
     .step-progress { padding-left: 20px; padding-right: 20px; }
 }
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: .01ms !important;
