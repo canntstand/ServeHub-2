@@ -10,9 +10,6 @@ let sourceSecretIsTemplate = true;
 let secretFormInitialized = false;
 let secretFormProjectSHA = "";
 let secretFormProjectDirectory = "";
-let privateSSHKeyValue = "";
-let privateSSHKeyVisible = false;
-let privateSSHKeyToggleButton = null;
 
 const STEP_TITLES = {
     1: 'Выбор версии проекта',
@@ -271,96 +268,6 @@ const SENSITIVE_SECRET_FIELDS = new Set([
     'hermes_dashboard_basic_auth_secret',
 ]);
 
-const PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER =
-    'Приватный SSH-ключ загружен и скрыт. Нажмите «Показать ключ» для просмотра или изменения.';
-const PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER =
-    'Ключ не задан. Нажмите «Показать ключ», чтобы вставить существующий ключ.';
-
-function refreshPrivateSSHKeyToggle() {
-    if (!privateSSHKeyToggleButton) return;
-    privateSSHKeyToggleButton.textContent = privateSSHKeyVisible ? 'Скрыть ключ' : 'Показать ключ';
-    privateSSHKeyToggleButton.setAttribute('aria-pressed', String(privateSSHKeyVisible));
-    privateSSHKeyToggleButton.setAttribute('aria-label',
-        privateSSHKeyVisible ? 'Скрыть приватный SSH-ключ' : 'Показать приватный SSH-ключ');
-}
-
-function setPrivateSSHKeyVisibility(visible) {
-    const field = document.getElementById('sec_private_ssh_key');
-    if (!field) {
-        privateSSHKeyVisible = Boolean(visible);
-        refreshPrivateSSHKeyToggle();
-        return;
-    }
-    if (privateSSHKeyVisible) {
-        privateSSHKeyValue = String(field.value ?? '');
-    }
-    privateSSHKeyVisible = Boolean(visible);
-    field.value = privateSSHKeyVisible ? privateSSHKeyValue : '';
-    field.placeholder = privateSSHKeyVisible
-        ? ''
-        : (privateSSHKeyValue.trim() ? PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER : PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER);
-    refreshPrivateSSHKeyToggle();
-}
-
-function setupSecretVisibilityToggles() {
-    for (const key of SENSITIVE_SECRET_FIELDS) {
-        const fieldId = SECRETS_FIELD_MAP[key];
-        const field = fieldId ? document.getElementById(fieldId) : null;
-        if (!field || field.type === 'hidden' || field.dataset.secretVisibilityToggle === 'ready') continue;
-
-        const isPrivateKey = key === 'ssh_private_key';
-        if (!isPrivateKey && field.tagName !== 'TEXTAREA') field.type = 'password';
-
-        let wrapper = field.parentElement;
-        if (!wrapper || !wrapper.classList.contains('password-wrapper')) {
-            wrapper = document.createElement('div');
-            wrapper.className = 'secret-field-control';
-            if (isPrivateKey) wrapper.classList.add('secret-textarea-control');
-            field.parentNode.insertBefore(wrapper, field);
-            wrapper.appendChild(field);
-        } else {
-            wrapper.classList.add('secret-field-control');
-            if (isPrivateKey) wrapper.classList.add('secret-textarea-control');
-        }
-
-        const toggle = document.createElement('button');
-        toggle.type = 'button';
-        toggle.className = 'secret-visibility-toggle';
-        toggle.textContent = 'Показать';
-        toggle.setAttribute('aria-controls', field.id);
-        toggle.setAttribute('aria-pressed', 'false');
-        wrapper.appendChild(toggle);
-
-        if (isPrivateKey) {
-            privateSSHKeyToggleButton = toggle;
-            field.addEventListener('input', () => {
-                if (privateSSHKeyVisible) privateSSHKeyValue = String(field.value ?? '');
-            });
-            field.value = privateSSHKeyVisible ? privateSSHKeyValue : '';
-            field.placeholder = privateSSHKeyVisible
-                ? ''
-                : (privateSSHKeyValue.trim() ? PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER : PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER);
-            refreshPrivateSSHKeyToggle();
-            toggle.addEventListener('click', () => {
-                const show = !privateSSHKeyVisible;
-                setPrivateSSHKeyVisibility(show);
-                if (show) field.focus();
-            });
-        } else {
-            toggle.setAttribute('aria-label', 'Показать секрет');
-            toggle.addEventListener('click', () => {
-                const show = field.type === 'password';
-                field.type = show ? 'text' : 'password';
-                toggle.textContent = show ? 'Скрыть' : 'Показать';
-                toggle.setAttribute('aria-pressed', String(show));
-                toggle.setAttribute('aria-label', show ? 'Скрыть секрет' : 'Показать секрет');
-            });
-        }
-
-        field.dataset.secretVisibilityToggle = 'ready';
-    }
-}
-
 function isTemplatePlaceholder(value) {
     const text = String(value ?? '').trim().toLowerCase();
     return text.startsWith('replace_with_') ||
@@ -388,16 +295,6 @@ function populateSecretsForm(values, isTemplate = false) {
             nextValue = String(source[key] ?? '');
         }
 
-        if (key === 'ssh_private_key') {
-            privateSSHKeyValue = nextValue;
-            privateSSHKeyVisible = false;
-            element.value = '';
-            element.placeholder = privateSSHKeyValue.trim()
-                ? PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER
-                : PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER;
-            refreshPrivateSSHKeyToggle();
-            continue;
-        }
         element.value = nextValue;
     }
 }
@@ -407,10 +304,6 @@ function collectSecretFormValues(normalized = {}) {
     for (const [key, fieldId] of Object.entries(SECRETS_FIELD_MAP)) {
         const element = document.getElementById(fieldId);
         if (!element) continue;
-        if (key === 'ssh_private_key' && !Object.prototype.hasOwnProperty.call(normalized, key)) {
-            values[key] = privateSSHKeyVisible ? String(element.value ?? '') : privateSSHKeyValue;
-            continue;
-        }
         values[key] = Object.prototype.hasOwnProperty.call(normalized, key)
             ? normalized[key]
             : String(element.value ?? '');
@@ -550,18 +443,6 @@ window.saveYamlAndFinish = async function() {
                 sourceSecretValues = { ...generatedPreviewValues };
             }
             sourceSecretIsTemplate = false;
-            if (Object.prototype.hasOwnProperty.call(sourceSecretValues, 'ssh_private_key')) {
-                privateSSHKeyValue = String(sourceSecretValues.ssh_private_key ?? '');
-            }
-            privateSSHKeyVisible = false;
-            const privateKeyField = document.getElementById('sec_private_ssh_key');
-            if (privateKeyField) {
-                privateKeyField.value = '';
-                privateKeyField.placeholder = privateSSHKeyValue.trim()
-                    ? PRIVATE_SSH_KEY_HIDDEN_PLACEHOLDER
-                    : PRIVATE_SSH_KEY_EMPTY_PLACEHOLDER;
-            }
-            refreshPrivateSSHKeyToggle();
             generatedSecretUpdates = {};
             generatedPreviewValues = {};
             goToStep(6);
@@ -1151,6 +1032,5 @@ window.cancelProjectInstallation = async function() {
     }
 };
 
-setupSecretVisibilityToggles();
 updateStepProgress(0);
 window.initializeProjectInstallDirectory().then(() => window.initializeProjectVersions());
