@@ -284,6 +284,30 @@ func loadSecretsSource() ([]byte, *yaml.Node, map[string]string, bool, error) {
 	return content, document, secretScalarValues(document), true, nil
 }
 
+const bootstrapAuthDeletePrefix = "__delete_auth__"
+
+func isBootstrapAuthSecretField(key string) bool {
+	switch key {
+	case "vps_root_password", "vps_ssh_password", "vps_sudo_password",
+		"local_root_password", "local_ssh_password", "local_sudo_password":
+		return true
+	default:
+		return false
+	}
+}
+
+func removeSecretMappingKey(root *yaml.Node, key string) {
+	if root == nil || root.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if root.Content[i].Kind == yaml.ScalarNode && root.Content[i].Value == key {
+			root.Content = append(root.Content[:i], root.Content[i+2:]...)
+			return
+		}
+	}
+}
+
 func mergeSecretUpdates(document *yaml.Node, updates map[string]string) error {
 	if document == nil || document.Kind != yaml.DocumentNode || len(document.Content) != 1 ||
 		document.Content[0].Kind != yaml.MappingNode {
@@ -292,7 +316,18 @@ func mergeSecretUpdates(document *yaml.Node, updates map[string]string) error {
 	root := document.Content[0]
 
 	keys := make([]string, 0, len(updates))
-	for key := range updates {
+	for key, value := range updates {
+		if strings.HasPrefix(key, bootstrapAuthDeletePrefix) {
+			targetKey := strings.TrimPrefix(key, bootstrapAuthDeletePrefix)
+			if !isBootstrapAuthSecretField(targetKey) || value != "true" {
+				return fmt.Errorf("операция удаления поля %q не поддерживается", targetKey)
+			}
+			if _, conflicts := updates[targetKey]; conflicts {
+				return fmt.Errorf("поле %q одновременно изменяется и удаляется", targetKey)
+			}
+			keys = append(keys, key)
+			continue
+		}
 		if _, allowed := editableSecretFields[key]; !allowed {
 			return fmt.Errorf("поле %q не поддерживается формой; неизвестные поля конфигурации сохраняются без изменений", key)
 		}
@@ -301,6 +336,11 @@ func mergeSecretUpdates(document *yaml.Node, updates map[string]string) error {
 	sort.Strings(keys)
 
 	for _, key := range keys {
+		if strings.HasPrefix(key, bootstrapAuthDeletePrefix) {
+			removeSecretMappingKey(root, strings.TrimPrefix(key, bootstrapAuthDeletePrefix))
+			continue
+		}
+
 		value := updates[key]
 		pairIndex := -1
 		for i := 0; i+1 < len(root.Content); i += 2 {
@@ -311,7 +351,7 @@ func mergeSecretUpdates(document *yaml.Node, updates map[string]string) error {
 		}
 		// A blank form field is not proof that an existing credential should
 		// be removed. Preserve populated secrets unless a replacement is given;
-		// template placeholders may still be cleared intentionally.
+		// inactive bootstrap credentials use the explicit deletion operation above.
 		if pairIndex >= 0 && isSensitiveSecretField(key) && strings.TrimSpace(value) == "" {
 			oldValue := root.Content[pairIndex+1]
 			if oldValue.Kind != yaml.ScalarNode ||
@@ -319,7 +359,6 @@ func mergeSecretUpdates(document *yaml.Node, updates map[string]string) error {
 				continue
 			}
 		}
-
 
 		newValue := &yaml.Node{
 			Kind:  yaml.ScalarNode,
@@ -347,7 +386,6 @@ func mergeSecretUpdates(document *yaml.Node, updates map[string]string) error {
 
 	return validateSecretYAMLNode(root, "$")
 }
-
 func marshalSecretsYAML(document *yaml.Node) ([]byte, error) {
 	if _, err := parseSecretsYAMLFromNode(document); err != nil {
 		return nil, err
