@@ -29,17 +29,20 @@ function updateStepProgress(stepNumber) {
     const totalSteps = 7;
     const progress = document.getElementById('step-progress');
     if (progress) progress.style.display = stepNumber === 0 ? 'none' : '';
+    document.body.classList.toggle('is-welcome-screen', stepNumber === 0);
     if (stepNumber < 1 || stepNumber > totalSteps) return;
 
     const fill = document.getElementById('step-progress-fill');
+    const track = document.querySelector('.step-progress-track');
     const currentEl = document.getElementById('step-progress-current');
     const titleEl = document.getElementById('step-progress-title');
 
     if (fill) {
         const pct = ((stepNumber - 1) / (totalSteps - 1)) * 100;
         fill.style.width = `${pct}%`;
+        if (track) track.setAttribute('aria-valuenow', String(Math.round(pct)));
     }
-    if (currentEl) currentEl.innerText = stepNumber;
+    if (currentEl) currentEl.innerText = String(stepNumber).padStart(2, '0');
     if (titleEl) titleEl.innerText = STEP_TITLES[stepNumber] || '';
 
     document.querySelectorAll('.step-dot').forEach((dot) => {

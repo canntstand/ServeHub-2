@@ -2131,3 +2131,587 @@ button svg, button .icon, .btn-icon {
         animation: none;
     }
 }
+
+
+/* ---------- Responsive layout and visual polish ---------- */
+:root {
+    --titlebar-height: 42px;
+    --content-gutter: clamp(14px, 3vw, 44px);
+    --progress-gutter: clamp(16px, 3vw, 44px);
+}
+
+html {
+    min-width: 0;
+    min-height: 0;
+    background: var(--bg-0);
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    min-width: 0;
+    min-height: 0;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+.window-drag-zone {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 10000;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#app {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-width: 0;
+    min-height: 0;
+    padding: 112px var(--content-gutter) clamp(18px, 3vh, 32px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(196, 178, 156, .32) transparent;
+    scroll-padding-top: 112px;
+}
+
+#app::-webkit-scrollbar {
+    width: 9px;
+}
+
+#app::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#app::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 99px;
+    background: rgba(196, 178, 156, .28);
+    background-clip: padding-box;
+}
+
+#app::-webkit-scrollbar-thumb:hover {
+    background: rgba(196, 178, 156, .5);
+    background-clip: padding-box;
+}
+
+.step.active {
+    box-sizing: border-box;
+    min-height: max(0px, calc(100vh - 146px));
+    min-height: max(0px, calc(100dvh - 146px));
+}
+
+body.is-welcome-screen #app {
+    padding-top: clamp(58px, 9vh, 88px);
+    padding-bottom: clamp(16px, 3vh, 30px);
+    scroll-padding-top: 58px;
+}
+
+body.is-welcome-screen #step-0.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: max(0px, calc(100vh - 100px));
+    min-height: max(0px, calc(100dvh - 100px));
+    padding: 0;
+}
+
+.intro-screen {
+    width: min(100%, 1080px);
+    min-width: 0;
+    min-height: min(680px, calc(100vh - 128px));
+    min-height: min(680px, calc(100dvh - 128px));
+    height: auto;
+    max-height: none;
+    margin: auto;
+    padding: clamp(22px, 3.1vw, 46px);
+    gap: 0;
+    overflow: visible;
+    border-color: rgba(196, 178, 156, .2);
+    border-radius: 14px;
+    box-shadow: 0 18px 52px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(233, 230, 225, .035);
+}
+
+.intro-brand {
+    margin-bottom: clamp(20px, 3vh, 34px);
+}
+
+.intro-title {
+    font-size: clamp(30px, 4vw, 48px);
+    line-height: 1.18;
+    letter-spacing: clamp(-1.6px, -.12vw, -0.5px);
+    overflow-wrap: break-word;
+}
+
+.intro-lead {
+    max-width: 720px;
+    margin-top: clamp(13px, 2vh, 19px);
+    line-height: 1.75;
+}
+
+.intro-features {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(8px, 1.2vw, 13px);
+    margin: clamp(20px, 3vh, 32px) 0;
+}
+
+.intro-feature {
+    gap: 10px;
+    min-width: 0;
+    padding: clamp(11px, 1.4vw, 16px);
+    transition: transform .18s ease, background-color .18s ease, border-color .18s ease;
+}
+
+.intro-feature:hover {
+    transform: translateY(-2px);
+    background: rgba(233, 230, 225, .045);
+    border-color: rgba(196, 178, 156, .28);
+}
+
+.intro-feature h2 {
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.intro-feature p {
+    font-size: 11px;
+    line-height: 1.65;
+}
+
+.intro-actions {
+    gap: 13px 18px;
+}
+
+.intro-note {
+    min-width: 0;
+    max-width: 450px;
+}
+
+.intro-start {
+    min-height: 44px;
+    border-radius: 8px;
+    box-shadow: 0 5px 18px rgba(196, 178, 156, .08);
+}
+
+.intro-start:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 22px rgba(196, 178, 156, .13);
+}
+
+.intro-footer {
+    margin-top: clamp(22px, 3vh, 34px);
+    padding-top: 14px;
+    letter-spacing: .75px;
+}
+
+/* Progress is a single, aligned panel instead of a disconnected line and caption. */
+.step-progress {
+    top: var(--titlebar-height);
+    left: 0;
+    right: 0;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px var(--progress-gutter) 13px;
+    align-items: stretch;
+    background: rgba(22, 24, 27, .97);
+    border-bottom: 1px solid rgba(196, 178, 156, .17);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    gap: 0;
+}
+
+.step-progress-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    width: min(100%, 1120px);
+    min-width: 0;
+    margin: 0 auto;
+}
+
+.step-progress-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px 24px;
+    width: 100%;
+    min-width: 0;
+}
+
+.step-progress-caption {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 1.15px;
+    white-space: nowrap;
+}
+
+#step-progress-current {
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+}
+
+.step-progress-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--text-primary);
+    text-align: right;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.step-progress-track {
+    position: relative;
+    width: 100%;
+    height: 4px;
+    flex: 0 0 4px;
+    overflow: visible;
+    background: rgba(233, 230, 225, .12);
+    border: 0;
+    border-radius: 99px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, .22);
+}
+
+.step-progress-fill {
+    top: 0;
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #8E7C66 0%, #C4B29C 72%, #E9E6E1 100%);
+    box-shadow: 0 0 10px rgba(196, 178, 156, .17);
+    transition: width .32s ease;
+}
+
+.step-progress-dots {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    inset-block: auto;
+    transform: translateY(-50%);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+}
+
+.step-dot {
+    flex: 0 0 9px;
+    width: 9px;
+    height: 9px;
+    border: 2px solid #42403C;
+    border-radius: 50%;
+    box-sizing: content-box;
+    background: #24272B;
+    box-shadow: 0 0 0 2px rgba(22, 24, 27, .96);
+    transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.step-dot.completed {
+    border-color: #8F9E89;
+    background: #8F9E89;
+    box-shadow: 0 0 0 2px rgba(22, 24, 27, .96);
+}
+
+.step-dot.active {
+    flex-basis: 9px;
+    width: 9px;
+    height: 9px;
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(196, 178, 156, .17), 0 0 0 2px rgba(22, 24, 27, .96);
+    transform: scale(1.05);
+}
+
+button, input, select, textarea, a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid rgba(196, 178, 156, .88);
+    outline-offset: 3px;
+}
+
+input, select, textarea {
+    border-radius: 7px;
+}
+
+input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:disabled) {
+    border-color: rgba(196, 178, 156, .28);
+}
+
+.btn-primary, .btn-secondary, .btn-copy {
+    border-radius: 8px;
+}
+
+.btn-primary:not(:disabled), .btn-secondary:not(:disabled), .btn-copy:not(:disabled) {
+    cursor: pointer;
+}
+
+.btn-secondary:hover:not(:disabled), .btn-copy:hover:not(:disabled) {
+    border-color: rgba(196, 178, 156, .5);
+    background-color: rgba(196, 178, 156, .055);
+}
+
+.version-picker, .status-box, .preview-container, .deployment-summary, .post-deploy-guide {
+    border-color: rgba(196, 178, 156, .16);
+}
+
+#step-1 .project-action-option {
+    min-width: 0;
+}
+
+@media (max-width: 1040px) {
+    .intro-screen {
+        padding: clamp(22px, 3vw, 34px);
+    }
+
+    .intro-features {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    #app {
+        padding: 106px 18px 22px;
+        padding-top: 106px;
+    }
+
+    body.is-welcome-screen #app {
+        padding: 58px 16px 18px;
+    }
+
+    body.is-welcome-screen #step-0.active {
+        align-items: flex-start;
+        justify-content: flex-start;
+        min-height: 0;
+    }
+
+    .intro-screen {
+        width: 100%;
+        min-height: 0;
+        margin: 0 auto;
+        padding: 24px 20px;
+        border-radius: 12px;
+    }
+
+    .intro-brand {
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+
+    .intro-mark {
+        flex-basis: 38px;
+        width: 38px;
+        height: 38px;
+        padding: 6px;
+        border-radius: 10px;
+    }
+
+    .intro-kicker {
+        max-width: 250px;
+        font-size: 9px;
+        letter-spacing: .75px;
+        overflow-wrap: anywhere;
+    }
+
+    .intro-title {
+        font-size: clamp(29px, 5.8vw, 40px);
+        letter-spacing: -1px;
+    }
+
+    .intro-lead {
+        font-size: 12px;
+        line-height: 1.75;
+    }
+
+    .intro-features {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        margin: 20px 0;
+    }
+
+    .intro-feature {
+        padding: 12px 13px;
+    }
+
+    .intro-actions {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 11px;
+    }
+
+    .intro-start {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .intro-note {
+        max-width: none;
+        flex: 0 1 auto;
+    }
+
+    .intro-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 23px;
+    }
+
+    .step-progress {
+        padding: 9px 18px 11px;
+    }
+
+    .step-progress-inner {
+        gap: 8px;
+    }
+
+    .step-progress-track {
+        height: 3px;
+        flex-basis: 3px;
+    }
+
+    .step-progress-caption {
+        font-size: 9px;
+        letter-spacing: .8px;
+    }
+
+    .step-progress-title {
+        font-size: 11px;
+    }
+
+    .step-dot {
+        flex-basis: 7px;
+        width: 7px;
+        height: 7px;
+        border-width: 1px;
+    }
+
+    .step-dot.active {
+        flex-basis: 7px;
+        width: 7px;
+        height: 7px;
+    }
+
+    .button-group {
+        gap: 8px;
+    }
+}
+
+@media (max-width: 520px) {
+    body.is-welcome-screen #app {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .intro-screen {
+        padding: 21px 16px;
+    }
+
+    .intro-title {
+        font-size: clamp(27px, 7.5vw, 34px);
+        line-height: 1.22;
+    }
+
+    .intro-eyebrow {
+        font-size: 9px;
+        letter-spacing: 1px;
+    }
+
+    .step-progress-heading {
+        gap: 8px;
+        align-items: flex-start;
+    }
+
+    .step-progress-title {
+        max-width: 62%;
+        font-size: 10px;
+        line-height: 1.4;
+    }
+
+    .step-progress-caption {
+        padding-top: 1px;
+        font-size: 8px;
+        letter-spacing: .45px;
+    }
+}
+
+@media (max-height: 760px) {
+    #app {
+        padding-top: 98px;
+        padding-bottom: 18px;
+    }
+
+    body.is-welcome-screen #app {
+        padding-top: 58px;
+        padding-bottom: 14px;
+    }
+
+    body.is-welcome-screen #step-0.active {
+        align-items: flex-start;
+        justify-content: flex-start;
+        min-height: 0;
+    }
+
+    .intro-screen {
+        min-height: 0;
+        padding-top: 22px;
+        padding-bottom: 22px;
+    }
+
+    .intro-brand {
+        margin-bottom: 18px;
+    }
+
+    .intro-features {
+        margin-top: 18px;
+        margin-bottom: 18px;
+    }
+
+    .intro-footer {
+        margin-top: 20px;
+    }
+
+    .step-progress {
+        padding-top: 8px;
+        padding-bottom: 9px;
+    }
+
+    .step-progress-inner {
+        gap: 7px;
+    }
+}
+
+@media (max-width: 760px) and (max-height: 600px) {
+    .intro-screen {
+        padding-top: 16px;
+        padding-bottom: 16px;
+    }
+
+    .intro-brand {
+        margin-bottom: 14px;
+    }
+
+    .intro-features {
+        margin-top: 14px;
+        margin-bottom: 14px;
+    }
+
+    .intro-footer {
+        margin-top: 15px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .intro-feature, .intro-start, .step-dot, .step-progress-fill {
+        transition: none !important;
+    }
+}
