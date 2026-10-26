@@ -123,11 +123,7 @@
                         </div>
                         <div id="project-install-directory-status" class="version-summary" role="status">Определяем каталог установки...</div>
                     </div>
-                    <fieldset class="project-action-list">
-                        <legend>Что сделать с проектом</legend>
-                        <label class="project-action-option"><input type="radio" name="project-action" value="install" onchange="updateProjectActionUI()" checked><span><strong>Стандартная установка</strong><small>Загрузить выбранный тег. Если ServeHub-2 уже установлен, заменить код, сохранив прежний каталог в резервной копии.</small></span></label>
-                        <label class="project-action-option"><input type="radio" name="project-action" value="use" onchange="updateProjectActionUI()"><span><strong>Использовать уже установленный репозиторий</strong><small>Не скачивать и не заменять код; продолжить с текущей проверенной установкой.</small></span></label>
-                    </fieldset>
+                    
                     <label for="project-version-select">Версия ServeHub-2</label>
                     <select id="project-version-select" onchange="updateProjectVersionPreview()" disabled>
                         <option value="">Загружаем теги и ветку dev...</option>
