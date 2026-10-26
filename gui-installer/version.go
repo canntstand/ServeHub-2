@@ -445,7 +445,31 @@ func (a *App) ChooseProjectInstallDirectory() ProjectInstallDirectoryResult {
 	if strings.TrimSpace(selected) == "" {
 		return ProjectInstallDirectoryResult{Success: false, Message: "Выбор каталога отменён."}
 	}
-	return a.SetProjectInstallDirectory(selected)
+
+	installDirectory, err := projectInstallDirectoryFromSelection(selected)
+	if err != nil {
+		return ProjectInstallDirectoryResult{Success: false, Message: "Не удалось подготовить каталог установки: " + err.Error()}
+	}
+	result := a.SetProjectInstallDirectory(installDirectory)
+	if result.Success {
+		result.Message = "Каталог установки выбран: " + result.Directory
+	}
+	return result
+}
+
+// projectInstallDirectoryFromSelection treats the selected directory as the
+// parent of the project folder. Selecting the project folder itself is also
+// supported, so "ServeHub-2" is never appended twice.
+func projectInstallDirectoryFromSelection(selected string) (string, error) {
+	selected = strings.TrimSpace(selected)
+	if selected == "" {
+		return "", errors.New("не выбрана родительская папка для установки")
+	}
+	selected = filepath.Clean(selected)
+	if strings.EqualFold(filepath.Base(selected), "ServeHub-2") {
+		return normalizeProjectInstallDirectory(selected)
+	}
+	return normalizeProjectInstallDirectory(filepath.Join(selected, "ServeHub-2"))
 }
 
 func isFullCommitSHA(value string) bool {
