@@ -54,12 +54,12 @@ func NewApp() *App {
 
 func writeEdgePreflightPlaybook(projectDir string) (string, func(), error) {
 	ansibleDir := filepath.Join(projectDir, "ansible")
-	info, err := os.Stat(ansibleDir)
-	if err != nil || !info.IsDir() {
+	info, err := os.Lstat(ansibleDir)
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 		if err == nil {
-			err = fmt.Errorf("%s is not a directory", ansibleDir)
+			err = fmt.Errorf("%s is not a regular directory", ansibleDir)
 		}
-		return "", nil, fmt.Errorf("не удалось подготовить предварительную проверку Edge: %w", err)
+		return "", nil, fmt.Errorf("не удалось безопасно подготовить предварительную проверку Edge: %w", err)
 	}
 
 	file, err := os.CreateTemp(ansibleDir, ".servehub-preflight-edge-*.yml")
