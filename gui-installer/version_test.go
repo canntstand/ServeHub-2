@@ -233,3 +233,57 @@ func TestPreserveUserProjectFilesKeepsSettingsAndNewVersionCode(t *testing.T) {
 		t.Fatalf("preserve pass overwrote code from the new version: %q", gotCode)
 	}
 }
+
+
+func TestExistingDirectoryForDialogFallsBackToExistingParent(t *testing.T) {
+	root := t.TempDir()
+	missing := filepath.Join(root, "does-not-exist", "ServeHub-2")
+	got, err := existingDirectoryForDialog(missing)
+	if err != nil {
+		t.Fatalf("existingDirectoryForDialog returned error: %v", err)
+	}
+	if got != root {
+		t.Fatalf("expected nearest existing parent %q, got %q", root, got)
+	}
+}
+
+func TestValidateProjectInstallTargetAllowsMissingOrEmptyDirectory(t *testing.T) {
+	root := t.TempDir()
+	missing := filepath.Join(root, "new", "ServeHub-2")
+	if err := validateProjectInstallTarget(missing); err != nil {
+		t.Fatalf("missing directory should be a valid install target: %v", err)
+	}
+	empty := filepath.Join(root, "empty")
+	if err := os.Mkdir(empty, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateProjectInstallTarget(empty); err != nil {
+		t.Fatalf("empty directory should be a valid install target: %v", err)
+	}
+}
+
+func TestValidateProjectInstallTargetRejectsUnrelatedNonEmptyDirectory(t *testing.T) {
+	dir := t.TempDir()
+	userFile := filepath.Join(dir, "important.txt")
+	if err := os.WriteFile(userFile, []byte("keep"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	err := validateProjectInstallTarget(dir)
+	if err == nil || !strings.Contains(err.Error(), "пользовательские файлы") {
+		t.Fatalf("expected unrelated non-empty directory to be rejected, got %v", err)
+	}
+	if content, readErr := os.ReadFile(userFile); readErr != nil || string(content) != "keep" {
+		t.Fatalf("user file changed: content=%q err=%v", content, readErr)
+	}
+}
+
+func TestGetProjectInstallStateDoesNotTreatUnrelatedFolderAsPartial(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("user files"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	state := getProjectInstallState(dir)
+	if state.Exists || state.Partial || state.Complete {
+		t.Fatalf("unrelated directory must not be classified as an incomplete ServeHub install: %#v", state)
+	}
+}

@@ -85,6 +85,82 @@ type installerPreferences struct {
 	ProjectDirectory string `json:"project_directory"`
 }
 
+// projectDirectoryHasMarkers distinguishes a ServeHub-2 directory (including a
+// partial download) from an unrelated folder such as the user's home directory.
+func projectDirectoryHasMarkers(directory string) bool {
+	markers := []string{
+		".servehub-version.json",
+		projectIntegrityManifestName,
+		"docker-compose.ansible.yaml",
+		"docker-compose.local.yaml",
+		"docker-compose.remote.yaml",
+		"ansible/deploy.yml",
+		"scripts/ansible-entrypoint.sh",
+	}
+	for _, relative := range markers {
+		info, err := os.Lstat(filepath.Join(directory, filepath.FromSlash(relative)))
+		if err == nil && info.Mode()&os.ModeSymlink == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// validateProjectInstallTarget prevents the installer from treating an arbitrary
+// non-empty user directory as an incomplete installation or overwriting its files.
+// A missing or empty directory is a valid fresh-install target.
+func validateProjectInstallTarget(directory string) error {
+	info, err := os.Lstat(directory)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("не удалось проверить каталог установки: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return errors.New("каталог установки должен быть обычной папкой, а не файлом или символической ссылкой")
+	}
+	if projectDirectoryHasMarkers(directory) {
+		return nil
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return fmt.Errorf("не удалось прочитать каталог установки: %w", err)
+	}
+	if len(entries) > 0 {
+		return errors.New("выбранная папка не похожа на каталог ServeHub-2 и содержит пользовательские файлы. Выберите другую папку или пустой каталог; существующие файлы не будут изменены")
+	}
+	return nil
+}
+
+// existingDirectoryForDialog returns the nearest existing directory so native
+// file dialogs do not fail when the preferred installation target is not created yet.
+func existingDirectoryForDialog(candidate string) (string, error) {
+	candidate = filepath.Clean(strings.TrimSpace(candidate))
+	if candidate == "." || candidate == "" {
+		candidate, _ = os.UserHomeDir()
+	}
+	for candidate != "" {
+		info, err := os.Lstat(candidate)
+		if err == nil && info.Mode()&os.ModeSymlink == 0 && info.IsDir() {
+			return candidate, nil
+		}
+		parent := filepath.Dir(candidate)
+		if parent == candidate {
+			break
+		}
+		candidate = parent
+	}
+	home, err := os.UserHomeDir()
+	if err == nil {
+		info, statErr := os.Stat(home)
+		if statErr == nil && info.IsDir() {
+			return home, nil
+		}
+	}
+	return "", errors.New("не удалось найти существующий каталог для открытия диалога")
+}
+
 var projectInstallMu sync.Mutex
 
 type ProjectVersionsResult struct {
@@ -245,7 +321,28 @@ func configuredProjectInstallDirectory() (string, error) {
 		if err := json.Unmarshal(content, &prefs); err != nil {
 			return "", errors.New("файл настроек установщика повреждён; выберите каталог установки заново")
 		}
-		return normalizeProjectInstallDirectory(prefs.ProjectDirectory)
+		directory, normalizeErr := normalizeProjectInstallDirectory(prefs.ProjectDirectory)
+		if normalizeErr != nil {
+			return "", normalizeErr
+		}
+		// Older/broken preferences sometimes point at the home directory itself.
+		// Unless it actually contains ServeHub-2, migrate to the intended child
+		// directory instead of classifying the user's entire home as a partial install.
+		home, homeErr := os.UserHomeDir()
+		if homeErr == nil {
+			homeAbs, homeAbsErr := filepath.Abs(home)
+			if homeAbsErr == nil && strings.EqualFold(filepath.Clean(directory), filepath.Clean(homeAbs)) &&
+				!projectDirectoryHasMarkers(directory) {
+				directory, normalizeErr = defaultProjectInstallDirectory()
+				if normalizeErr != nil {
+					return "", normalizeErr
+				}
+				if saveErr := saveProjectInstallDirectory(directory); saveErr != nil {
+					return "", fmt.Errorf("не удалось исправить сохранённый каталог установки: %w", saveErr)
+				}
+			}
+		}
+		return directory, nil
 	}
 	if !os.IsNotExist(err) {
 		return "", fmt.Errorf("не удалось прочитать настройки установщика: %w", err)
@@ -291,6 +388,9 @@ func (a *App) GetProjectInstallDirectory() ProjectInstallDirectoryResult {
 			}
 		}
 	}
+	if err := validateProjectInstallTarget(directory); err != nil {
+		return ProjectInstallDirectoryResult{Success: false, Directory: directory, Installed: getProjectInstallState(directory), Message: err.Error()}
+	}
 	return projectInstallDirectoryResult(directory)
 }
 
@@ -298,6 +398,9 @@ func (a *App) InspectProjectInstallDirectory(directory string) ProjectInstallDir
 	absolute, err := normalizeProjectInstallDirectory(directory)
 	if err != nil {
 		return ProjectInstallDirectoryResult{Success: false, Message: err.Error()}
+	}
+	if err := validateProjectInstallTarget(absolute); err != nil {
+		return ProjectInstallDirectoryResult{Success: false, Directory: absolute, Installed: getProjectInstallState(absolute), Message: err.Error()}
 	}
 	result := projectInstallDirectoryResult(absolute)
 	if !result.Installed.Exists {
@@ -313,6 +416,9 @@ func (a *App) SetProjectInstallDirectory(directory string) ProjectInstallDirecto
 	if err != nil {
 		return ProjectInstallDirectoryResult{Success: false, Message: err.Error()}
 	}
+	if err := validateProjectInstallTarget(absolute); err != nil {
+		return ProjectInstallDirectoryResult{Success: false, Directory: absolute, Installed: getProjectInstallState(absolute), Message: err.Error()}
+	}
 	if err := saveProjectInstallDirectory(absolute); err != nil {
 		return ProjectInstallDirectoryResult{Success: false, Directory: absolute, Installed: getProjectInstallState(absolute), Message: err.Error()}
 	}
@@ -320,10 +426,17 @@ func (a *App) SetProjectInstallDirectory(directory string) ProjectInstallDirecto
 }
 
 func (a *App) ChooseProjectInstallDirectory() ProjectInstallDirectoryResult {
-	current, _ := configuredProjectInstallDirectory()
+	current, currentErr := configuredProjectInstallDirectory()
+	if currentErr != nil || strings.TrimSpace(current) == "" {
+		current, _ = defaultProjectInstallDirectory()
+	}
+	dialogDirectory, err := existingDirectoryForDialog(current)
+	if err != nil {
+		return ProjectInstallDirectoryResult{Success: false, Message: "Не удалось найти существующую папку для выбора каталога: " + err.Error()}
+	}
 	options := wailsRuntime.OpenDialogOptions{
 		Title: "Выберите каталог установки ServeHub-2",
-		DefaultDirectory: current,
+		DefaultDirectory: dialogDirectory,
 	}
 	selected, err := wailsRuntime.OpenDirectoryDialog(a.ctx, options)
 	if err != nil {
@@ -713,6 +826,9 @@ func installProjectVersion(ctx context.Context, requestedDir, action, mode, ref,
 	if err != nil {
 		return CheckResult{Success: false, Message: "Некорректный каталог установки: " + err.Error()}
 	}
+	if err := validateProjectInstallTarget(targetDir); err != nil {
+		return CheckResult{Success: false, Message: "Небезопасный каталог установки: " + err.Error()}
+	}
 	state := getProjectInstallState(targetDir)
 	if state.Partial {
 		return CheckResult{Success: false, Message: "В выбранном каталоге обнаружена неполная установка. Сначала выполните «Восстановить неполную установку»; каталог будет сохранён отдельно."}
@@ -829,6 +945,16 @@ func installProjectVersion(ctx context.Context, requestedDir, action, mode, ref,
 		}
 		if err := os.Rename(targetDir, backupDir); err != nil {
 			return CheckResult{Success: false, Message: "Не удалось сохранить прежнюю версию в резервную копию: " + installationErrorMessage("резервное копирование", err)}
+		}
+	}
+	if !state.Exists {
+		if _, targetErr := os.Lstat(targetDir); targetErr == nil {
+			// Only a validated empty directory can exist without a project state.
+			if err := os.Remove(targetDir); err != nil {
+				return CheckResult{Success: false, Message: "Не удалось подготовить пустой каталог установки: " + err.Error() + ". Данные не изменялись."}
+			}
+		} else if !os.IsNotExist(targetErr) {
+			return CheckResult{Success: false, Message: "Не удалось повторно проверить каталог установки: " + targetErr.Error()}
 		}
 	}
 	if err := os.Rename(projectDir, targetDir); err != nil {
@@ -1587,17 +1713,23 @@ func getProjectInstallState(projectDir string) ProjectInstallState {
 		state.Message = "Проект ещё не установлен."
 		return state
 	}
-	state.Exists = true
 	if err != nil {
+		state.Exists = true
 		state.Partial = true
 		state.Message = "Не удалось проверить каталог проекта: " + err.Error()
 		return state
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		state.Exists = true
 		state.Partial = true
 		state.Message = "Путь установки существует, но не является обычным каталогом. Для безопасности он не будет изменён автоматически."
 		return state
 	}
+	if !projectDirectoryHasMarkers(projectDir) {
+		state.Message = "Папка не содержит признаков установки ServeHub-2. Выберите пустой каталог для новой установки; находящиеся здесь пользовательские файлы сохраняются."
+		return state
+	}
+	state.Exists = true
 	if err := verifyProjectDirectory(projectDir); err != nil {
 		state.Partial = true
 		state.Message = "Найдена неполная установка: " + err.Error()
