@@ -287,3 +287,34 @@ func TestGetProjectInstallStateDoesNotTreatUnrelatedFolderAsPartial(t *testing.T
 		t.Fatalf("unrelated directory must not be classified as an incomplete ServeHub install: %#v", state)
 	}
 }
+
+
+func TestProjectInstallDirectoryFromSelectionAppendsServeHubFolder(t *testing.T) {
+	parent := t.TempDir()
+	got, err := projectInstallDirectoryFromSelection(parent)
+	if err != nil {
+		t.Fatalf("projectInstallDirectoryFromSelection returned error: %v", err)
+	}
+	want := filepath.Join(parent, "ServeHub-2")
+	if got != want {
+		t.Fatalf("expected install path %q, got %q", want, got)
+	}
+}
+
+func TestProjectInstallDirectoryFromSelectionDoesNotDuplicateFolderName(t *testing.T) {
+	parent := t.TempDir()
+	selected := filepath.Join(parent, "ServeHub-2")
+	got, err := projectInstallDirectoryFromSelection(selected)
+	if err != nil {
+		t.Fatalf("projectInstallDirectoryFromSelection returned error: %v", err)
+	}
+	if got != selected {
+		t.Fatalf("expected existing ServeHub-2 selection to remain %q, got %q", selected, got)
+	}
+}
+
+func TestProjectInstallDirectoryFromSelectionRejectsEmptyPath(t *testing.T) {
+	if _, err := projectInstallDirectoryFromSelection("  "); err == nil {
+		t.Fatal("expected empty selected path to be rejected")
+	}
+}
