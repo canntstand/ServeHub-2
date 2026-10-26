@@ -222,17 +222,25 @@
                     
 <div class="form-field-grid">
                         <div class="form-subsection-title">Учётные данные VPS для bootstrap</div>
-<div class="form-group">
-                        <label>Пароль root VPS (для полного bootstrap):</label>
-                        <input type="text" id="sec_vps_root_pass" value="" autocomplete="off" placeholder="Для полного bootstrap">
+                    <div class="form-group bootstrap-auth-selector">
+                        <label for="sec_vps_auth_mode">Способ начального подключения:</label>
+                        <select id="sec_vps_auth_mode" onchange="setBootstrapAuthMode('vps', this.value)">
+                            <option value="root">Вход под root</option>
+                            <option value="user">Обычный пользователь с sudo</option>
+                        </select>
+                        <small>В конфигурации сохранятся только поля выбранного режима. Ansible продолжит использовать свою текущую логику подключения.</small>
                     </div>
-                    <div class="form-group">
-                        <label>SSH-пароль пользователя VPS (необязательно при пароле root; иначе нужен вместе с sudo):</label>
-                        <input type="text" id="sec_vps_ssh_pass" value="" autocomplete="off">
+                    <div class="form-group bootstrap-auth-field" data-bootstrap-auth="vps:root">
+                        <label>Пароль root VPS:</label>
+                        <input type="text" id="sec_vps_root_pass" value="" autocomplete="off" placeholder="Пароль root для bootstrap">
                     </div>
-                    <div class="form-group">
-                        <label>Пароль sudo пользователя VPS (необязательно при пароле root; иначе нужен вместе с SSH):</label>
-                        <input type="text" id="sec_vps_sudo_pass" value="" autocomplete="off">
+                    <div class="form-group bootstrap-auth-field" data-bootstrap-auth="vps:user">
+                        <label>SSH-пароль пользователя VPS:</label>
+                        <input type="text" id="sec_vps_ssh_pass" value="" autocomplete="off" placeholder="Пароль входа по SSH">
+                    </div>
+                    <div class="form-group bootstrap-auth-field" data-bootstrap-auth="vps:user">
+                        <label>Пароль sudo пользователя VPS:</label>
+                        <input type="text" id="sec_vps_sudo_pass" value="" autocomplete="off" placeholder="Пароль для sudo">
                     </div>
                     
 </div>
@@ -249,17 +257,25 @@
                     
 <div class="form-field-grid">
                         <div class="form-subsection-title">Учётные данные домашнего сервера для bootstrap</div>
-<div class="form-group">
-                        <label>Пароль root домашнего сервера (для полного bootstrap):</label>
-                        <input type="text" id="sec_local_root_pass" value="" autocomplete="off" placeholder="Для полного bootstrap">
+                    <div class="form-group bootstrap-auth-selector">
+                        <label for="sec_local_auth_mode">Способ начального подключения:</label>
+                        <select id="sec_local_auth_mode" onchange="setBootstrapAuthMode('local', this.value)">
+                            <option value="root">Вход под root</option>
+                            <option value="user">Обычный пользователь с sudo</option>
+                        </select>
+                        <small>В конфигурации сохранятся только поля выбранного режима. Ansible продолжит использовать свою текущую логику подключения.</small>
                     </div>
-                    <div class="form-group">
-                        <label>SSH-пароль домашнего пользователя (необязательно при пароле root; иначе нужен вместе с sudo):</label>
-                        <input type="text" id="sec_local_ssh_pass" value="" autocomplete="off">
+                    <div class="form-group bootstrap-auth-field" data-bootstrap-auth="local:root">
+                        <label>Пароль root домашнего сервера:</label>
+                        <input type="text" id="sec_local_root_pass" value="" autocomplete="off" placeholder="Пароль root для bootstrap">
                     </div>
-                    <div class="form-group">
-                        <label>Пароль sudo домашнего пользователя (необязательно при пароле root; иначе нужен вместе с SSH):</label>
-                        <input type="text" id="sec_local_sudo_pass" value="" autocomplete="off">
+                    <div class="form-group bootstrap-auth-field" data-bootstrap-auth="local:user">
+                        <label>SSH-пароль домашнего пользователя:</label>
+                        <input type="text" id="sec_local_ssh_pass" value="" autocomplete="off" placeholder="Пароль входа по SSH">
+                    </div>
+                    <div class="form-group bootstrap-auth-field" data-bootstrap-auth="local:user">
+                        <label>Пароль sudo домашнего пользователя:</label>
+                        <input type="text" id="sec_local_sudo_pass" value="" autocomplete="off" placeholder="Пароль для sudo">
                     </div>
 
                     
