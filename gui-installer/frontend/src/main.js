@@ -340,6 +340,10 @@ function collectSecretFormValues(normalized = {}) {
     for (const [key, fieldId] of Object.entries(SECRETS_FIELD_MAP)) {
         const element = document.getElementById(fieldId);
         if (!element) continue;
+        // Don't submit credentials hidden by the selected bootstrap mode.
+        // The existing secrets backend still preserves any previously saved YAML keys.
+        const credentialGroup = element.closest('.bootstrap-auth-field');
+        if (credentialGroup?.hidden) continue;
         values[key] = Object.prototype.hasOwnProperty.call(normalized, key)
             ? normalized[key]
             : String(element.value ?? '');
