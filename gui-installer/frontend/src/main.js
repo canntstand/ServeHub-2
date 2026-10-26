@@ -289,6 +289,13 @@ function applySeparateSudoPassword(server, enabled) {
     const checkbox = document.getElementById(`sec_${server}_separate_sudo`);
     if (checkbox) checkbox.checked = separateSudoPasswords[server];
 
+    const sshLabel = document.getElementById(`sec_${server}_ssh_password_label`);
+    if (sshLabel) {
+        sshLabel.textContent = separateSudoPasswords[server]
+            ? 'SSH-пароль пользователя:'
+            : 'Пароль пользователя для SSH и sudo:';
+    }
+
     const sudoField = document.querySelector(`[data-separate-sudo-field="${server}"]`);
     if (sudoField) {
         sudoField.hidden = bootstrapAuthModes[server] !== 'user' || !separateSudoPasswords[server];
