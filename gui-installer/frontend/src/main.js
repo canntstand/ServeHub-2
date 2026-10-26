@@ -274,6 +274,19 @@ const BOOTSTRAP_AUTH_FIELDS = {
 };
 let bootstrapAuthModes = { vps: 'root', local: 'root' };
 
+function addInactiveBootstrapCredentialRemovals(updates) {
+    for (const [server, fields] of Object.entries(BOOTSTRAP_AUTH_FIELDS)) {
+        const mode = bootstrapAuthModes[server] === 'user' ? 'user' : 'root';
+        const inactiveKeys = mode === 'root' ? fields.user : [fields.root];
+        for (const key of inactiveKeys) {
+            // Explicit backend operation: remove stale credentials for the
+            // unselected mode without treating an ordinary blank as deletion.
+            updates[`__delete_auth__${key}`] = 'true';
+        }
+    }
+    return updates;
+}
+
 function inferBootstrapAuthMode(values, server) {
     const fields = BOOTSTRAP_AUTH_FIELDS[server];
     const rootValue = String(values?.[fields.root] ?? '').trim();
@@ -340,8 +353,8 @@ function collectSecretFormValues(normalized = {}) {
     for (const [key, fieldId] of Object.entries(SECRETS_FIELD_MAP)) {
         const element = document.getElementById(fieldId);
         if (!element) continue;
-        // Don't submit credentials hidden by the selected bootstrap mode.
-        // The existing secrets backend still preserves any previously saved YAML keys.
+        // Hidden credentials are omitted from the form values. The explicit
+        // removal operations added below remove their old YAML keys on save.
         const credentialGroup = element.closest('.bootstrap-auth-field');
         if (credentialGroup?.hidden) continue;
         values[key] = Object.prototype.hasOwnProperty.call(normalized, key)
@@ -416,7 +429,7 @@ window.generateAndReviewYaml = async function() {
     const normalizedValues = collectSecretFormValues({
         hermes_dashboard_basic_auth_secret: hermesDashboardSecret,
     });
-    const updates = buildChangedSecretUpdates(normalizedValues);
+    const updates = addInactiveBootstrapCredentialRemovals(buildChangedSecretUpdates(normalizedValues));
 
     if (!window.confirm('Предпросмотр secrets.yml будет содержать пароли, токены, API-ключи и приватный SSH-ключ в открытом виде. Продолжайте только на доверенном устройстве. Показать конфигурацию?')) {
         return;
