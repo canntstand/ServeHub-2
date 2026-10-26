@@ -238,7 +238,7 @@
       Environment=SERVEHUB_BORGMATIC_CONFIG=/etc/borgmatic/config.yaml
       Environment=SERVEHUB_BORG_REPOSITORY={{ backup_repository_path }}
       Environment=SERVEHUB_RCLONE_CONFIG=/etc/servehub/rclone.conf
-      Environment=SERVEHUB_RCLONE_REMOTE_PATH=timeweb-cloud:{{ offsite_s3_bucket }}/{{ offsite_s3_workload_prefix if backup_role == 'workload' else offsite_s3_edge_prefix }}
+      Environment=SERVEHUB_RCLONE_REMOTE_PATH=timeweb-cloud:{{ offsite_s3_bucket }}/{{ (offsite_s3_workload_prefix | default('workload', true)) if backup_role == 'workload' else (offsite_s3_edge_prefix | default('edge', true)) }}
       Environment=SERVEHUB_BACKUP_ROLE={{ backup_role }}
       Environment="SERVEHUB_COMPOSE_DIR=/home/{{ deploy_user }}/ServeHub-2"
       Environment=SERVEHUB_COMPOSE_FILE={{ backup_compose_file }}
