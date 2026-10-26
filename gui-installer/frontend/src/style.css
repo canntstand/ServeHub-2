@@ -2861,6 +2861,11 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
     width: 14px;
     height: 14px;
     margin: 0;
+    padding: 0;
+    border: 1px solid var(--border-2);
+    border-radius: 2px;
+    background: var(--bg-2);
+    box-shadow: none;
     flex: 0 0 auto;
     cursor: pointer;
 }
