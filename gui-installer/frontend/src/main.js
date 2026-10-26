@@ -1102,11 +1102,23 @@ window.chooseProjectInstallDirectory = async function() {
 
 window.updateProjectActionUI = function() {
     const action = selectedProjectAction();
+    const reusingExisting = action === 'use';
     const select = document.getElementById('project-version-select');
-    if (select) select.disabled = !projectVersionsLoaded || !projectInstallDirectoryVerified || action === 'use';
+    const versionLabel = document.querySelector('label[for="project-version-select"]');
+    const versionSummary = document.getElementById('project-version-summary');
+    const versionWarning = document.getElementById('project-version-warning');
+    const versionActions = document.querySelector('.version-actions');
+
+    if (select) select.disabled = !projectVersionsLoaded || !projectInstallDirectoryVerified || reusingExisting;
+    if (versionLabel) versionLabel.hidden = reusingExisting;
+    if (select) select.hidden = reusingExisting;
+    if (versionSummary) versionSummary.hidden = reusingExisting;
+    if (versionWarning) versionWarning.hidden = reusingExisting;
+    if (versionActions) versionActions.hidden = reusingExisting;
+
     const button = document.getElementById('btn-version-continue');
     if (button) {
-        button.textContent = action === 'use'
+        button.textContent = reusingExisting
             ? 'Продолжить с установленным репозиторием'
             : 'Установить выбранную версию';
     }
