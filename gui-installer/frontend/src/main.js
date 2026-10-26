@@ -1125,12 +1125,18 @@ function setProjectVersionContinueEnabled(versionEnabled) {
 }
 
 function getSelectedProjectVersion() {
-    if (!projectVersionsLoaded) return { valid: false, message: 'Список тегов ещё не загружен. Обновите список и повторите.' };
+    if (!projectVersionsLoaded) return { valid: false, message: 'Список версий ещё не загружен. Обновите список и повторите.' };
     const option = selectedVersionOption();
-    if (!option || !option.value.startsWith('tag:') || !option.dataset.ref || !isFullSHA(option.dataset.sha)) {
-        return { valid: false, message: 'Выберите опубликованный тег с подтверждённым commit SHA.' };
+    if (!option || !option.dataset.ref || !isFullSHA(option.dataset.sha)) {
+        return { valid: false, message: 'Выберите тег или ветку dev с подтверждённым commit SHA.' };
     }
-    return { valid: true, mode: 'tag', ref: option.dataset.ref, expectedSHA: option.dataset.sha };
+    if (option.value === 'dev') {
+        return { valid: true, mode: 'dev', ref: 'dev', expectedSHA: option.dataset.sha };
+    }
+    if (option.value.startsWith('tag:')) {
+        return { valid: true, mode: 'tag', ref: option.dataset.ref, expectedSHA: option.dataset.sha };
+    }
+    return { valid: false, message: 'Неизвестный вариант версии.' };
 }
 
 function addProjectVersionOption(select, value, label, ref, sha, mode) {
@@ -1147,6 +1153,20 @@ function populateProjectVersionChoices(result, preserveChoice) {
     const select = document.getElementById('project-version-select');
     const previousValue = preserveChoice ? select.value : '';
     select.innerHTML = '';
+
+    if (result.dev && result.dev.ref === 'dev' && isFullSHA(result.dev.commitSHA)) {
+        const devGroup = document.createElement('optgroup');
+        devGroup.label = 'Ветка';
+        const devOption = document.createElement('option');
+        devOption.value = 'dev';
+        devOption.textContent = 'dev — последние изменения (нестабильно)';
+        devOption.dataset.ref = 'dev';
+        devOption.dataset.sha = result.dev.commitSHA;
+        devOption.dataset.mode = 'dev';
+        devGroup.appendChild(devOption);
+        select.appendChild(devGroup);
+    }
+
     if (Array.isArray(result.tags) && result.tags.length) {
         const group = document.createElement('optgroup');
         group.label = 'Опубликованные теги';
@@ -1161,6 +1181,7 @@ function populateProjectVersionChoices(result, preserveChoice) {
         }
         select.appendChild(group);
     }
+
     const values = Array.from(select.options).map(option => option.value);
     if (preserveChoice && values.includes(previousValue)) select.value = previousValue;
     else if (select.options.length) select.selectedIndex = 0;
@@ -1254,16 +1275,27 @@ window.updateProjectVersionPreview = function() {
         setProjectVersionContinueEnabled(true);
         return;
     }
+
     const option = selectedVersionOption();
-    if (!option || !option.value.startsWith('tag:') || !isFullSHA(option.dataset.sha)) {
-        summary.textContent = 'Выберите опубликованный тег из списка.';
+    if (!option || !option.dataset.ref || !isFullSHA(option.dataset.sha)) {
+        summary.textContent = 'Выберите опубликованный тег или ветку dev.';
         setProjectVersionContinueEnabled(false);
         return;
     }
-    summary.textContent = 'Будет установлен тег ' + option.dataset.ref + ' (commit ' + option.dataset.sha + ').';
-    warning.textContent = projectInstallState?.exists
-        ? 'Текущий каталог будет заменён только после загрузки и проверки нового кода. Прежний каталог сохранится в резервной копии; данные контейнеров и БД не откатываются.'
-        : 'Тег будет загружен во временный каталог и проверен до установки.';
+
+    if (option.value === 'dev') {
+        summary.textContent = 'Будет установлена ветка dev на текущем commit ' + option.dataset.sha + '.';
+        warning.textContent = 'Ветка dev содержит последние изменения и может быть нестабильной. Установщик закрепит показанный commit; если ветка изменится до загрузки, установка остановится и потребует обновить список версий.';
+    } else if (option.value.startsWith('tag:')) {
+        summary.textContent = 'Будет установлен тег ' + option.dataset.ref + ' (commit ' + option.dataset.sha + ').';
+        warning.textContent = projectInstallState?.exists
+            ? 'Текущий каталог будет заменён только после загрузки и проверки нового кода. Прежний каталог сохранится в резервной копии; данные контейнеров и БД не откатываются.'
+            : 'Тег будет загружен во временный каталог и проверен до установки.';
+    } else {
+        summary.textContent = 'Выберите поддерживаемый тег или ветку dev.';
+        setProjectVersionContinueEnabled(false);
+        return;
+    }
     setProjectVersionContinueEnabled(true);
 };
 
