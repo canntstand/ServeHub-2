@@ -806,41 +806,6 @@ func (a *App) CancelProjectInstallation() CheckResult {
 	return CheckResult{Success: true, Message: "Запрошена отмена загрузки. Текущая установленная версия не будет изменена."}
 }
 
-func (a *App) RecoverProjectInstallation() CheckResult {
-	targetDir, err := configuredProjectInstallDirectory()
-	if err != nil {
-		return CheckResult{Success: false, Message: "Не удалось определить каталог установки: " + err.Error()}
-	}
-	projectInstallMu.Lock()
-	defer projectInstallMu.Unlock()
-
-	parentDir := filepath.Dir(targetDir)
-	cleaned, cleanupErr := removeStaleProjectStages(parentDir)
-	if cleanupErr != nil {
-		return CheckResult{Success: false, Message: "Не удалось очистить временные каталоги загрузки: " + cleanupErr.Error()}
-	}
-
-	state := getProjectInstallState(targetDir)
-	quarantined := ""
-	if state.Exists && state.Partial {
-		quarantined, err = uniqueSiblingPath(parentDir, ".servehub-incomplete-")
-		if err != nil {
-			return CheckResult{Success: false, Message: "Не удалось подготовить каталог для сохранения неполной установки: " + err.Error()}
-		}
-		if err := os.Rename(targetDir, quarantined); err != nil {
-			return CheckResult{Success: false, Message: "Не удалось переместить неполную установку в безопасный карантин: " + err.Error()}
-		}
-	}
-	message := fmt.Sprintf("Восстановление завершено. Удалено временных каталогов: %d.", cleaned)
-	if quarantined != "" {
-		message += " Неполный каталог сохранён, а не удалён: " + quarantined
-	}
-	if cleaned == 0 && quarantined == "" {
-		message += " Неполные установки и оставшиеся временные данные не обнаружены."
-	}
-	message += " Теперь можно выбрать установку версии из списка."
-	return CheckResult{Success: true, Message: message}
-}
 
 func installProjectVersion(ctx context.Context, requestedDir, action, mode, ref, expectedSHA string, confirmReplace, replaceLegacy bool) CheckResult {
 	projectInstallMu.Lock()
@@ -1019,33 +984,6 @@ func uniqueSiblingPath(parentDir, prefix string) (string, error) {
 	return placeholder, nil
 }
 
-func removeStaleProjectStages(parentDir string) (int, error) {
-	entries, err := os.ReadDir(parentDir)
-	if os.IsNotExist(err) {
-		return 0, nil
-	}
-	if err != nil {
-		return 0, err
-	}
-	removed := 0
-	for _, entry := range entries {
-		if !strings.HasPrefix(entry.Name(), ".servehub-stage-") || entry.Type()&os.ModeSymlink != 0 {
-			continue
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return removed, err
-		}
-		if !info.IsDir() {
-			continue
-		}
-		if err := os.RemoveAll(filepath.Join(parentDir, entry.Name())); err != nil {
-			return removed, err
-		}
-		removed++
-	}
-	return removed, nil
-}
 
 func installationErrorMessage(stage string, err error) string {
 	lower := strings.ToLower(err.Error())
