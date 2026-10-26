@@ -316,7 +316,7 @@ func validateBootstrapCredentials(values map[string]string, prefix, label string
 	return nil
 }
 
-func validateS3Configuration(values map[string]string, usesLocal, usesVPS bool) error {
+func validateS3Configuration(values map[string]string) error {
 	required := []struct{ key, label string }{
 		{"borgmatic_encryption_passphrase", "borgmatic_encryption_passphrase"},
 		{"offsite_s3_endpoint", "offsite_s3_endpoint"},
@@ -354,15 +354,15 @@ func validateS3Configuration(values map[string]string, usesLocal, usesVPS bool) 
 		return errors.New("offsite_s3_bucket: некорректное S3-имя бакета")
 	}
 	workload := strings.TrimSpace(values["offsite_s3_workload_prefix"])
-	edge := strings.TrimSpace(values["offsite_s3_edge_prefix"])
-	if usesLocal && (workload == "" || !s3PrefixRegexp.MatchString(workload)) {
+	if workload == "" || !s3PrefixRegexp.MatchString(workload) {
 		return errors.New("offsite_s3_workload_prefix: требуется корректный префикс для локального Workload")
 	}
-	if usesVPS && (edge == "" || !s3PrefixRegexp.MatchString(edge)) {
+	edge := strings.TrimSpace(values["offsite_s3_edge_prefix"])
+	if edge == "" || !s3PrefixRegexp.MatchString(edge) {
 		return errors.New("offsite_s3_edge_prefix: требуется корректный префикс для VPS/Edge")
 	}
-	if usesLocal && usesVPS && workload == edge {
-		return errors.New("offsite_s3_workload_prefix/offsite_s3_edge_prefix: для развёртывания обоих серверов задайте разные префиксы")
+	if workload == edge {
+		return errors.New("offsite_s3_workload_prefix/offsite_s3_edge_prefix: префиксы Workload и Edge должны различаться")
 	}
 	return nil
 }
@@ -432,17 +432,23 @@ func validateDeploymentValues(values map[string]string, option int) error {
 	if err := validateStrongSecret(values, "admin_password", "admin_password", 32); err != nil {
 		return err
 	}
-	if err := validateS3Configuration(values, usesLocal, usesVPS); err != nil {
+	if err := validateS3Configuration(values); err != nil {
 		return err
 	}
 
+	// Local-only deployment still relies on the already-running Edge/VPS for
+	// VPN and postflight checks. Validate its connection details without
+	// requiring Edge application secrets when Edge itself is not being deployed.
+	requiresVPSConnection := usesVPS || option == 3 || option == 4
+	if requiresVPSConnection {
+		if err := validateIPv4(values, "vps_public_ip", "vps_public_ip (Edge/VPS dependency)"); err != nil {
+			return err
+		}
+		if err := validateUsername(values, "vps_user", "vps_user (Edge/VPS dependency)"); err != nil {
+			return err
+		}
+	}
 	if usesVPS {
-		if err := validateIPv4(values, "vps_public_ip", "vps_public_ip (VPS)"); err != nil {
-			return err
-		}
-		if err := validateUsername(values, "vps_user", "vps_user"); err != nil {
-			return err
-		}
 		if doesBootstrap {
 			if err := validateBootstrapCredentials(values, "vps", "VPS"); err != nil {
 				return err
