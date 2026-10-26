@@ -377,11 +377,11 @@ func TestEditableSecretFieldsCoverExampleAndFrontend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read frontend form: %v", err)
 	}
-	inputValuePattern := regexp.MustCompile(`(?is)<input\b[^>]*\bvalue=(?:"([^"]*)"|'([^']*)')`)
+		inputValuePattern := regexp.MustCompile(`(?is)<input\b[^>]*\bvalue=("([^"]*)"|'([^']*)')`)
 	for _, match := range inputValuePattern.FindAllSubmatch(html, -1) {
-		value := match[1]
+		value := match[2]
 		if value == nil {
-			value = match[2]
+			value = match[3]
 		}
 		if strings.TrimSpace(string(value)) != "" {
 			t.Errorf("GUI input has a non-empty default value: %s", match[0])
