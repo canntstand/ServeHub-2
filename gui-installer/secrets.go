@@ -26,13 +26,11 @@ var editableSecretFields = map[string]struct{}{
 	"local_ssh_password": {},
 	"local_sudo_password": {},
 	"server_name": {},
-	"admin_user": {},
 	"admin_password": {},
 	"email": {},
 	"telegram_token": {},
 	"telegram_chat_id": {},
 	"webnames_apikey": {},
-	"postgres_user": {},
 	"postgres_password": {},
 	"nextcloud_redis_pass": {},
 	"secret_vaultwarden_password": {},
@@ -41,24 +39,13 @@ var editableSecretFields = map[string]struct{}{
 	"ssh_private_key": {},
 	"borgmatic_encryption_passphrase": {},
 	"backup_disk_uuid": {},
-	"offsite_s3_endpoint": {},
-	"offsite_s3_region": {},
 	"offsite_s3_bucket": {},
 	"offsite_s3_access_key_id": {},
 	"offsite_s3_secret_access_key": {},
-	"offsite_s3_workload_prefix": {},
-	"offsite_s3_edge_prefix": {},
 	"hermes_api_base_url": {},
 	"hermes_api_key": {},
 	"hermes_model": {},
 	"hermes_dashboard_basic_auth_secret": {},
-	"adguard_password_salt": {},
-	"borgmatic_version": {},
-}
-
-var optionalSecretFields = map[string]struct{}{
-	"adguard_password_salt": {},
-	"borgmatic_version": {},
 }
 
 var sensitiveSecretFields = map[string]struct{}{
@@ -331,12 +318,6 @@ func mergeSecretUpdates(document *yaml.Node, updates map[string]string) error {
 			}
 		}
 
-		if _, optional := optionalSecretFields[key]; optional && strings.TrimSpace(value) == "" {
-			if pairIndex >= 0 {
-				root.Content = append(root.Content[:pairIndex], root.Content[pairIndex+2:]...)
-			}
-			continue
-		}
 
 		newValue := &yaml.Node{
 			Kind:  yaml.ScalarNode,

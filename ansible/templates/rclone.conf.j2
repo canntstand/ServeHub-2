@@ -4,5 +4,5 @@ provider = Other
 env_auth = false
 access_key_id = {{ offsite_s3_access_key_id }}
 secret_access_key = {{ offsite_s3_secret_access_key }}
-region = {{ offsite_s3_region | default('ru-1') }}
-endpoint = {{ offsite_s3_endpoint | default('https://s3.twcstorage.ru') }}
+region = {{ offsite_s3_region | default('ru-1', true) }}
+endpoint = {{ offsite_s3_endpoint | default('https://s3.twcstorage.ru', true) }}

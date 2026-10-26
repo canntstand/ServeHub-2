@@ -6,13 +6,13 @@
       - (offsite_s3_bucket | default('') | string | trim | length) > 0
       - (offsite_s3_access_key_id | default('') | string | trim | length) > 0
       - (offsite_s3_secret_access_key | default('') | string | length) > 0
-      - (offsite_s3_endpoint | default('https://s3.twcstorage.ru') | string | trim | length) > 0
-      - (offsite_s3_region | default('ru-1') | string | trim | length) > 0
-      - (offsite_s3_endpoint | default('https://s3.twcstorage.ru') | string | trim) is match('^https://[^/]+$')
+      - (offsite_s3_endpoint | default('https://s3.twcstorage.ru', true) | string | trim | length) > 0
+      - (offsite_s3_region | default('ru-1', true) | string | trim | length) > 0
+      - (offsite_s3_endpoint | default('https://s3.twcstorage.ru', true) | string | trim) is match('^https://[^/]+$')
       - (offsite_s3_bucket | default('') | string | trim) is match('^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$')
-      - (offsite_s3_workload_prefix | default('workload') | string | trim) is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
-      - (offsite_s3_edge_prefix | default('edge') | string | trim) is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
-      - (offsite_s3_workload_prefix | default('workload') | string | trim) != (offsite_s3_edge_prefix | default('edge') | string | trim)
+      - (offsite_s3_workload_prefix | default('workload', true) | string | trim) is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
+      - (offsite_s3_edge_prefix | default('edge', true) | string | trim) is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
+      - (offsite_s3_workload_prefix | default('workload', true) | string | trim) != (offsite_s3_edge_prefix | default('edge', true) | string | trim)
     fail_msg: >-
       Задайте одну общую borgmatic_encryption_passphrase (не менее 20 символов),
       имя приватного бакета и S3 Access/Secret Key в vars/secrets.yml.

@@ -131,20 +131,20 @@ func TestParseSecretsSupportsUnquotedAndNumericScalars(t *testing.T) {
 	}
 }
 
-func TestMergeSecretUpdatesPreservesBlankSecretsAndDeletesBlankOptionalValues(t *testing.T) {
+func TestMergeSecretUpdatesPreservesUneditableParameters(t *testing.T) {
 	document, err := parseSecretsYAML(yamlInput(
 		"server_name: example.org",
 		"adguard_password_salt: keep-me",
 		"borgmatic_version: 2.1.10",
+		"admin_user: admin",
+		"postgres_user: postgres_master",
 		"custom_value: keep-custom",
 	))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := mergeSecretUpdates(document, map[string]string{
-		"adguard_password_salt": "",
-		"borgmatic_version":     "",
-		"server_name":           "new.example.org",
+		"server_name": "new.example.org",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -157,14 +157,17 @@ func TestMergeSecretUpdatesPreservesBlankSecretsAndDeletesBlankOptionalValues(t 
 		t.Fatal(err)
 	}
 	values := secretScalarValues(parsed)
-	if values["adguard_password_salt"] != "keep-me" {
-		t.Fatal("blank update must not erase an existing secret")
-	}
-	if _, exists := values["borgmatic_version"]; exists {
-		t.Fatal("blank optional non-secret version should be removed")
-	}
-	if values["server_name"] != "new.example.org" || values["custom_value"] != "keep-custom" {
-		t.Fatalf("configuration value or unknown field was lost: %#v", values)
+	for key, expected := range map[string]string{
+		"adguard_password_salt": "keep-me",
+		"borgmatic_version": "2.1.10",
+		"admin_user": "admin",
+		"postgres_user": "postgres_master",
+		"custom_value": "keep-custom",
+		"server_name": "new.example.org",
+	} {
+		if values[key] != expected {
+			t.Errorf("%s = %q, want %q", key, values[key], expected)
+		}
 	}
 }
 
@@ -343,7 +346,6 @@ func TestSecretFormFieldNamesAreUnique(t *testing.T) {
 	for _, required := range []string{
 		"vps_ssh_password", "vps_sudo_password",
 		"local_ssh_password", "local_sudo_password",
-		"adguard_password_salt", "borgmatic_version",
 	} {
 		if _, exists := editableSecretFields[required]; !exists {
 			t.Errorf("missing supported form field %s", required)
@@ -364,12 +366,8 @@ func TestEditableSecretFieldsCoverExampleAndFrontend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse secrets example: %v", err)
 	}
-	for i := 0; i+1 < len(document.Content[0].Content); i += 2 {
-		key := document.Content[0].Content[i].Value
-		if _, exists := editableSecretFields[key]; !exists {
-			t.Errorf("supported secrets.yml.example key %q is not registered as an editable field", key)
-		}
-	}
+	// The example also contains internal defaults that are deliberately not
+	// exposed as editable inputs. Only editable fields need a frontend mapping.
 
 	js, err := os.ReadFile(filepath.Join("frontend", "src", "main.js"))
 	if err != nil {
@@ -378,6 +376,16 @@ func TestEditableSecretFieldsCoverExampleAndFrontend(t *testing.T) {
 	html, err := os.ReadFile(filepath.Join("frontend", "index.html"))
 	if err != nil {
 		t.Fatalf("read frontend form: %v", err)
+	}
+	inputValuePattern := regexp.MustCompile(`(?is)<input\b[^>]*\bvalue=(?:"([^"]*)"|'([^']*)')`)
+	for _, match := range inputValuePattern.FindAllSubmatch(html, -1) {
+		value := match[1]
+		if value == nil {
+			value = match[2]
+		}
+		if strings.TrimSpace(string(value)) != "" {
+			t.Errorf("GUI input has a non-empty default value: %s", match[0])
+		}
 	}
 	mappingPattern := regexp.MustCompile("(?m)^[[:space:]]*([a-z_][a-z0-9_]*):[[:space:]]*'([^']+)'")
 	matches := mappingPattern.FindAllSubmatch(js, -1)
@@ -398,7 +406,7 @@ func TestEditableSecretFieldsCoverExampleAndFrontend(t *testing.T) {
 	}
 }
 
-func TestSaveSecretsPreservesUnchangedFieldsAndExplicitlyDeletesOptionalValues(t *testing.T) {
+func TestSaveSecretsPreservesUnchangedFieldsAndUneditableParameters(t *testing.T) {
 	varsDir := setupSecretsTestProject(t)
 	writeTestFile(t, filepath.Join(varsDir, "secrets.yml.example"), strings.Join([]string{
 		"server_name: template.example",
@@ -417,7 +425,6 @@ func TestSaveSecretsPreservesUnchangedFieldsAndExplicitlyDeletesOptionalValues(t
 	app := &App{}
 	updates := map[string]string{
 		"server_name": "new.example",
-		"borgmatic_version": "",
 	}
 	preview := app.PreviewSecrets(updates)
 	if !preview.Success {
@@ -450,8 +457,8 @@ func TestSaveSecretsPreservesUnchangedFieldsAndExplicitlyDeletesOptionalValues(t
 		!strings.Contains(string(content), "nested: preserved") {
 		t.Fatalf("custom nested settings were lost: %s", content)
 	}
-	if _, exists := values["borgmatic_version"]; exists {
-		t.Fatal("explicitly cleared optional version should be removed")
+	if values["borgmatic_version"] != "2.1.10" {
+		t.Fatal("uneditable legacy version value should be preserved")
 	}
 }
 
