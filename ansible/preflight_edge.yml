@@ -1,0 +1,48 @@
+---
+- name: "[Preflight] Проверка готовности существующего Edge перед развёртыванием Workload"
+  hosts: vps
+  gather_facts: false
+  vars_files:
+    - vars/secrets.yml
+  tasks:
+    - name: "[Preflight] Проверка доступности контейнера wg-easy на Edge"
+      ansible.builtin.command:
+        argv:
+          - docker
+          - inspect
+          - "--format={{ '{{' }}.State.Running{{ '}}' }}"
+          - wg-easy
+      register: edge_container_running
+      changed_when: false
+      failed_when: false
+
+    - name: "[Preflight] Отказ, если Edge или wg-easy не запущен"
+      ansible.builtin.assert:
+        that:
+          - edge_container_running.rc | default(1) == 0
+          - edge_container_running.stdout | default('') | trim == 'true'
+        fail_msg: >-
+          Зависимость Edge/VPS не готова: контейнер wg-easy отсутствует или не запущен.
+          Сначала разверните и запустите Edge (сценарий 5 или полный сценарий 1),
+          затем повторите локальное развёртывание. На Workload изменения ещё не вносились.
+
+    - name: "[Preflight] Проверка состояния healthcheck контейнера wg-easy"
+      ansible.builtin.command:
+        argv:
+          - docker
+          - inspect
+          - "--format={{ '{{' }}.State.Health.Status{{ '}}' }}"
+          - wg-easy
+      register: edge_container_health
+      changed_when: false
+      failed_when: false
+
+    - name: "[Preflight] Отказ, если wg-easy не healthy"
+      ansible.builtin.assert:
+        that:
+          - edge_container_health.rc | default(1) == 0
+          - edge_container_health.stdout | default('') | trim == 'healthy'
+        fail_msg: >-
+          Зависимость Edge/VPS недоступна для развёртывания Workload: wg-easy не находится
+          в состоянии healthy. Проверьте логи контейнера и состояние AmneziaWG на Edge.
+          Развёртывание Workload не запускалось.
