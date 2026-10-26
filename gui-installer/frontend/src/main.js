@@ -1242,7 +1242,10 @@ function renderInstalledProjectState(state, initialLoad) {
         note.textContent = 'Обнаружен существующий ServeHub-2: ' + state.metadata.display_name +
             ' (commit ' + state.metadata.commit_sha + '). Установщик автоматически использует этот репозиторий без повторной загрузки и замены кода. Для установки другой версии выберите пустую директорию.';
     } else {
-        note.textContent = 'ServeHub-2 в выбранном каталоге не обнаружен. Будет выполнена новая установка выбранного тега или ветки dev. Файлы в непустом каталоге, не относящиеся к ServeHub-2, не будут перезаписаны.';
+        // Fresh-install details are consolidated into the version warning below.
+        // Keep this separate note for existing or incomplete installations only.
+        note.style.display = 'none';
+        note.textContent = '';
     }
 
     // Keep this line focused on the path and verification result. Installation
@@ -1325,7 +1328,7 @@ window.updateProjectVersionPreview = function() {
         warning.textContent = 'Установщик загрузит и проверит код до установки. ' +
             (projectInstallState && projectInstallState.exists
                 ? 'Обнаруженный каталог ServeHub-2 будет сохранён в резервной копии, затем заменён проверенным кодом; данные контейнеров и БД этим действием не откатываются.'
-                : 'ServeHub-2 в каталоге не обнаружен, поэтому будет создана новая установка.');
+                : 'ServeHub-2 в каталоге не обнаружен, поэтому будет создана новая установка. Файлы в непустом каталоге, не относящиеся к ServeHub-2, не будут перезаписаны.');
     } else {
         summary.textContent = 'Выберите поддерживаемый тег или ветку dev.';
         setProjectVersionContinueEnabled(false);
@@ -1335,7 +1338,7 @@ window.updateProjectVersionPreview = function() {
     if (option.value === 'dev') {
         warning.textContent += ' ' + (projectInstallState && projectInstallState.exists
             ? 'После проверки новый код заменит текущий каталог, который сохранится в резервной копии.'
-            : 'Будет подготовлена новая установка.');
+            : 'ServeHub-2 в каталоге не обнаружен, поэтому будет подготовлена новая установка. Файлы в непустом каталоге, не относящиеся к ServeHub-2, не будут перезаписаны.');
     }
     setProjectVersionContinueEnabled(true);
 };
