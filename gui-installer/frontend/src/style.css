@@ -395,39 +395,6 @@ textarea:focus {
     box-shadow: none;
 }
 
-.password-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%;
-}
-
-.password-wrapper input {
-    width: 100%;
-    padding-right: 40px;
-    box-sizing: border-box;
-}
-
-.password-toggle {
-    position: absolute;
-    right: 5px;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 15px;
-    padding: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    outline: none;
-    user-select: none;
-}
-
-.password-toggle:hover {
-    color: var(--accent);
-}
-
 /* ---------- YAML preview ---------- */
 
 .preview-container {
@@ -1172,55 +1139,6 @@ textarea:focus {
     font-size: 11px;
 }
 
-/* ---------- Secret fields (masked by default, revealed per field) ---------- */
-
-.secret-field-control {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-}
-
-.secret-field-control > input {
-    flex: 1 1 auto;
-    width: auto;
-    min-width: 0;
-    box-sizing: border-box;
-}
-
-.password-wrapper.secret-field-control > input {
-    padding-right: 12px;
-}
-
-.secret-field-control > textarea {
-    flex: 1 1 auto;
-    width: auto;
-    min-width: 0;
-    box-sizing: border-box;
-}
-
-.secret-textarea-control {
-    align-items: stretch;
-}
-
-.secret-visibility-toggle {
-    flex: 0 0 auto;
-    white-space: nowrap;
-    padding: 8px 10px;
-    border: 1px solid var(--border-1);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: 11px;
-    cursor: pointer;
-}
-
-.secret-visibility-toggle:hover {
-    color: var(--text-primary);
-    border-color: var(--border-2);
-}
-
 .sensitive-yaml-warning {
     max-width: 760px;
     margin: 0 auto 14px;
@@ -1353,8 +1271,6 @@ textarea:focus {
     .install-directory-controls { grid-template-columns: 1fr; }
     .install-directory-controls input { grid-column: auto; }
     .version-picker { width: 100%; padding: 13px; }
-    .secret-field-control { flex-wrap: wrap; }
-    .secret-visibility-toggle { margin-left: auto; }
     .step-progress { padding-left: 20px; padding-right: 20px; }
 }
 
@@ -1660,27 +1576,6 @@ button svg, button .icon, .btn-icon {
     box-sizing: border-box;
     padding: 10px 12px;
     line-height: 1.5;
-}
-.password-wrapper, .secret-field-control, .secret-textarea-control {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    gap: 8px;
-}
-.password-wrapper input {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-.password-toggle, .secret-visibility-toggle {
-    flex: 0 0 auto;
-    min-width: 36px;
-    min-height: 34px;
-    margin: 0;
-    padding: 6px 8px;
-}
-.secret-textarea-control textarea, .secret-field-control input {
-    min-width: 0;
-    flex: 1 1 auto;
 }
 .form-group small {
     display: block;
