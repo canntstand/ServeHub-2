@@ -872,16 +872,6 @@ func installProjectVersion(ctx context.Context, requestedDir, action, mode, ref,
 		isFullCommitSHA(expectedSHA) && !strings.EqualFold(state.Metadata.CommitSHA, expectedSHA) && !confirmReplace {
 		return CheckResult{Success: false, Message: "Для обновления или смены версии сначала явно подтвердите замену кода. Текущая версия и пользовательские файлы будут сохранены в резервной копии."}
 	}
-	if state.Exists && state.KnownVersion && isFullCommitSHA(expectedSHA) &&
-		strings.EqualFold(state.Metadata.CommitSHA, expectedSHA) {
-		if err := verifyProjectDirectory(targetDir); err == nil {
-			return CheckResult{
-				Success: true, Exists: true,
-				Message: fmt.Sprintf("Выбрана уже установленная версия %s (commit %s). Повторная загрузка и замена файлов не выполнялись: %s", state.Metadata.DisplayName, state.Metadata.CommitSHA, targetDir),
-			}
-		}
-	}
-
 	resolution, err := resolveProjectVersion(mode, ref, expectedSHA)
 	if err != nil {
 		return CheckResult{Success: false, Message: "Не удалось проверить выбранную версию: " + err.Error()}
