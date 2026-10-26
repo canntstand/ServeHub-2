@@ -2843,3 +2843,28 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
 .bootstrap-auth-selector select {
     width: 100%;
 }
+
+
+/* Compact inline checkbox for optional separate sudo credentials. */
+.form-group .checkbox-inline-label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 9px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-bottom: 5px;
+    line-height: 1.5;
+}
+
+.form-group .checkbox-inline-label input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    flex: 0 0 auto;
+    cursor: pointer;
+}
+
+.form-group.bootstrap-auth-checkbox small {
+    margin-top: 2px;
+}
