@@ -1169,69 +1169,37 @@ function populateProjectVersionChoices(result, preserveChoice) {
 
 function renderInstalledProjectState(state, initialLoad) {
     const note = document.getElementById('project-installed-note');
-    const useCommit = document.getElementById('use-project-commit-sha');
-    const shaInput = document.getElementById('project-commit-sha');
-    const select = document.getElementById('project-version-select');
     if (!note) return;
 
-    legacyInstallBlocked = Boolean(state && state.exists && !state.knownVersion && !state.partial);
     const currentAction = selectedProjectAction();
-    const actionStillFitsState =
-        (currentAction === 'use' && state && state.exists && state.complete && state.knownVersion) ||
-        (currentAction === 'install' && !(state && state.exists)) ||
-        (currentAction === 'update' && state && state.exists && state.complete) ||
-        (currentAction === 'recover' && projectInstallDirectoryVerified && !(state && state.exists && !state.partial));
-    if (initialLoad || !actionStillFitsState) {
-        const defaultAction = state && state.exists
-            ? (state.partial ? 'recover' : (state.knownVersion ? 'use' : 'update'))
-            : 'install';
-        const radio = document.querySelector('input[name="project-action"][value="' + defaultAction + '"]');
-        if (radio) radio.checked = true;
-    }
+    const canUse = Boolean(state && state.exists && state.complete && state.knownVersion && state.integrityVerified);
     if (initialLoad) {
-        const replaceConfirm = document.getElementById('confirm-replace-install');
-        if (replaceConfirm) replaceConfirm.checked = false;
+        const installRadio = document.querySelector('input[name="project-action"][value="install"]');
+        if (installRadio) installRadio.checked = true;
+    } else if (currentAction === 'use' && !canUse) {
+        const installRadio = document.querySelector('input[name="project-action"][value="install"]');
+        if (installRadio) installRadio.checked = true;
     }
-    const consentWrapper = document.getElementById('legacy-migration-consent-wrapper');
-    const consentCheckbox = document.getElementById('replace-legacy-project');
     if (state && state.exists && state.partial) {
         note.style.display = 'block';
         note.classList.add('is-warning');
-        note.textContent = 'Неполная или повреждённая установка: ' + (state.message || 'структура не прошла проверку') + '. Выберите восстановление; исходный каталог будет сохранён отдельно.';
-        if (consentWrapper) consentWrapper.style.display = 'none';
-        if (consentCheckbox) consentCheckbox.checked = false;
-    } else if (legacyInstallBlocked) {
+        note.textContent = 'Найдена неполная установка: ' + (state.message || 'структура не прошла проверку') + '. Для безопасности выберите другой каталог или устраните проблему вручную.';
+    } else if (state && state.exists && !canUse) {
         note.style.display = 'block';
         note.classList.add('is-warning');
-        note.textContent = (state && state.message ? state.message + ' ' : 'Фактическую версию каталога подтвердить нельзя. ') +
-            'Для переключения требуется явное подтверждение: вся прежняя папка будет сохранена в резервной копии, известные настройки будут перенесены.';
-        if (consentWrapper) consentWrapper.style.display = 'flex';
-        if (consentCheckbox && initialLoad) consentCheckbox.checked = false;
-    } else if (state && state.exists && state.knownVersion) {
-        if (consentWrapper) consentWrapper.style.display = 'none';
-        if (consentCheckbox) consentCheckbox.checked = false;
-        const meta = state.metadata;
-        const sha = meta.commit_sha;
+        note.textContent = (state.message || 'Версия установленного репозитория не подтверждена.') + ' Стандартная установка сохранит прежний каталог в резервной копии перед заменой.';
+    } else if (canUse) {
         note.style.display = 'block';
         note.classList.remove('is-warning');
-        note.textContent = 'В каталоге уже установлено: ' + meta.display_name + ', commit ' + sha +
-            '. Повторный запуск закреплён на этом SHA. Чтобы выбрать другой релиз или dev, сначала снимите флажок «Указать конкретный commit SHA», затем выберите источник.';
-        if (initialLoad) {
-            useCommit.checked = true;
-            shaInput.value = sha;
-            resolvedProjectCommitSHA = sha;
-            projectCommitInputAtResolution = sha;
-        }
+        note.textContent = 'В каталоге установлено: ' + state.metadata.display_name + ' (commit ' + state.metadata.commit_sha + '). Можно использовать эту установку или выполнить стандартную установку выбранного тега.';
     } else {
         note.style.display = 'none';
         note.textContent = '';
-        if (consentWrapper) consentWrapper.style.display = 'none';
-        if (consentCheckbox) consentCheckbox.checked = false;
+        note.classList.remove('is-warning');
     }
-    if (useCommit) useCommit.disabled = false;
-    if (select) select.disabled = Boolean(useCommit && useCommit.checked);
-    if (shaInput) shaInput.disabled = !(useCommit && useCommit.checked);
-    const pathStatus = state && state.directory ? ('Каталог: ' + state.directory + '. ' + (state.message || '')) : (state?.message || '');
+    const pathStatus = state && state.directory
+        ? ('Каталог: ' + state.directory + '. ' + (state.message || ''))
+        : (state?.message || '');
     if (projectInstallDirectoryVerified && pathStatus) updateProjectDirectoryStatus(pathStatus, Boolean(state?.partial));
     window.updateProjectActionUI();
 }
@@ -1243,7 +1211,7 @@ window.initializeProjectVersions = async function(preserveChoice = false) {
     const refreshButton = document.getElementById('btn-refresh-project-versions');
     if (refreshButton) refreshButton.disabled = true;
     if (continueButton) continueButton.disabled = true;
-    if (!preserveChoice && summary) summary.textContent = 'Получаем опубликованные релизы, теги и commit SHA с GitHub...';
+    if (!preserveChoice && summary) summary.textContent = 'Получаем опубликованные теги с GitHub...';
 
     try {
         const result = await GetProjectVersions();
