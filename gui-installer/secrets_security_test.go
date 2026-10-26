@@ -217,22 +217,49 @@ func TestValidateFullBootstrapRejectsWeakRootPassword(t *testing.T) {
 	}
 }
 
-func TestValidateDeploymentRequiresOnlyS3PrefixForSelectedTarget(t *testing.T) {
-	values := validTestDeploymentValues(t)
-	values["offsite_s3_edge_prefix"] = ""
-	if err := validateDeploymentValues(values, 4); err != nil {
-		t.Fatalf("local-only deployment should not require Edge prefix: %v", err)
+func TestValidateDeploymentRequiresBothS3PrefixesForEveryTarget(t *testing.T) {
+	for option := 1; option <= 6; option++ {
+		values := validTestDeploymentValues(t)
+		values["offsite_s3_workload_prefix"] = ""
+		if err := validateDeploymentValues(values, option); err == nil || !strings.Contains(err.Error(), "offsite_s3_workload_prefix") {
+			t.Fatalf("scenario %d must require the Workload S3 prefix, got %v", option, err)
+		}
+
+		values = validTestDeploymentValues(t)
+		values["offsite_s3_edge_prefix"] = ""
+		if err := validateDeploymentValues(values, option); err == nil || !strings.Contains(err.Error(), "offsite_s3_edge_prefix") {
+			t.Fatalf("scenario %d must require the Edge S3 prefix, got %v", option, err)
+		}
+
+		values = validTestDeploymentValues(t)
+		values["offsite_s3_edge_prefix"] = values["offsite_s3_workload_prefix"]
+		if err := validateDeploymentValues(values, option); err == nil || !strings.Contains(err.Error(), "prefixes") && !strings.Contains(err.Error(), "префиксы") {
+			t.Fatalf("scenario %d must require distinct S3 prefixes, got %v", option, err)
+		}
 	}
-	if err := validateDeploymentValues(values, 2); err == nil || !strings.Contains(err.Error(), "offsite_s3_edge_prefix") {
-		t.Fatalf("both-server deployment must require Edge prefix: %v", err)
-	}
-	values = validTestDeploymentValues(t)
-	values["offsite_s3_workload_prefix"] = ""
-	if err := validateDeploymentValues(values, 6); err != nil {
-		t.Fatalf("VPS-only deployment should not require Workload prefix: %v", err)
-	}
-	if err := validateDeploymentValues(values, 2); err == nil || !strings.Contains(err.Error(), "offsite_s3_workload_prefix") {
-		t.Fatalf("both-server deployment must require Workload prefix: %v", err)
+}
+
+func TestLocalOnlyScenariosRequireVPSConnectivityButNotEdgeApplicationSecrets(t *testing.T) {
+	for _, option := range []int{3, 4} {
+		values := validTestDeploymentValues(t)
+		values["hermes_api_key"] = ""
+		values["telegram_token"] = ""
+		values["telegram_chat_id"] = ""
+		if err := validateDeploymentValues(values, option); err != nil {
+			t.Fatalf("local-only scenario %d must not require Edge application secrets: %v", option, err)
+		}
+
+		values = validTestDeploymentValues(t)
+		values["vps_public_ip"] = ""
+		if err := validateDeploymentValues(values, option); err == nil || !strings.Contains(err.Error(), "vps_public_ip") {
+			t.Fatalf("local-only scenario %d must require the Edge/VPS address, got %v", option, err)
+		}
+
+		values = validTestDeploymentValues(t)
+		values["vps_user"] = ""
+		if err := validateDeploymentValues(values, option); err == nil || !strings.Contains(err.Error(), "vps_user") {
+			t.Fatalf("local-only scenario %d must require the Edge/VPS SSH user, got %v", option, err)
+		}
 	}
 }
 
