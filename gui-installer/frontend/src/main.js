@@ -27,6 +27,10 @@ const STEP_TITLES = {
 
 function updateStepProgress(stepNumber) {
     const totalSteps = 7;
+    const progress = document.getElementById('step-progress');
+    if (progress) progress.style.display = stepNumber === 0 ? 'none' : '';
+    if (stepNumber < 1 || stepNumber > totalSteps) return;
+
     const fill = document.getElementById('step-progress-fill');
     const currentEl = document.getElementById('step-progress-current');
     const titleEl = document.getElementById('step-progress-title');
@@ -1577,5 +1581,5 @@ window.cancelProjectInstallation = async function() {
 };
 
 setupSecretVisibilityToggles();
-updateStepProgress(1);
+updateStepProgress(0);
 window.initializeProjectInstallDirectory().then(() => window.initializeProjectVersions());

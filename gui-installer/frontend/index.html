@@ -30,7 +30,7 @@
         </div>
     </div>
 
-    <div class="step-progress" id="step-progress">
+    <div class="step-progress" id="step-progress" style="display: none;">
         <div class="step-progress-track">
             <div class="step-progress-fill" id="step-progress-fill"></div>
             <div class="step-progress-dots">
@@ -49,7 +49,61 @@
     </div>
 
     <div id="app">
-        <div id="step-1" class="step active">
+        <div id="step-0" class="step active">
+            <section class="intro-screen" aria-labelledby="intro-title">
+                <div class="intro-brand">
+                    <img class="intro-mark" src="./src/assets/servehub-icon.svg" alt="" aria-hidden="true">
+                    <span class="intro-kicker">ИНФРАСТРУКТУРА ПОД ВАШИМ КОНТРОЛЕМ</span>
+                </div>
+
+                <div class="intro-content">
+                    <p class="intro-eyebrow">SERVEHUB-2 / INSTALLER</p>
+                    <h1 class="intro-title" id="intro-title">Добро пожаловать<br><span>в ServeHub-2</span></h1>
+                    <p class="intro-lead">Установщик поможет выбрать версию проекта, подготовить конфигурацию и запустить развёртывание на ваших серверах. Перед применением изменений вы сможете проверить выбранные параметры.</p>
+
+                    <div class="intro-features" aria-label="Этапы установки">
+                        <article class="intro-feature">
+                            <span class="intro-feature-index" aria-hidden="true">01</span>
+                            <div class="intro-feature-copy">
+                                <h2>Выберите версию</h2>
+                                <p>Релиз, тег или точный commit SHA — выбранный код будет закреплён перед загрузкой.</p>
+                            </div>
+                        </article>
+                        <article class="intro-feature">
+                            <span class="intro-feature-index" aria-hidden="true">02</span>
+                            <div class="intro-feature-copy">
+                                <h2>Подготовьте конфигурацию</h2>
+                                <p>Проверьте secrets.yml и просмотрите параметры перед сохранением.</p>
+                            </div>
+                        </article>
+                        <article class="intro-feature">
+                            <span class="intro-feature-index" aria-hidden="true">03</span>
+                            <div class="intro-feature-copy">
+                                <h2>Запустите деплой</h2>
+                                <p>Проверка окружения и этапы Ansible доступны в одном интерфейсе.</p>
+                            </div>
+                        </article>
+                    </div>
+
+                    <div class="intro-actions">
+                        <button type="button" class="btn-primary intro-start" onclick="goToStep(1)">
+                            Начать настройку
+                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M3 8h9M8 3.5 12.5 8 8 12.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <p class="intro-note">Сначала выбор версии и проверка системы. Деплой не запускается автоматически.</p>
+                    </div>
+                </div>
+
+                <footer class="intro-footer">
+                    <span>LINUX <i>·</i> DOCKER <i>·</i> ANSIBLE</span>
+                    <a href="https://github.com/canntstand/ServeHub-2" target="_blank" rel="noopener noreferrer">Исходный код на GitHub <span aria-hidden="true">↗</span></a>
+                </footer>
+            </section>
+        </div>
+
+        <div id="step-1" class="step">
             <div class="welcome-container">
                 
                 
