@@ -367,12 +367,13 @@
                         <input type="password" id="sec_s3_secret_key" autocomplete="new-password" placeholder="Secret Access Key">
                     </div>
                     <div class="form-group">
-                        <label>Префикс Workload (обязателен для локального сервера; можно пустым для VPS-only):</label>
+                        <label>Префикс Workload (обязателен для резервных копий локального сервера):</label>
                         <input type="text" id="sec_s3_workload_prefix" value="workload">
                     </div>
                     <div class="form-group">
-                        <label>Префикс Edge (обязателен для VPS; можно пустым для local-only):</label>
+                        <label>Префикс Edge (обязателен для резервных копий VPS):</label>
                         <input type="text" id="sec_s3_edge_prefix" value="edge">
+                        <small>Оба префикса обязательны для любого сценария и должны отличаться.</small>
                     </div>
 
                     <div class="form-section-title">7. Hermes Agent (API и панель Edge)</div>
