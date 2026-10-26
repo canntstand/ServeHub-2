@@ -855,7 +855,7 @@ func installProjectVersion(ctx context.Context, requestedDir, action, mode, ref,
 	}
 	state := getProjectInstallState(targetDir)
 	if state.Partial {
-		return CheckResult{Success: false, Message: "В выбранном каталоге обнаружена неполная установка. Сначала выполните «Восстановить неполную установку»; каталог будет сохранён отдельно."}
+		return CheckResult{Success: false, Message: "В выбранном каталоге обнаружена неполная установка. Выберите другой каталог или устраните проблему вручную; повреждённые данные не будут перезаписаны автоматически."}
 	}
 	if action == "install" && state.Exists {
 		return CheckResult{Success: false, Message: "Каталог установки уже существует. Выберите «Использовать текущую установку» или «Обновить/переключить версию»; автоматическая перезапись запрещена."}
