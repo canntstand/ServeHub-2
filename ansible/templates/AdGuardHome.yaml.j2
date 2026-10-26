@@ -26,5 +26,5 @@ dns:
   cache_optimistic: true
 
 users:
-  - name: "{{ admin_user | default("admin", true) }}"
+  - name: "{{ admin_user | default('admin', true) }}"
     password: {{ (admin_password | password_hash('bcrypt', adguard_password_salt | default('servehubadguardsalt22x', true))) | to_json }}
