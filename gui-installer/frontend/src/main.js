@@ -621,28 +621,8 @@ window.generateAndReviewYaml = async function() {
         edgePrefix: document.getElementById('sec_s3_edge_prefix'),
     };
 
-    const configIsTemplate = sourceSecretIsTemplate;
-
-    const backupKeyNames = [
-        'offsite_s3_endpoint', 'offsite_s3_region', 'offsite_s3_bucket',
-        'offsite_s3_access_key_id', 'offsite_s3_secret_access_key',
-        'offsite_s3_workload_prefix', 'offsite_s3_edge_prefix',
-        'borgmatic_encryption_passphrase',
-    ];
-    const backupGroupChanged = backupKeyNames.some(key => {
-        const current = String(collectSecretFormValues({
-            offsite_s3_endpoint: s3Endpoint,
-            offsite_s3_region: s3Region,
-            offsite_s3_bucket: s3Bucket,
-            offsite_s3_access_key_id: s3AccessKey,
-            offsite_s3_secret_access_key: s3SecretKey,
-            offsite_s3_workload_prefix: s3WorkloadPrefix,
-            offsite_s3_edge_prefix: s3EdgePrefix,
-        })[key] ?? '');
-        return current !== String(sourceSecretValues[key] ?? '');
-    });
-
-    if (configIsTemplate || backupGroupChanged) {
+    // Backup configuration is mandatory for every supported deployment scenario.
+    {
         let parsedEndpoint;
         try {
             parsedEndpoint = new URL(s3Endpoint);
@@ -676,13 +656,18 @@ window.generateAndReviewYaml = async function() {
             return;
         }
         const safePrefix = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
-        if (s3WorkloadPrefix && !safePrefix.test(s3WorkloadPrefix)) {
-            alert('Префикс Workload должен соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]*.');
+        if (!s3WorkloadPrefix || !safePrefix.test(s3WorkloadPrefix)) {
+            alert('Префикс Workload обязателен и должен соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]*.');
             backupFields.workloadPrefix.focus();
             return;
         }
-        if (s3EdgePrefix && !safePrefix.test(s3EdgePrefix)) {
-            alert('Префикс Edge должен соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]*.');
+        if (!s3EdgePrefix || !safePrefix.test(s3EdgePrefix)) {
+            alert('Префикс Edge обязателен и должен соответствовать шаблону [A-Za-z0-9][A-Za-z0-9_-]*.');
+            backupFields.edgePrefix.focus();
+            return;
+        }
+        if (s3WorkloadPrefix === s3EdgePrefix) {
+            alert('Префиксы Workload и Edge должны различаться.');
             backupFields.edgePrefix.focus();
             return;
         }
