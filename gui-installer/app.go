@@ -173,6 +173,13 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 		return CheckResult{Success: false, Message: "Неизвестный сценарий развертывания!"}
 	}
 
+	// Local-only deployment still depends on an already running Edge/VPS.
+	// Run its read-only prerequisite checks before starting any Workload playbook.
+	if option == 3 || option == 4 {
+		preflightCmd := fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/preflight_edge.yml%s", debugArgs)
+		steps = append([]string{preflightCmd}, steps...)
+	}
+
 	for _, ansibleCmd := range steps {
 		wailsRuntime.EventsEmit(a.ctx, "deploy-log", fmt.Sprintf("Закреплённая версия ServeHub-2: %s\n", metadata.CommitSHA))
 
