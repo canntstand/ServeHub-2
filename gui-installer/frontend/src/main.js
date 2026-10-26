@@ -158,8 +158,6 @@ window.runInstallation = async function() {
         projectInstallDirectory = directoryResult.directory;
         projectInstallState = directoryResult.installed;
         projectInstallDirectoryVerified = true;
-        const confirmReplace = Boolean(document.getElementById('confirm-replace-install')?.checked);
-        const replaceLegacy = Boolean(document.getElementById('replace-legacy-project')?.checked);
         const cancelButton = document.getElementById('btn-install-cancel');
         if (cancelButton) cancelButton.style.display = action === 'install' || action === 'update' ? 'inline-block' : 'none';
         const result = await PerformProjectAction(action === 'install' && projectInstallState?.exists ? 'update' : action, selection?.mode ?? '', selection?.ref ?? '', selection?.expectedSHA ?? '', true, true);
@@ -1019,10 +1017,6 @@ let projectInstallState = null;
 let projectInstallDirectory = "";
 let projectInstallDirectoryVerified = false;
 let projectVersionsLoaded = false;
-let legacyInstallBlocked = false;
-let resolvedProjectCommitSHA = "";
-let projectCommitInputAtResolution = "";
-let projectCommitPreviewRequest = 0;
 
 function isFullSHA(value) {
     return /^[a-f0-9]{40}$/i.test(String(value || '').trim());
@@ -1154,6 +1148,22 @@ function populateProjectVersionChoices(result, preserveChoice) {
     const previousValue = preserveChoice ? select.value : '';
     select.innerHTML = '';
 
+    // Keep the first available published tag as the default; dev is opt-in.
+    if (Array.isArray(result.tags) && result.tags.length) {
+        const tagGroup = document.createElement('optgroup');
+        tagGroup.label = 'Опубликованные теги';
+        for (const tag of result.tags) {
+            const option = document.createElement('option');
+            option.value = 'tag:' + tag.ref;
+            option.textContent = tag.ref;
+            option.dataset.ref = tag.ref;
+            option.dataset.sha = tag.commitSHA;
+            option.dataset.mode = 'tag';
+            tagGroup.appendChild(option);
+        }
+        select.appendChild(tagGroup);
+    }
+
     if (result.dev && result.dev.ref === 'dev' && isFullSHA(result.dev.commitSHA)) {
         const devGroup = document.createElement('optgroup');
         devGroup.label = 'Ветка';
@@ -1165,21 +1175,6 @@ function populateProjectVersionChoices(result, preserveChoice) {
         devOption.dataset.mode = 'dev';
         devGroup.appendChild(devOption);
         select.appendChild(devGroup);
-    }
-
-    if (Array.isArray(result.tags) && result.tags.length) {
-        const group = document.createElement('optgroup');
-        group.label = 'Опубликованные теги';
-        for (const tag of result.tags) {
-            const option = document.createElement('option');
-            option.value = 'tag:' + tag.ref;
-            option.textContent = tag.ref;
-            option.dataset.ref = tag.ref;
-            option.dataset.sha = tag.commitSHA;
-            option.dataset.mode = 'tag';
-            group.appendChild(option);
-        }
-        select.appendChild(group);
     }
 
     const values = Array.from(select.options).map(option => option.value);
