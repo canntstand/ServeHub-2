@@ -346,6 +346,7 @@ func TestSecretFormFieldNamesAreUnique(t *testing.T) {
 	for _, required := range []string{
 		"vps_ssh_password", "vps_sudo_password",
 		"local_ssh_password", "local_sudo_password",
+		"admin_user", "postgres_user",
 	} {
 		if _, exists := editableSecretFields[required]; !exists {
 			t.Errorf("missing supported form field %s", required)
@@ -366,8 +367,22 @@ func TestEditableSecretFieldsCoverExampleAndFrontend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse secrets example: %v", err)
 	}
-	// The example also contains internal defaults that are deliberately not
-	// exposed as editable inputs. Only editable fields need a frontend mapping.
+	internalOnlyKeys := map[string]struct{}{
+		"offsite_s3_endpoint": {},
+		"offsite_s3_region": {},
+		"offsite_s3_workload_prefix": {},
+		"offsite_s3_edge_prefix": {},
+	}
+	root := document.Content[0]
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		key := root.Content[i].Value
+		if _, internal := internalOnlyKeys[key]; internal {
+			continue
+		}
+		if _, editable := editableSecretFields[key]; !editable {
+			t.Errorf("example key %q is neither editable nor an internal default", key)
+		}
+	}
 
 	js, err := os.ReadFile(filepath.Join("frontend", "src", "main.js"))
 	if err != nil {
@@ -377,7 +392,7 @@ func TestEditableSecretFieldsCoverExampleAndFrontend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read frontend form: %v", err)
 	}
-		inputValuePattern := regexp.MustCompile(`(?is)<input\b[^>]*\bvalue=("([^"]*)"|'([^']*)')`)
+	inputValuePattern := regexp.MustCompile(`(?is)<input\b[^>]*\bvalue=("([^"]*)"|'([^']*)')`)
 	for _, match := range inputValuePattern.FindAllSubmatch(html, -1) {
 		value := match[2]
 		if value == nil {

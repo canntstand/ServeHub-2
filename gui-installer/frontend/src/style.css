@@ -2746,3 +2746,40 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
     overflow-wrap: anywhere;
 }
 
+
+
+/* Credential-heavy installer form: group related secret fields and keep
+   their labels/controls aligned without nested cards or horizontal scrolling. */
+.form-field-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: clamp(20px, 2.5vw, 36px);
+    row-gap: 0;
+    min-width: 0;
+    align-items: start;
+}
+.form-field-grid > .form-subsection-title {
+    grid-column: 1 / -1;
+    margin: 2px 0 12px;
+    padding: 5px 0 8px;
+    border-bottom: 1px solid rgba(196, 178, 156, .14);
+    color: var(--text-muted);
+    font-family: 'Cascadia Code', 'Cascadia', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    line-height: 1.5;
+}
+.form-field-grid > .form-group {
+    min-width: 0;
+}
+@media (max-width: 760px) {
+    .form-field-grid {
+        grid-template-columns: minmax(0, 1fr);
+        column-gap: 0;
+    }
+    .form-field-grid > .form-subsection-title {
+        grid-column: 1;
+    }
+}

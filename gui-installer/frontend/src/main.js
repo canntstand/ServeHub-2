@@ -236,6 +236,8 @@ const SECRETS_FIELD_MAP = {
     local_ssh_password: 'sec_local_ssh_pass',
     local_sudo_password: 'sec_local_sudo_pass',
     server_name: 'sec_server_name',
+    admin_user: 'sec_admin_user',
+    postgres_user: 'sec_pg_user',
     hbox_pepper: 'sec_hbox_pepper',
     admin_password: 'sec_admin_pass',
     email: 'sec_email',

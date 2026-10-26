@@ -209,7 +209,10 @@
                         <label>Имя пользователя VPS (SSH/sudo):</label>
                         <input type="text" id="sec_vps_user" value="" placeholder="Пользователь Linux на VPS">
                     </div>
-                    <div class="form-group">
+                    
+<div class="form-field-grid">
+                        <div class="form-subsection-title">Учётные данные VPS для bootstrap</div>
+<div class="form-group">
                         <label>Пароль root VPS (для полного bootstrap):</label>
                         <div class="password-wrapper">
                             <input type="password" id="sec_vps_root_pass" value="" autocomplete="new-password" placeholder="Для полного bootstrap">
@@ -223,7 +226,10 @@
                         <label>Пароль sudo пользователя VPS (необязательно при пароле root; иначе нужен вместе с SSH):</label>
                         <input type="password" id="sec_vps_sudo_pass" value="" autocomplete="new-password">
                     </div>
-                    <div class="form-group">
+                    
+</div>
+
+<div class="form-group">
                         <label>Приватный IP домашнего сервера:</label>
                         <input type="text" id="sec_local_ip" value="" placeholder="IPv4 домашнего сервера">
                     </div>
@@ -231,7 +237,10 @@
                         <label>Пользователь домашнего сервера:</label>
                         <input type="text" id="sec_local_user" value="" placeholder="Пользователь Linux на Workload">
                     </div>
-                    <div class="form-group">
+                    
+<div class="form-field-grid">
+                        <div class="form-subsection-title">Учётные данные домашнего сервера для bootstrap</div>
+<div class="form-group">
                         <label>Пароль root домашнего сервера (для полного bootstrap):</label>
                         <div class="password-wrapper">
                             <input type="password" id="sec_local_root_pass" value="" autocomplete="new-password" placeholder="Для полного bootstrap">
@@ -246,20 +255,33 @@
                         <input type="password" id="sec_local_sudo_pass" value="" autocomplete="new-password">
                     </div>
 
-                    <div class="form-section-title">2. Глобальные параметры</div>
+                    
+</div>
+
+<div class="form-section-title">2. Глобальные параметры</div>
                     <small>Домен и email обязательны для сценариев с локальным Workload/Certbot; для VPS-only можно оставить пустыми.</small>
                     <div class="form-group">
                         <label>Доменное имя проекта (например: server.ru):</label>
                         <input type="text" id="sec_server_name" value="" placeholder="server.example.org">
                     </div>
                     
+
+<div class="form-field-grid">
+                        <div class="form-subsection-title">Учётная запись администратора</div>
+                        <div class="form-group">
+                            <label>Имя администратора:</label>
+                            <input type="text" id="sec_admin_user" value="" autocomplete="off" placeholder="Имя пользователя">
+                        </div>
 <div class="form-group">
                         <label>Глобальный пароль администратора:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_admin_pass" value="" autocomplete="new-password" placeholder="Введите собственное значение">
+                            <input type="password" id="sec_admin_pass" value="" autocomplete="new-password" placeholder="Введите пароль администратора">
                         </div>
                     </div>
-                    <div class="form-group">
+                    
+</div>
+
+<div class="form-group">
                         <label>Email (для генерации SSL-сертификатов через Certbot):</label>
                         <input type="text" id="sec_email" value="" placeholder="admin@example.org">
                     </div>
@@ -285,34 +307,50 @@
 
                     <div class="form-section-title">5. Настройки СУБД PostgreSQL и Redis</div>
                     
+
+<div class="form-field-grid">
+                        <div class="form-subsection-title">Учётные данные PostgreSQL и Redis</div>
+                        <div class="form-group">
+                            <label>Пользователь PostgreSQL:</label>
+                            <input type="text" id="sec_pg_user" value="" autocomplete="off" placeholder="Имя пользователя PostgreSQL">
+                        </div>
 <div class="form-group">
                         <label>Пароль суперпользователя Postgres:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_pg_pass" value="" autocomplete="new-password" placeholder="Сгенерируется автоматически">
+                            <input type="password" id="sec_pg_pass" value="" autocomplete="new-password" placeholder="Введите пароль PostgreSQL">
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Пароль Redis для Nextcloud:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_redis_pass" value="" autocomplete="new-password" placeholder="Сгенерируется автоматически">
+                            <input type="password" id="sec_redis_pass" value="" autocomplete="new-password" placeholder="Введите собственное значение">
                         </div>
                     </div>
 
-                    <div class="form-section-title">6. Безопасность и бэкапы</div>
-                    <small>Endpoint и регион S3, префиксы резервных копий, имя администратора и пользователь PostgreSQL задаются автоматически.</small>
-                    <div class="form-group">
+                    
+</div>
+
+<div class="form-section-title">6. Безопасность и бэкапы</div>
+                    <small>Endpoint и регион S3, а также префиксы резервных копий задаются автоматически. Имя администратора и пользователь PostgreSQL указываются выше.</small>
+                    
+<div class="form-field-grid">
+                        <div class="form-subsection-title">Пароли и ключи приложений</div>
+<div class="form-group">
                         <label>Пароль админ-панели Vaultwarden:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_vw_admin_pass" value="" autocomplete="new-password" placeholder="Сгенерируется автоматически">
+                            <input type="password" id="sec_vw_admin_pass" value="" autocomplete="new-password" placeholder="Введите собственное значение">
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Homebox ключ:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_hbox_pepper" value="" autocomplete="new-password" placeholder="Сгенерируется автоматически">
+                            <input type="password" id="sec_hbox_pepper" value="" autocomplete="new-password" placeholder="Введите собственное значение">
                         </div>
                     </div>
                     
+
+</div>
+
 <div class="form-group">
                         <label>Публичный SSH-ключ для установки на серверы:</label>
                         <input type="text" id="sec_public_ssh_key" value="" placeholder="Публичный ключ из пары ниже">
@@ -325,7 +363,7 @@
                     <div class="form-group">
                         <label>Фраза шифрования borgmatic:</label>
                         <div class="password-wrapper">
-                            <input type="password" id="sec_borg_pass" placeholder="Введите фразу шифрования" autocomplete="new-password">
+                            <input type="password" id="sec_borg_pass" placeholder="Парольная фраза для шифрования бэкапов" autocomplete="new-password">
                         </div>
                     </div>
                     
@@ -336,6 +374,9 @@
                     </div>
                     
 
+
+<div class="form-field-grid">
+                        <div class="form-subsection-title">Доступ к хранилищу S3</div>
 <div class="form-group">
                         <label>Имя приватного S3-бакета:</label>
                         <input type="text" id="sec_s3_bucket" value="" placeholder="Имя вашего приватного бакета">
@@ -349,6 +390,9 @@
                         <input type="password" id="sec_s3_secret_key" autocomplete="new-password" placeholder="Secret Access Key">
                     </div>
                     
+
+
+</div>
 
 <div class="form-section-title">7. Hermes Agent (API и панель Edge)</div>
                     <div class="form-group">

@@ -58,6 +58,7 @@ func validateDeploymentValues(values map[string]string, option int) error {
 	}
 
 	required := []string{
+		"admin_user",
 		"admin_password",
 		"ssh_private_key",
 		"borgmatic_encryption_passphrase",
@@ -82,6 +83,7 @@ func validateDeploymentValues(values map[string]string, option int) error {
 			"server_name",
 			"email",
 			"webnames_apikey",
+			"postgres_user",
 			"postgres_password",
 			"nextcloud_redis_pass",
 			"secret_vaultwarden_password",

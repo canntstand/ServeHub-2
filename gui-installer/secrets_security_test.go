@@ -19,11 +19,13 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 		"local_ssh_password": "",
 		"local_sudo_password": "",
 		"server_name": "server.infra-test.net",
+		"admin_user": "myadmin",
 		"admin_password": "x",
 		"email": "not-an-email",
 		"telegram_token": "x",
 		"telegram_chat_id": "not-a-number",
 		"webnames_apikey": "x",
+		"postgres_user": "postgres_user",
 		"postgres_password": "x",
 		"nextcloud_redis_pass": "x",
 		"secret_vaultwarden_password": "x",
@@ -52,6 +54,7 @@ func TestValidateDeploymentChecksPresenceOnly(t *testing.T) {
 	}
 
 	for _, key := range []string{
+		"admin_user",
 		"admin_password",
 		"ssh_private_key",
 		"borgmatic_encryption_passphrase",
@@ -65,6 +68,7 @@ func TestValidateDeploymentChecksPresenceOnly(t *testing.T) {
 		"server_name",
 		"email",
 		"webnames_apikey",
+		"postgres_user",
 		"postgres_password",
 		"nextcloud_redis_pass",
 		"secret_vaultwarden_password",
