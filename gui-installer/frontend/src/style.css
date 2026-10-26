@@ -1,8 +1,9 @@
 @font-face {
-    font-family: 'Cascadia';
-    src: url("assets/fonts/CascadiaCode-Medium.ttf") format("truetype");
-    font-weight: normal;
+    font-family: 'Cascadia Code';
+    src: url("./assets/fonts/CascadiaCode-Medium.ttf") format("truetype");
+    font-weight: 400;
     font-style: normal;
+    font-display: swap;
 }
 
 :root {
@@ -37,7 +38,7 @@ body {
     background: linear-gradient(135deg, #16181B 0%, #202327 60%, #2C3036 100%);
     background-attachment: fixed;
     color: var(--text-secondary);
-    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
+    font-family: 'Cascadia Code', 'Cascadia Code', 'Cascadia', monospace;
     margin: 0;
     padding: 0;
     height: 100vh;
@@ -230,7 +231,7 @@ button {
 .github-link {
     color: var(--text-secondary);
     text-decoration: none;
-    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
+    font-family: 'Cascadia Code', 'Cascadia Code', 'Cascadia', monospace;
     font-size: 13px;
     opacity: 0.7;
     transition: opacity 0.2s ease, color 0.2s ease;
@@ -373,7 +374,7 @@ textarea {
     border-radius: var(--radius);
     color: var(--text-primary);
     padding: 10px 12px;
-    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
+    font-family: 'Cascadia Code', 'Cascadia Code', 'Cascadia', monospace;
     font-size: 13px;
     box-sizing: border-box;
     resize: vertical;
@@ -675,7 +676,7 @@ textarea:focus {
 .window-title {
     font-size: 12px;
     color: var(--text-muted);
-    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
+    font-family: 'Cascadia Code', 'Cascadia Code', 'Cascadia', monospace;
     user-select: none;
     pointer-events: none;
     letter-spacing: 0.4px;
@@ -822,7 +823,7 @@ textarea:focus {
     border-radius: 0;
     overflow-y: auto;
     color: #E9E6E1;
-    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
+    font-family: 'Cascadia Code', 'Cascadia Code', 'Cascadia', monospace;
     font-size: 12px;
     line-height: 1.6;
     user-select: text;
@@ -968,7 +969,7 @@ textarea:focus {
     color: var(--accent-soft);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
+    font-family: 'Cascadia Code', 'Cascadia Code', 'Cascadia', monospace;
     font-size: 11.5px;
 }
 
@@ -1045,7 +1046,7 @@ textarea:focus {
     transition: opacity 0.2s ease, visibility 0.2s ease;
     pointer-events: none;
     white-space: normal;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: 'Cascadia Code', 'Cascadia Code', 'Cascadia', monospace;
 }
 
 .tooltip-content::after {
@@ -1064,7 +1065,7 @@ textarea:focus {
     padding: 2px 4px;
     border-radius: 4px;
     color: var(--accent-soft);
-    font-family: 'Segoe UI', 'Aptos', system-ui, sans-serif;
+    font-family: 'Cascadia Code', 'Cascadia Code', 'Cascadia', monospace;
     font-size: 11px;
 }
 
@@ -1373,7 +1374,7 @@ body {
     display:block;
     background:linear-gradient(145deg,#16181B 0%,#1B1E22 58%,#24282D 100%);
     color:var(--text-secondary);
-    font-family:'Segoe UI','Aptos',system-ui,sans-serif;
+    font-family:'Cascadia Code','Cascadia',monospace;
 }
 #app {
     width:100%; height:100vh; min-height:0;
@@ -1416,7 +1417,7 @@ body {
 .step-dot { width:8px; height:8px; background:#26292E; border:1px solid rgba(233,230,225,.22); box-shadow:none; }
 .step-dot.completed { background:#8F9E89; border-color:#8F9E89; }
 .step-dot.active { width:10px; height:10px; background:var(--accent); border-color:var(--accent); box-shadow:0 0 0 3px rgba(196,178,156,.13); }
-.step-progress-label { margin-top:0; color:#C7C3BC; font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-size:12px; font-weight:550; letter-spacing:.1px; text-align:left; }
+.step-progress-label { margin-top:0; color:#C7C3BC; font-family:'Cascadia Code','Cascadia',monospace; font-size:12px; font-weight:550; letter-spacing:.1px; text-align:left; }
 #step-progress-current,#step-progress-title { color:#E9E6E1; font-weight:650; }
 
 /* No fixed-height, rounded "window in the window": one document scroll region instead. */
@@ -1434,14 +1435,14 @@ body {
 .form-container .form-section-title:first-child { margin-top:0; }
 .form-container>small { display:block; margin:2px 0 12px; line-height:1.6; color:var(--text-muted); }
 .form-group { min-width:0; margin-bottom:15px; animation:none; }
-.form-group label { margin-bottom:7px; color:#CBC5BA; font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-size:12px; letter-spacing:0; line-height:1.45; }
+.form-group label { margin-bottom:7px; color:#CBC5BA; font-family:'Cascadia Code','Cascadia',monospace; font-size:12px; letter-spacing:0; line-height:1.45; }
 .form-group input,.form-container textarea,.version-picker input[type="text"],.version-picker select,.install-directory-controls input {
     width:100%; min-width:0; color:var(--text-primary); background:#202327;
     border:1px solid rgba(233,230,225,.13); border-radius:7px; padding:11px 13px;
-    font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-size:13px; box-sizing:border-box;
+    font-family:'Cascadia Code','Cascadia',monospace; font-size:13px; box-sizing:border-box;
     transition:border-color .18s ease,background .18s ease,box-shadow .18s ease;
 }
-.form-container textarea { font-family:'Cascadia',ui-monospace,Consolas,monospace; line-height:1.55; resize:vertical; }
+.form-container textarea { font-family:'Cascadia Code','Cascadia',ui-monospace,Consolas,monospace; line-height:1.55; resize:vertical; }
 .form-group input:hover,.form-container textarea:hover,.version-picker input[type="text"]:hover,.version-picker select:hover { border-color:rgba(196,178,156,.35); }
 input:focus,select:focus,textarea:focus { border-color:var(--accent)!important; background:#25292F; outline:none; box-shadow:0 0 0 3px rgba(196,178,156,.1); }
 .form-group small { margin-top:6px; line-height:1.5; font-size:11px; color:var(--text-muted); }
@@ -1450,7 +1451,7 @@ input:focus,select:focus,textarea:focus { border-color:var(--accent)!important; 
 #step-1 .version-picker { width:100%; max-width:none; margin:0; padding:0; background:transparent; border:0; border-radius:0; text-align:left; }
 #step-1 .install-directory-settings { margin:0 0 18px; padding:0 0 16px; border-bottom:1px solid rgba(196,178,156,.17); }
 #step-1 .project-action-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:12px 0 18px; padding:0; border:0; }
-#step-1 .project-action-list legend { grid-column:1/-1; padding:0; margin-bottom:5px; color:var(--text-primary); font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-size:13px; font-weight:650; }
+#step-1 .project-action-list legend { grid-column:1/-1; padding:0; margin-bottom:5px; color:var(--text-primary); font-family:'Cascadia Code','Cascadia',monospace; font-size:13px; font-weight:650; }
 #step-1 .project-action-option { min-width:0; min-height:86px; padding:13px 14px; border:1px solid rgba(233,230,225,.11); border-radius:9px; background:rgba(233,230,225,.025); }
 #step-1 .project-action-option:hover { border-color:rgba(196,178,156,.36); background:rgba(196,178,156,.055); }
 #step-1 .project-action-option:has(input:checked) { border-color:rgba(196,178,156,.64); background:rgba(196,178,156,.09); box-shadow:inset 0 0 0 1px rgba(196,178,156,.12); }
@@ -1476,16 +1477,16 @@ input:focus,select:focus,textarea:focus { border-color:var(--accent)!important; 
 .button-group button { min-width:128px; }
 .btn-primary,.btn-primary.btn-accent,.btn-accent {
     background:#C4B29C; color:#16181B; border:1px solid #C4B29C; border-radius:7px;
-    font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-weight:700; padding:11px 22px;
+    font-family:'Cascadia Code','Cascadia',monospace; font-weight:700; padding:11px 22px;
 }
 .btn-primary:hover:not(:disabled),.btn-primary.btn-accent:hover:not(:disabled),.btn-accent:hover:not(:disabled) { background:#D2C2AB; border-color:#D2C2AB; color:#16181B; }
 .btn-primary:disabled { color:#969188; border-color:rgba(233,230,225,.1)!important; background:rgba(233,230,225,.035)!important; }
-.btn-secondary { border:1px solid rgba(233,230,225,.17); color:#C7C3BC; background:transparent; border-radius:7px; padding:10px 18px; font-family:'Segoe UI','Aptos',system-ui,sans-serif; font-size:13px; }
+.btn-secondary { border:1px solid rgba(233,230,225,.17); color:#C7C3BC; background:transparent; border-radius:7px; padding:10px 18px; font-family:'Cascadia Code','Cascadia',monospace; font-size:13px; }
 .btn-secondary:hover:not(:disabled) { color:#E9E6E1; border-color:rgba(196,178,156,.54); background:rgba(196,178,156,.06); }
 .version-summary { font-size:12px; line-height:1.6; }
 .sensitive-yaml-warning { max-width:none; margin:0 0 16px; padding:13px 16px; border-left:3px solid #C4B29C; background:rgba(196,178,156,.075); color:#E9E6E1; border-radius:0 8px 8px 0; line-height:1.65; }
 .preview-container { width:100%; height:min(52vh,660px); max-height:none; min-height:260px; background:#191B1F; border:1px solid rgba(196,178,156,.2); border-radius:8px; }
-#yaml-preview { font-family:'Cascadia',ui-monospace,Consolas,monospace; color:#E9E6E1; overflow-wrap:anywhere; word-break:normal; }
+#yaml-preview { font-family:'Cascadia Code','Cascadia',ui-monospace,Consolas,monospace; color:#E9E6E1; overflow-wrap:anywhere; word-break:normal; }
 #step-6 .form-container { display:block; padding:2px 0 10px; }
 #step-6 .options-group-block { margin:0 0 22px; }
 #step-6 .options-group-title { padding-left:12px; border-left:3px solid var(--accent); color:#E9E6E1; letter-spacing:.25px; text-transform:none; font-size:13px; }
@@ -1496,14 +1497,14 @@ input:focus,select:focus,textarea:focus { border-color:var(--accent)!important; 
 #step-6 .option-title { color:#E9E6E1; font-size:13px; font-weight:700; }
 #step-6 .option-desc { color:#B7B4AE; font-size:12px; line-height:1.6; }
 .verbose-logs-toggle { margin-top:16px; justify-content:flex-start; }
-.github-link { font-family:'Segoe UI','Aptos',system-ui,sans-serif; }
+.github-link { font-family:'Cascadia Code','Cascadia',monospace; }
 .post-deploy-guide { margin-top:25px; }
 .guide-header { text-align:left; }
-.guide-title { color:var(--text-primary); font-family:'Segoe UI','Aptos',system-ui,sans-serif; }
+.guide-title { color:var(--text-primary); font-family:'Cascadia Code','Cascadia',monospace; }
 .guide-scroll { max-height:none; overflow-y:visible; padding-right:0; }
 .guide-section { border-color:rgba(196,178,156,.16); border-radius:8px; }
 .guide-section[open] { border-color:rgba(196,178,156,.36); }
-.guide-section summary { font-family:'Segoe UI','Aptos',system-ui,sans-serif; }
+.guide-section summary { font-family:'Cascadia Code','Cascadia',monospace; }
 .guide-section summary::after { color:var(--accent); }
 input,select,textarea,pre,code { user-select:text; }
 input[type="checkbox"],input[type="radio"] { accent-color:var(--accent); }
@@ -1539,4 +1540,320 @@ input[type="checkbox"],input[type="radio"] { accent-color:var(--accent); }
     .button-group { flex-direction:column-reverse; align-items:stretch; }
     .button-group button { width:100%; }
     .preview-container { height:44vh; min-height:210px; }
+}
+
+
+/* Cascadia Code is shipped with the frontend, so avoid depending on host fonts. */
+html, body, button, input, select, textarea, option, label, small, p, span, div,
+legend, summary, code, pre, .step-progress-label, .window-title, .tooltip-content {
+    font-family: 'Cascadia Code', 'Cascadia', monospace !important;
+}
+input, select, textarea, button {
+    font-size: 12px;
+    line-height: 1.5;
+}
+input, select, textarea {
+    min-width: 0;
+    max-width: 100%;
+}
+button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 38px;
+    max-width: 100%;
+    line-height: 1.4;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+button svg, button .icon, .btn-icon {
+    flex: 0 0 auto;
+    display: block;
+}
+.window-drag-zone {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.window-title {
+    flex: 0 0 auto;
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    justify-content: center;
+}
+.window-brand-icon {
+    display: block;
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    flex: 0 0 30px;
+}
+.window-controls {
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+}
+.window-controls button {
+    width: 32px;
+    min-width: 32px;
+    height: 30px;
+    min-height: 30px;
+    padding: 0;
+    gap: 0;
+    flex: 0 0 auto;
+}
+#app {
+    min-width: 0;
+    padding-left: clamp(18px, 2.5vw, 42px);
+    padding-right: clamp(18px, 2.5vw, 42px);
+}
+.step.active, .welcome-container, .form-container, .version-picker,
+.preview-container, .status-box, .post-deploy-guide {
+    min-width: 0;
+    max-width: 100%;
+}
+.form-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: clamp(20px, 2.5vw, 36px);
+    row-gap: 0;
+    align-items: start;
+}
+.form-container > .form-section-title,
+.form-container > small,
+.form-container > .options-group-block {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+.form-section-title {
+    width: 100%;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+.form-group {
+    width: 100%;
+    min-width: 0;
+    margin: 0 0 18px;
+    gap: 7px;
+}
+.form-group label {
+    display: block;
+    width: 100%;
+    margin: 0;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+.form-group input,
+.form-container textarea,
+.form-group select,
+.version-picker input[type="text"],
+.version-picker select,
+.install-directory-controls input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    line-height: 1.5;
+}
+.password-wrapper, .secret-field-control, .secret-textarea-control {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    gap: 8px;
+}
+.password-wrapper input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.password-toggle, .secret-visibility-toggle {
+    flex: 0 0 auto;
+    min-width: 36px;
+    min-height: 34px;
+    margin: 0;
+    padding: 6px 8px;
+}
+.secret-textarea-control textarea, .secret-field-control input {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.form-group small {
+    display: block;
+    width: 100%;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+.install-directory-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 10px;
+    align-items: stretch;
+}
+.install-directory-controls input {
+    min-width: 0;
+}
+.install-directory-controls button {
+    min-width: 0;
+    padding: 8px 13px;
+}
+.project-action-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+}
+.project-action-option input[type="radio"] {
+    flex: 0 0 auto;
+    margin: 3px 0 0;
+}
+.project-action-option span,
+.project-action-option strong,
+.project-action-option small {
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.project-action-option strong {
+    line-height: 1.5;
+}
+.project-action-option small {
+    margin-top: 5px;
+    line-height: 1.55;
+}
+.options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    align-items: stretch;
+}
+.deploy-option-card {
+    min-width: 0;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 17px;
+}
+.option-title, .option-desc {
+    width: 100%;
+    min-width: 0;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+.button-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.button-group button {
+    flex: 0 1 auto;
+    min-width: 130px;
+    min-height: 40px;
+    padding: 10px 16px;
+}
+.button-group button:only-child {
+    margin-left: auto;
+}
+#step-7 .button-group {
+    align-items: center;
+}
+#step-7 .button-group #btn-deploy-enter {
+    margin-right: 0 !important;
+}
+#step-5 .preview-container {
+    min-width: 0;
+    max-width: 100%;
+}
+#yaml-preview {
+    min-width: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+.tooltip-content {
+    max-width: min(320px, calc(100vw - 36px));
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+}
+.step-progress-label {
+    max-width: 100%;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+@media (max-width: 980px) {
+    .form-container {
+        column-gap: 20px;
+    }
+    #step-1 .project-action-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .install-directory-controls {
+        grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
+    }
+    .install-directory-controls input {
+        grid-column: 1 / -1;
+    }
+}
+@media (max-width: 760px) {
+    .form-container {
+        grid-template-columns: minmax(0, 1fr);
+        column-gap: 0;
+    }
+    .form-container > .form-section-title,
+    .form-container > small,
+    .form-container > .options-group-block {
+        grid-column: 1;
+    }
+    .options-grid, #step-1 .project-action-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .deployment-summary {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 10px;
+    }
+    .button-group {
+        justify-content: stretch;
+    }
+    .button-group button {
+        flex: 1 1 140px;
+    }
+}
+@media (max-width: 480px) {
+    .window-title {
+        width: 34px;
+        min-width: 34px;
+    }
+    .window-brand-icon {
+        width: 26px;
+        height: 26px;
+        flex-basis: 26px;
+    }
+    .install-directory-controls {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .install-directory-controls input {
+        grid-column: 1;
+    }
+    .button-group {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+    .button-group button {
+        width: 100%;
+        min-width: 0;
+        flex: 0 0 auto;
+    }
+    .options-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
