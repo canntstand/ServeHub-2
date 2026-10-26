@@ -1232,15 +1232,11 @@ window.initializeProjectVersions = async function(preserveChoice = false) {
     try {
         const result = await GetProjectVersions();
         if (!result.success) throw new Error(result.message || 'GitHub не вернул список версий.');
-        const previousSHA = resolvedProjectCommitSHA;
         projectVersionCatalog = result;
         projectInstallState = result.installed;
         populateProjectVersionChoices(result, preserveChoice);
         renderInstalledProjectState(result.installed, !preserveChoice);
         projectVersionsLoaded = true;
-        if (preserveChoice && previousSHA) {
-            resolvedProjectCommitSHA = previousSHA;
-        }
         window.updateProjectVersionPreview();
     } catch (error) {
         projectVersionsLoaded = false;
