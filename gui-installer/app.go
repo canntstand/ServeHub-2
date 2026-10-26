@@ -52,6 +52,45 @@ func NewApp() *App {
 	return &App{}
 }
 
+func writeEdgePreflightPlaybook(projectDir string) (string, func(), error) {
+	ansibleDir := filepath.Join(projectDir, "ansible")
+	info, err := os.Stat(ansibleDir)
+	if err != nil || !info.IsDir() {
+		if err == nil {
+			err = fmt.Errorf("%s is not a directory", ansibleDir)
+		}
+		return "", nil, fmt.Errorf("не удалось подготовить предварительную проверку Edge: %w", err)
+	}
+
+	file, err := os.CreateTemp(ansibleDir, ".servehub-preflight-edge-*.yml")
+	if err != nil {
+		return "", nil, fmt.Errorf("не удалось создать временный сценарий проверки Edge: %w", err)
+	}
+	path := file.Name()
+	cleanupFile := func() { _ = os.Remove(path) }
+
+	if err := file.Chmod(0600); err != nil {
+		_ = file.Close()
+		cleanupFile()
+		return "", nil, fmt.Errorf("не удалось ограничить права временного сценария проверки Edge: %w", err)
+	}
+	if _, err := file.Write(edgePreflightPlaybook); err != nil {
+		_ = file.Close()
+		cleanupFile()
+		return "", nil, fmt.Errorf("не удалось записать временный сценарий проверки Edge: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		cleanupFile()
+		return "", nil, fmt.Errorf("не удалось закрыть временный сценарий проверки Edge: %w", err)
+	}
+
+	// The selected ServeHub-2 tag may predate this prerequisite playbook.
+	// Place the embedded copy in the selected project only for the duration
+	// of this run, without requiring every historical tag to contain the file.
+	relativePath := filepath.ToSlash(filepath.Join("ansible", filepath.Base(path)))
+	return relativePath, cleanupFile, nil
+}
+
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
@@ -174,9 +213,15 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 	}
 
 	// Local-only deployment still depends on an already running Edge/VPS.
-	// Run its read-only prerequisite checks before starting any Workload playbook.
+	// Materialize the embedded, read-only preflight so this also works when the
+	// selected project tag predates the addition of the preflight playbook.
 	if option == 3 || option == 4 {
-		preflightCmd := fmt.Sprintf("ansible-playbook -i ansible/inventory.ini ansible/preflight_edge.yml%s", debugArgs)
+		preflightPath, cleanupPreflight, err := writeEdgePreflightPlaybook(projectDir)
+		if err != nil {
+			return CheckResult{Success: false, Message: err.Error()}
+		}
+		defer cleanupPreflight()
+		preflightCmd := fmt.Sprintf("ansible-playbook -i ansible/inventory.ini %s%s", preflightPath, debugArgs)
 		steps = append([]string{preflightCmd}, steps...)
 	}
 
