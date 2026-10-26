@@ -538,6 +538,33 @@ window.sendEnterToAnsible = async function() {
     }
 }
 
+function validateSelectedBootstrapCredentials(option) {
+    const targets = [];
+    if (option === 1 || option === 5) targets.push('vps');
+    if (option === 1 || option === 3) targets.push('local');
+
+    for (const server of targets) {
+        const label = server === 'vps' ? 'VPS' : 'домашнего сервера';
+        const selectedMode = bootstrapAuthModes[server] || 'root';
+        const credentialKeys = selectedMode === 'root'
+            ? [BOOTSTRAP_AUTH_FIELDS[server].root]
+            : BOOTSTRAP_AUTH_FIELDS[server].user;
+
+        for (const key of credentialKeys) {
+            const field = document.getElementById(SECRETS_FIELD_MAP[key]);
+            if (!String(field?.value ?? '').trim()) {
+                const credentialName = key.endsWith('_root_password')
+                    ? 'пароль root'
+                    : key.endsWith('_ssh_password')
+                        ? 'SSH-пароль пользователя'
+                        : 'пароль sudo пользователя';
+                return `${label}: выбран режим "${selectedMode === 'root' ? 'root' : 'обычный пользователь'}"; заполните поле "${credentialName}".`;
+            }
+        }
+    }
+    return '';
+}
+
 window.confirmDeployment = async function() {
     if (selectedOptionNum === 0) return;
     const nextButton = document.getElementById('btn-deploy-next');
@@ -546,6 +573,12 @@ window.confirmDeployment = async function() {
         nextButton.innerText = 'Проверка конфигурации...';
     }
     try {
+        const credentialError = validateSelectedBootstrapCredentials(selectedOptionNum);
+        if (credentialError) {
+            alert(credentialError);
+            goToStep(4);
+            return;
+        }
         const validation = await ValidateDeploymentSecrets(generatedSecretUpdates, selectedOptionNum);
         if (!validation.success) {
             alert('Заполните обязательные поля выбранного сценария: ' + validation.message);
