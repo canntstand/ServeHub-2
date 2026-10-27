@@ -223,10 +223,10 @@
 <div class="form-field-grid">
                         <div class="form-subsection-title">Учётные данные VPS для bootstrap</div>
                     <div class="form-group bootstrap-auth-selector">
-                        <label for="sec_vps_auth_mode">Способ начального подключения:</label>
+                        <label class="sr-only" for="sec_vps_auth_mode">Способ начального подключения</label>
                         <select id="sec_vps_auth_mode" onchange="setBootstrapAuthMode('vps', this.value)">
-                            <option value="root">Вход под root</option>
-                            <option value="user">Обычный пользователь с sudo</option>
+                            <option value="root">Способ начального подключения: Вход под root</option>
+                            <option value="user">Способ начального подключения: Обычный пользователь с sudo</option>
                         </select>
                     </div>
                     <div class="form-group bootstrap-auth-field" data-bootstrap-auth="vps:root">
@@ -264,10 +264,10 @@
 <div class="form-field-grid">
                         <div class="form-subsection-title">Учётные данные домашнего сервера для bootstrap</div>
                     <div class="form-group bootstrap-auth-selector">
-                        <label for="sec_local_auth_mode">Способ начального подключения:</label>
+                        <label class="sr-only" for="sec_local_auth_mode">Способ начального подключения</label>
                         <select id="sec_local_auth_mode" onchange="setBootstrapAuthMode('local', this.value)">
-                            <option value="root">Вход под root</option>
-                            <option value="user">Обычный пользователь с sudo</option>
+                            <option value="root">Способ начального подключения: Вход под root</option>
+                            <option value="user">Способ начального подключения: Обычный пользователь с sudo</option>
                         </select>
                     </div>
                     <div class="form-group bootstrap-auth-field" data-bootstrap-auth="local:root">
