@@ -149,7 +149,7 @@ func redactSensitiveLogLine(line string, values map[string]string) string {
 	const tunnelPrefix = "ssh -L 8000:127.0.0.1:51821 "
 	if strings.HasPrefix(trimmed, tunnelPrefix) {
 		target := strings.TrimSpace(strings.TrimPrefix(trimmed, tunnelPrefix))
-		if target != "" && !strings.ContainsAny(target, " \\t\\r\\n") && strings.Count(target, "@") == 1 {
+		if target != "" && !strings.ContainsAny(target, " \t\r\n") && strings.Count(target, "@") == 1 {
 			return line
 		}
 	}
