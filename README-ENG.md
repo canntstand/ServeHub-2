@@ -142,3 +142,8 @@ The finished package servehub-installer.deb will be saved in gui-installer/build
 ## Documentation
 
 Guides for architecture, installation, components, operations, security, and troubleshooting are available in [`docs/`](docs/README-ENG.md). Documentation files are marked as AI-generated.
+
+
+## Documentation
+
+Architecture, installation, component, and backup guides are available in [`docs/`](docs/README-ENG.md). Documentation files are marked as AI-generated.
