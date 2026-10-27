@@ -606,16 +606,22 @@ function validateSelectedBootstrapCredentials(option) {
     if (option === 1 || option === 5) targets.push('vps');
     if (option === 1 || option === 3) targets.push('local');
 
+    // Validate the effective values that will be written to secrets.yml,
+    // rather than reading hidden form controls independently.
+    const values = collectSecretFormValues();
+
     for (const server of targets) {
         const label = server === 'vps' ? 'VPS' : 'домашнего сервера';
         const selectedMode = bootstrapAuthModes[server] || 'root';
+        const authFields = BOOTSTRAP_AUTH_FIELDS[server];
         const credentialKeys = selectedMode === 'root'
-            ? [BOOTSTRAP_AUTH_FIELDS[server].root]
-            : BOOTSTRAP_AUTH_FIELDS[server].user;
+            ? [authFields.root]
+            : separateSudoPasswords[server]
+                ? authFields.user
+                : [authFields.user[0]];
 
         for (const key of credentialKeys) {
-            const field = document.getElementById(SECRETS_FIELD_MAP[key]);
-            if (!String(field?.value ?? '').trim()) {
+            if (!String(values[key] ?? '').trim()) {
                 const credentialName = key.endsWith('_root_password')
                     ? 'пароль root'
                     : key.endsWith('_ssh_password')
