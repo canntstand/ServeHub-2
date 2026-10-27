@@ -6,8 +6,6 @@ import (
 	"unicode/utf8"
 )
 
-// isUnsafeDefaultValue is used when preserving/editing older secrets.yml files.
-// It is not an input validator: it only identifies known template placeholders.
 func isUnsafeDefaultValue(value string) bool {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
@@ -51,8 +49,6 @@ func requireBootstrapCredentials(values map[string]string, prefix, label string)
 	return fmt.Errorf("%s: заполните %s либо одновременно %s и %s", label, rootKey, sshKey, sudoKey)
 }
 
-// validateDeploymentValues checks required values and wg-easy's minimum
-// administrator password length. Other detailed format checks remain separate.
 func validateDeploymentValues(values map[string]string, option int) error {
 	if option < 1 || option > 6 {
 		return fmt.Errorf("неизвестный сценарий деплоя: %d", option)

@@ -135,8 +135,6 @@ func TestValidateDeploymentChecksHermesOnlyForVPSTargets(t *testing.T) {
 		t.Fatalf("local-only deployment must not require Edge application credentials: %v", err)
 	}
 
-	// A VPS/Edge deployment independently requires Telegram credentials.
-	// Populate them here so this assertion specifically exercises the Hermes API key.
 	values["telegram_token"] = "123456789:some-valid-test-token-material"
 	values["telegram_chat_id"] = "-1001234567890"
 	if err := validateDeploymentValues(values, 6); err == nil || !strings.Contains(err.Error(), "hermes_api_key") {

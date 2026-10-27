@@ -85,8 +85,6 @@ type installerPreferences struct {
 	ProjectDirectory string `json:"project_directory"`
 }
 
-// projectDirectoryHasMarkers distinguishes a ServeHub-2 directory (including a
-// partial download) from an unrelated folder such as the user's home directory.
 func projectDirectoryHasMarkers(directory string) bool {
 	markers := []string{
 		".servehub-version.json",
@@ -106,9 +104,6 @@ func projectDirectoryHasMarkers(directory string) bool {
 	return false
 }
 
-// validateProjectInstallTarget prevents the installer from treating an arbitrary
-// non-empty user directory as an incomplete installation or overwriting its files.
-// A missing or empty directory is a valid fresh-install target.
 func validateProjectInstallTarget(directory string) error {
 	info, err := os.Lstat(directory)
 	if os.IsNotExist(err) {
@@ -133,8 +128,6 @@ func validateProjectInstallTarget(directory string) error {
 	return nil
 }
 
-// existingDirectoryForDialog returns the nearest existing directory so native
-// file dialogs do not fail when the preferred installation target is not created yet.
 func existingDirectoryForDialog(candidate string) (string, error) {
 	candidate = filepath.Clean(strings.TrimSpace(candidate))
 	if candidate == "." || candidate == "" {
@@ -305,8 +298,6 @@ func saveProjectInstallDirectory(value string) error {
 	return nil
 }
 
-// configuredProjectInstallDirectory reads the persisted path first. A cwd-based
-// path is only a one-time compatibility fallback for older installer versions.
 func configuredProjectInstallDirectory() (string, error) {
 	configPath, err := preferencesFilePath()
 	if err != nil {
@@ -325,9 +316,6 @@ func configuredProjectInstallDirectory() (string, error) {
 		if normalizeErr != nil {
 			return "", normalizeErr
 		}
-		// Older/broken preferences sometimes point at the home directory itself.
-		// Unless it actually contains ServeHub-2, migrate to the intended child
-		// directory instead of classifying the user's entire home as a partial install.
 		home, homeErr := os.UserHomeDir()
 		if homeErr == nil {
 			homeAbs, homeAbsErr := filepath.Abs(home)
@@ -457,9 +445,6 @@ func (a *App) ChooseProjectInstallDirectory() ProjectInstallDirectoryResult {
 	return result
 }
 
-// projectInstallDirectoryFromSelection treats the selected directory as the
-// parent of the project folder. Selecting the project folder itself is also
-// supported, so "ServeHub-2" is never appended twice.
 func projectInstallDirectoryFromSelection(selected string) (string, error) {
 	selected = strings.TrimSpace(selected)
 	if selected == "" {
@@ -631,8 +616,6 @@ func resolveProjectVersion(mode, ref, enteredSHA string) (ProjectVersionResoluti
 	}
 }
 
-// GetProjectVersions returns published releases, Git tags, the current dev tip,
-// and the locally installed version without changing any files.
 func (a *App) GetProjectVersions() ProjectVersionsResult {
 	directory, directoryErr := configuredProjectInstallDirectory()
 	if directoryErr != nil {
@@ -709,8 +692,6 @@ func (a *App) GetProjectVersions() ProjectVersionsResult {
 	return result
 }
 
-// ResolveProjectVersion previews and verifies a source before the download begins.
-// expectedSHA is optional for preview calls; installation always requires it.
 func (a *App) ResolveProjectVersion(mode, ref, expectedSHA string) ProjectVersionResolution {
 	resolution, err := resolveProjectVersion(mode, ref, expectedSHA)
 	if err != nil {
@@ -719,8 +700,6 @@ func (a *App) ResolveProjectVersion(mode, ref, expectedSHA string) ProjectVersio
 	return resolution
 }
 
-// InstallProject downloads a resolved commit into a staging directory, verifies
-// the archive and Ansible Git task, then switches the project directory with rollback.
 func (a *App) PerformProjectAction(action, mode, ref, expectedSHA string, confirmReplace, replaceLegacy bool) CheckResult {
 	targetDir, err := configuredProjectInstallDirectory()
 	if err != nil {
@@ -754,8 +733,6 @@ func (a *App) PerformProjectAction(action, mode, ref, expectedSHA string, confir
 	}
 }
 
-// InstallProject remains as a compatibility wrapper for existing Wails bindings.
-// A path containing an installation is never overwritten by the install action.
 func (a *App) InstallProject(mode, ref, expectedSHA string, replaceLegacy bool) CheckResult {
 	targetDir, err := configuredProjectInstallDirectory()
 	if err != nil {
@@ -875,9 +852,6 @@ func installProjectVersion(ctx context.Context, requestedDir, action, mode, ref,
 		return CheckResult{Success: false, Message: "Не удалось подтвердить закрепление версии для серверов: " + err.Error()}
 	}
 
-	// Build the manifest before copying non-colliding user files from the old
-	// installation, so user-created files are preserved but not treated as
-	// repository-owned files for future integrity verification.
 	integritySHA256, err := projectIntegrityFingerprint(projectDir)
 	if err != nil {
 		return CheckResult{Success: false, Message: "Не удалось вычислить контрольную сумму установленного кода: " + err.Error()}
@@ -926,7 +900,6 @@ func installProjectVersion(ctx context.Context, requestedDir, action, mode, ref,
 	}
 	if !state.Exists {
 		if _, targetErr := os.Lstat(targetDir); targetErr == nil {
-			// Only a validated empty directory can exist without a project state.
 			if err := os.Remove(targetDir); err != nil {
 				return CheckResult{Success: false, Message: "Не удалось подготовить пустой каталог установки: " + err.Error() + ". Данные не изменялись."}
 			}
@@ -1302,10 +1275,6 @@ var projectIntegrityExcludedPaths = map[string]struct{}{
 	"docker-compose.override.yaml": {},
 }
 
-// projectIntegrityFingerprint writes a manifest of all regular files from the
-// downloaded project version, excluding user-managed settings. Metadata keeps
-// the SHA-256 of this manifest; verification checks each managed file against
-// it. Non-colliding user files copied during an update stay outside this list.
 func projectIntegrityFingerprint(projectDir string) (string, error) {
 	files := make([]projectIntegrityEntry, 0, 256)
 	err := filepath.WalkDir(projectDir, func(filePath string, entry os.DirEntry, walkErr error) error {
@@ -1476,9 +1445,6 @@ func verifyProjectDirectory(projectDir string) error {
 	return nil
 }
 
-// pinAnsibleRepositoryVersion patches only the Git task that checks out the
-// ServeHub-2 repository. This supports older tags whose playbook omitted the
-// version field or hard-coded "dev"; unknown task layouts are rejected.
 func pinAnsibleRepositoryVersion(deployPath string) (string, error) {
 	content, err := os.ReadFile(deployPath)
 	if err != nil {

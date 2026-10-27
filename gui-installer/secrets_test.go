@@ -541,7 +541,6 @@ func TestMergeSecretUpdatesRemovesInactiveBootstrapCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// VPS selects root; Workload selects the ordinary user.
 	updates := map[string]string{
 		"__delete_auth__vps_ssh_password":   "true",
 		"__delete_auth__vps_sudo_password":  "true",

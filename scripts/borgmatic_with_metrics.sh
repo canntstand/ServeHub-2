@@ -95,8 +95,6 @@ on_exit() {
         restore_services >/dev/null 2>&1 || true
     fi
 
-    # If the safety-net retry restored services after metrics were published,
-    # reflect that recovery immediately rather than leaving a stale restore alert.
     if (( retried_restore && METRICS_PUBLISHED )); then
         LAST_RUN_TIMESTAMP="$(date +%s)"
         if (( BORG_STATUS == 0 && OFFSITE_STATUS == 1 && STACK_RESTORE_STATUS == 1 )); then
@@ -246,7 +244,6 @@ else
             BORG_STATUS=$?
         fi
 
-        # Borg has released its repository lock before the S3 mirror is updated.
         if (( BORG_STATUS == 0 )) && [[ ! -s "$BORG_REPOSITORY/config" ]]; then
             echo "[ERROR] Borgmatic returned success but the local repository config is missing." >&2
             BORG_STATUS=1

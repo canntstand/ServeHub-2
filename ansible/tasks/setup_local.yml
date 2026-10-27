@@ -303,7 +303,6 @@
       IP6T=/usr/sbin/ip6tables
       OUT_IFACE={{ ansible_facts['default_ipv4']['interface'] | quote }}
 
-      # Preserve AmneziaWG forwarding and outbound NAT.
       $IPT -C FORWARD -i awg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -i awg0 -j ACCEPT
       $IPT -C FORWARD -o awg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -o awg0 -j ACCEPT
       $IPT -t nat -C POSTROUTING -s 172.16.0.0/12 -d 10.8.0.0/24 -o awg0 -j MASQUERADE 2>/dev/null || \
@@ -311,7 +310,6 @@
       $IPT -t nat -C POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE 2>/dev/null || \
         $IPT -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE
 
-      # Host INPUT: SSH remains available for Ansible; service ports are VPN-only.
       $IPT -N SERVEHUB_INPUT 2>/dev/null || true
       $IPT -F SERVEHUB_INPUT
       $IPT -A SERVEHUB_INPUT -i lo -j ACCEPT
@@ -319,7 +317,6 @@
       $IPT -A SERVEHUB_INPUT -i awg0 -s 10.8.0.0/24 -p tcp --dport 9100 -j DROP
       $IPT -A SERVEHUB_INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       $IPT -A SERVEHUB_INPUT -p icmp -j ACCEPT
-      # Keep Fail2ban effective even though this chain is inserted before other INPUT rules.
       if $IPT -nL f2b-sshd >/dev/null 2>&1; then
         $IPT -A SERVEHUB_INPUT -p tcp --dport 22 -j f2b-sshd
       fi
@@ -349,7 +346,6 @@
         $IP6T -I INPUT 1 -j SERVEHUB_INPUT_V6
       fi
 
-      # Published Docker ports bypass INPUT through DNAT; constrain them in DOCKER-USER.
       for attempt in {1..30}; do
         $IPT -nL DOCKER-USER >/dev/null 2>&1 && break
         sleep 1

@@ -63,7 +63,7 @@ body {
     overflow: auto;
 }
 
-/* ---------- Steps ---------- */
+
 
 .step {
     display: none;
@@ -92,7 +92,7 @@ body {
     to { opacity: 1; }
 }
 
-/* ---------- Typography ---------- */
+
 
 .brand-title {
     font-size: 36px;
@@ -133,7 +133,7 @@ body {
     text-wrap: pretty;
 }
 
-/* ---------- Buttons ---------- */
+
 
 button {
     font-family: inherit;
@@ -249,7 +249,7 @@ button {
     opacity: 1;
 }
 
-/* ---------- Status ---------- */
+
 
 .status-box {
     background-color: transparent;
@@ -286,7 +286,7 @@ button {
     100% { transform: rotate(360deg); }
 }
 
-/* ---------- Forms ---------- */
+
 
 .form-container {
     width: 100%;
@@ -394,7 +394,7 @@ textarea:focus {
     box-shadow: none;
 }
 
-/* ---------- YAML preview ---------- */
+
 
 .preview-container {
     width: 100%;
@@ -453,7 +453,7 @@ textarea:focus {
     user-select: text;
 }
 
-/* ---------- Deployment options ---------- */
+
 
 .options-group-block {
     margin-bottom: 26px;
@@ -594,7 +594,7 @@ textarea:focus {
     transform: translate(-50%, -50%);
 }
 
-/* ---------- Scrollbars ---------- */
+
 
 ::-webkit-scrollbar {
     width: 6px;
@@ -615,7 +615,7 @@ textarea:focus {
     background: rgba(255, 255, 255, 0.28);
 }
 
-/* ---------- Window chrome ---------- */
+
 
 .window-drag-zone {
     position: absolute;
@@ -678,7 +678,7 @@ textarea:focus {
     opacity: 0.8;
 }
 
-/* ---------- Step progress ---------- */
+
 
 .step-progress {
     position: fixed;
@@ -766,7 +766,7 @@ textarea:focus {
     }
 }
 
-/* ---------- Deploy logs ---------- */
+
 
 #deploy-logs-container {
     resize: both;
@@ -798,7 +798,7 @@ textarea:focus {
     word-break: break-all;
 }
 
-/* ---------- Post-deploy guide ---------- */
+
 
 .post-deploy-guide {
     width: 100%;
@@ -963,7 +963,7 @@ textarea:focus {
     color: #ffc9c9;
 }
 
-/* ---------- Tooltips ---------- */
+
 
 .tooltip-wrapper {
     position: relative;
@@ -1040,7 +1040,7 @@ textarea:focus {
     opacity: 1;
 }
 
-/* ---------- Version selection (welcome step) ---------- */
+
 
 .version-picker {
     width: min(620px, 92vw);
@@ -1150,7 +1150,7 @@ textarea:focus {
     text-align: left;
 }
 
-/* ---------- Install location and project actions ---------- */
+
 
 .install-directory-settings {
     margin: 10px 0 16px;
@@ -1250,7 +1250,7 @@ textarea:focus {
     color: var(--text-primary);
 }
 
-/* ---------- Responsiveness ---------- */
+
 
 @media (max-width: 700px) {
     .install-directory-controls { grid-template-columns: 1fr 1fr; }
@@ -1744,7 +1744,7 @@ button svg, button .icon, .btn-icon {
     }
 }
 
-/* ---------- First-launch welcome screen ---------- */
+
 #step-0 {
     width: 100%;
     max-width: none;
@@ -2016,7 +2016,7 @@ button svg, button .icon, .btn-icon {
     }
 }
 
-/* ---------- Responsive layout and visual polish ---------- */
+
 :root {
     --titlebar-height: 42px;
     --content-gutter: clamp(14px, 3vw, 44px);
@@ -2613,7 +2613,7 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
     }
 }
 
-/* Explicit dependency notice shown only for local-only deployment modes. */
+
 .deployment-dependency-note {
     width: 100%;
     box-sizing: border-box;
@@ -2663,7 +2663,7 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
     }
 }
 
-/* ---------- Collapsible secret-form sections ---------- */
+
 .form-section-card {
     margin: 0 0 10px;
     border: 1px solid var(--border-1);
@@ -2817,7 +2817,7 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
     }
 }
 
-/* Bootstrap credential mode selector */
+
 .bootstrap-auth-field[hidden] {
     display: none !important;
 }
@@ -2854,7 +2854,7 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
     margin-top: 2px;
 }
 
-/* Keep field labels available to assistive technology without repeating the placeholder visually. */
+
 .sr-only {
     position: absolute !important;
     width: 1px !important;

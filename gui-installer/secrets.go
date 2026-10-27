@@ -91,9 +91,6 @@ func isSensitiveSecretField(key string) bool {
 	return false
 }
 
-// redactSensitiveText masks complete secret values and individual lines of
-// multiline secrets (notably PEM/OpenSSH private keys) before diagnostics or
-// process output are forwarded to the UI.
 func redactSensitiveText(text string, values map[string]string) string {
 	candidates := make([]string, 0, len(values)*2)
 	seen := make(map[string]struct{}, len(values)*2)
@@ -118,7 +115,6 @@ func redactSensitiveText(text string, values map[string]string) string {
 			continue
 		}
 		addCandidate(value)
-		// Some tools print multiline values as one escaped string.
 		addCandidate(strings.ReplaceAll(value, "\n", "\\n"))
 		for _, line := range strings.FieldsFunc(value, func(r rune) bool {
 			return r == '\n' || r == '\r'
@@ -136,10 +132,6 @@ func redactSensitiveText(text string, values map[string]string) string {
 	return text
 }
 
-// redactSensitiveLogLine preserves safe operator instructions that include
-// configured usernames in paths or the manual SSH-tunnel command. A username may
-// match a sensitive value (for example, admin_password="admin") and be redacted
-// if these lines are processed like arbitrary command output.
 func redactSensitiveLogLine(line string, values map[string]string) string {
 	trimmed := strings.TrimSpace(line)
 	if strings.HasPrefix(trimmed, "/home/") {
@@ -215,8 +207,6 @@ func validateSecretYAMLNode(node *yaml.Node, location string) error {
 		seen := make(map[string]struct{}, len(node.Content)/2)
 		for i := 0; i < len(node.Content); i += 2 {
 			key := node.Content[i]
-			// YAML permits non-string mapping keys and merge keys in nested
-			// values. The secrets root is validated separately as string-keyed.
 			if key.Kind != yaml.ScalarNode || key.Tag != "!!str" {
 				continue
 			}
@@ -371,9 +361,6 @@ func mergeSecretUpdates(document *yaml.Node, updates map[string]string) error {
 				break
 			}
 		}
-		// A blank form field is not proof that an existing credential should
-		// be removed. Preserve populated secrets unless a replacement is given;
-		// inactive bootstrap credentials use the explicit deletion operation above.
 		if pairIndex >= 0 && isSensitiveSecretField(key) && strings.TrimSpace(value) == "" {
 			oldValue := root.Content[pairIndex+1]
 			if oldValue.Kind != yaml.ScalarNode ||
@@ -506,8 +493,6 @@ func (a *App) LoadSecrets() SecretsResult {
 	}
 }
 
-// PreviewSecrets merges changed form fields into the parsed current configuration.
-// Keys absent from the form, including custom settings and nested YAML, are retained.
 func (a *App) PreviewSecrets(updates map[string]string) SecretsResult {
 	_, document, _, _, err := loadSecretsSource()
 	if err != nil {

@@ -52,7 +52,6 @@ else
     echo "==> Использование существующего/импортированного SSH-ключа."
 fi
 
-# Accept and persist a host key on first connection; reject changes on later connections.
 cat > "$SSH_DIR/config" <<'SSH_CONFIG'
 Host *
     StrictHostKeyChecking accept-new

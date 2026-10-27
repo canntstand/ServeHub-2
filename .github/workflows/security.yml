@@ -194,10 +194,6 @@ jobs:
             exit 1
           fi
 
-          # These exact image tags currently have known critical findings and no newer
-          # compatible upstream tag is available. Keep scanning them, but make their
-          # CRITICAL results report-only until the images can be updated.
-          # The allowlist is intentionally tag-specific: other tags/images remain blocking.
           non_blocking_critical_images=(
             "actualbudget/actual-server:26.10.0"
             "advplyr/audiobookshelf:2.37.2"
@@ -237,8 +233,6 @@ jobs:
       - name: Generate Wails frontend bindings
         working-directory: gui-installer
         run: |
-          # Go embeds frontend/dist at compile time. Create it before Wails
-          # generates bindings; Vite replaces its contents during the build.
           mkdir -p frontend/dist
           touch frontend/dist/.gitkeep
 

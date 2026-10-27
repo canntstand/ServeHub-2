@@ -30,8 +30,6 @@
   ansible.builtin.set_fact:
     ansible_user: "{{ deploy_user }}"
     ansible_password: ""
-    # Keep the SSH identity check unprivileged; otherwise ansible_become can
-    # override task-level become: false and id -un may return root.
     ansible_become: false
     ansible_become_method: sudo
     ansible_become_password: ""
@@ -306,8 +304,6 @@
       set -Eeuo pipefail
 
       if [[ -e /var/run/reboot-required ]]; then
-        # Prefer the canonical Ubuntu kernel symlink, but do not assume that
-        # /vmlinuz exists or resolves directly to a versioned kernel image.
         kernel_image=""
         for kernel_candidate in /vmlinuz /boot/vmlinuz; do
           if [[ ! -e "$kernel_candidate" && ! -L "$kernel_candidate" ]]; then
@@ -322,8 +318,6 @@
           fi
         done
 
-        # Some minimal/cloud VM images do not expose a usable /vmlinuz link.
-        # In that case, select the newest installed versioned image in /boot.
         if [[ -z "$kernel_image" ]]; then
           shopt -s nullglob
           kernel_images=()

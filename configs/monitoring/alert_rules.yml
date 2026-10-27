@@ -25,7 +25,6 @@ groups:
   - name: container_alerts
     rules:
       - alert: ContainerDown
-        # cAdvisor housekeeping is configured for 2m; allow for its normal update delay.
         expr: time() - container_last_seen{name!=""} > 300
         for: 2m
         labels:

@@ -84,9 +84,6 @@ func writeEdgePreflightPlaybook(projectDir string) (string, func(), error) {
 		return "", nil, fmt.Errorf("не удалось закрыть временный сценарий проверки Edge: %w", err)
 	}
 
-	// The selected ServeHub-2 tag may predate this prerequisite playbook.
-	// Place the embedded copy in the selected project only for the duration
-	// of this run, without requiring every historical tag to contain the file.
 	relativePath := filepath.ToSlash(filepath.Join("ansible", filepath.Base(path)))
 	return relativePath, cleanupFile, nil
 }
@@ -212,9 +209,6 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 		return CheckResult{Success: false, Message: "Неизвестный сценарий развертывания!"}
 	}
 
-	// Local-only deployment still depends on an already running Edge/VPS.
-	// Materialize the embedded, read-only preflight so this also works when the
-	// selected project tag predates the addition of the preflight playbook.
 	if option == 3 || option == 4 {
 		preflightPath, cleanupPreflight, err := writeEdgePreflightPlaybook(projectDir)
 		if err != nil {

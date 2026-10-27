@@ -126,13 +126,11 @@
       IP6T=/usr/sbin/ip6tables
       OUT_IFACE={{ ansible_facts['default_ipv4']['interface'] | quote }}
 
-      # Preserve WireGuard forwarding and outbound NAT.
       $IPT -C FORWARD -i wg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -i wg0 -j ACCEPT
       $IPT -C FORWARD -o wg0 -j ACCEPT 2>/dev/null || $IPT -A FORWARD -o wg0 -j ACCEPT
       $IPT -t nat -C POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE 2>/dev/null || \
         $IPT -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$OUT_IFACE" -j MASQUERADE
 
-      # Host INPUT: public SSH and WireGuard only; admin/metrics are VPN-only.
       $IPT -N SERVEHUB_INPUT 2>/dev/null || true
       $IPT -F SERVEHUB_INPUT
       $IPT -A SERVEHUB_INPUT -i lo -j ACCEPT
@@ -141,7 +139,6 @@
       $IPT -A SERVEHUB_INPUT -i br+ -s 172.16.0.0/12 -d 10.8.0.1 -p tcp --dport 8082 -j ACCEPT
       $IPT -A SERVEHUB_INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       $IPT -A SERVEHUB_INPUT -p icmp -j ACCEPT
-      # Keep Fail2ban effective even though this chain is inserted before other INPUT rules.
       if $IPT -nL f2b-sshd >/dev/null 2>&1; then
         $IPT -A SERVEHUB_INPUT -p tcp --dport 22 -j f2b-sshd
       fi
@@ -155,7 +152,6 @@
       done
       $IPT -I INPUT 1 -j SERVEHUB_INPUT
 
-      # Remove obsolete one-port policy (it is now covered by SERVEHUB_INPUT).
       while $IPT -C INPUT -p tcp --dport 51821 -j SERVEHUB_WGEASY 2>/dev/null; do
         $IPT -D INPUT -p tcp --dport 51821 -j SERVEHUB_WGEASY
       done
@@ -186,7 +182,6 @@
         $IP6T -X SERVEHUB_WGEASY_V6 2>/dev/null || true
       fi
 
-      # Published Docker ports bypass INPUT through DNAT; constrain them in DOCKER-USER.
       for attempt in {1..30}; do
         $IPT -nL DOCKER-USER >/dev/null 2>&1 && break
         sleep 1

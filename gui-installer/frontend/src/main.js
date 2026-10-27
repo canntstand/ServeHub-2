@@ -164,8 +164,6 @@ window.runInstallation = async function() {
             if (!existingSecrets.success) {
                 throw new Error(existingSecrets.message || 'Не удалось прочитать и проверить secrets.yml или его шаблон.');
             }
-            // Navigation back to this step must not overwrite unsaved form edits.
-            // Reload only when the selected project commit has actually changed.
             const selectedCommitSHA = selection?.expectedSHA ?? String(projectInstallState?.metadata?.commit_sha ?? '');
             if (!secretFormInitialized || secretFormProjectSHA !== selectedCommitSHA ||
                 secretFormProjectDirectory !== projectInstallDirectory) {
@@ -311,8 +309,6 @@ function addInactiveBootstrapCredentialRemovals(updates) {
         const mode = bootstrapAuthModes[server] === 'user' ? 'user' : 'root';
         const inactiveKeys = mode === 'root' ? fields.user : [fields.root];
         for (const key of inactiveKeys) {
-            // Explicit backend operation: remove stale credentials for the
-            // unselected mode without treating an ordinary blank as deletion.
             updates[`__delete_auth__${key}`] = 'true';
         }
     }
@@ -391,9 +387,6 @@ function collectSecretFormValues(normalized = {}) {
     for (const [key, fieldId] of Object.entries(SECRETS_FIELD_MAP)) {
         const element = document.getElementById(fieldId);
         if (!element) continue;
-        // When the passwords match, populate both Ansible variables from
-        // the single SSH input. The separate sudo input is only authoritative
-        // when the user explicitly enables its checkbox.
         const [server, credential] = (() => {
             if (key.startsWith('vps_')) return ['vps', key];
             if (key.startsWith('local_')) return ['local', key];
@@ -407,8 +400,6 @@ function collectSecretFormValues(normalized = {}) {
             continue;
         }
 
-        // Hidden credentials are omitted from the form values. The explicit
-        // removal operations added below remove their old YAML keys on save.
         const credentialGroup = element.closest('.bootstrap-auth-field');
         if (credentialGroup?.hidden) continue;
         values[key] = Object.prototype.hasOwnProperty.call(normalized, key)
@@ -418,8 +409,6 @@ function collectSecretFormValues(normalized = {}) {
     return values;
 }
 
-// Only changed, known fields are sent to the backend. Unknown fields and
-// untouched YAML nodes never make a round trip through the HTML form.
 function buildChangedSecretUpdates(values) {
     const updates = {};
     let retainedBlankSecret = false;
@@ -429,8 +418,6 @@ function buildChangedSecretUpdates(values) {
         const previous = existed ? String(sourceSecretValues[key] ?? '') : '';
         if (existed && current === previous) continue;
 
-        // Clearing a populated credential must not silently erase it from an
-        // existing secrets.yml. Enter a replacement to change the credential.
         if (SENSITIVE_SECRET_FIELDS.has(key) && existed && !sourceSecretIsTemplate &&
             current.trim() === '' && previous.trim() !== '' && !isTemplatePlaceholder(previous)) {
             retainedBlankSecret = true;
@@ -613,8 +600,6 @@ function validateSelectedBootstrapCredentials(option) {
     if (option === 1 || option === 5) targets.push('vps');
     if (option === 1 || option === 3) targets.push('local');
 
-    // Validate the effective values that will be written to secrets.yml,
-    // rather than reading hidden form controls independently.
     const values = collectSecretFormValues();
 
     for (const server of targets) {
@@ -719,7 +704,6 @@ window.startDeployment = async function() {
         const logPre = document.getElementById('deploy-logs');
         const isAtBottom = (logPre.scrollHeight - logPre.clientHeight) <= (logPre.scrollTop + 5);
         logPre.innerText += message;
-        // Show manual continuation only when streamed Ansible output asks for input.
         if (btnEnter && /(press\s+(?:enter|return)\s+to\s+continue|press\s+enter|нажмите\s+(?:enter|ввод)|нажмите\s+enter\s+для\s+продолжения)/i.test(logPre.innerText.slice(-4000))) {
             btnEnter.style.display = 'block';
         }
@@ -803,8 +787,6 @@ function selectedVersionOption() {
 }
 
 function selectedProjectAction() {
-    // A fully verified existing installation is reused automatically.
-    // Missing or unknown installations follow the normal install/update path.
     const state = projectInstallState;
     if (state && state.exists && state.complete && state.knownVersion && state.integrityVerified) {
         return 'use';
@@ -959,7 +941,6 @@ function populateProjectVersionChoices(result, preserveChoice) {
     const previousValue = preserveChoice ? select.value : '';
     select.innerHTML = '';
 
-    // Keep the first available published tag as the default; dev is opt-in.
     if (Array.isArray(result.tags) && result.tags.length) {
         const tagGroup = document.createElement('optgroup');
         tagGroup.label = 'Опубликованные теги';
