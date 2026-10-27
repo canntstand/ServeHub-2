@@ -41,6 +41,8 @@ var editableSecretFields = map[string]struct{}{
 	"ssh_private_key": {},
 	"borgmatic_encryption_passphrase": {},
 	"backup_disk_uuid": {},
+	"offsite_s3_endpoint": {},
+	"offsite_s3_region": {},
 	"offsite_s3_bucket": {},
 	"offsite_s3_access_key_id": {},
 	"offsite_s3_secret_access_key": {},

@@ -2,11 +2,11 @@
 
 ## Design
 
-Borg/Borgmatic creates an encrypted local repository on each host. After Borg has completed and the Compose stack has been restored, `scripts/borgmatic_with_metrics.sh` mirrors the repository to Timeweb Cloud S3 with `rclone` and checks that destination objects exist with matching sizes.
+Borg/Borgmatic creates an encrypted local repository on each host. After Borg has completed and the Compose stack has been restored, `scripts/borgmatic_with_metrics.sh` mirrors the repository to S3-compatible object storage with `rclone` and verifies object presence and sizes.
 
 - Workload local repository: `/mnt/backup_storage/server_backup.borg` when `backup_disk_uuid` is configured; otherwise `/var/lib/servehub-backup/workload-repo`.
 - Edge local repository: `/var/lib/servehub-backup/edge-repo`.
-- Off-site destinations: one private bucket with separate prefixes, e.g. `timeweb-cloud:<bucket>/workload` and `timeweb-cloud:<bucket>/edge`.
+- Off-site destinations: one private bucket with separate prefixes, e.g. `offsite-s3:<bucket>/workload` and `offsite-s3:<bucket>/edge`.
 - Both repositories use the same `borgmatic_encryption_passphrase` but have independent Borg repository IDs.
 - Retention: 7 daily, 4 weekly, 6 monthly; compression: `lz4`. Edge runs at 03:00 and Workload at 04:00, each with up to 15 minutes of jitter.
 
@@ -14,15 +14,15 @@ Borg/Borgmatic creates an encrypted local repository on each host. After Borg ha
 
 ## Initial setup
 
-1. Create a private cold-storage bucket in Timeweb Cloud.
-2. Under **Users**, create a separate S3 user with **Read and write** access only to `servehub-2-bucket`. Verify the **Access rights** tab and avoid the account's main key. Both servers will use this user's single key pair.
-3. Set `offsite_s3_bucket`, `offsite_s3_access_key_id`, `offsite_s3_secret_access_key`, endpoint/region, and distinct `workload`/`edge` prefixes in `ansible/vars/secrets.yml`.
-3. Set the same `borgmatic_encryption_passphrase` on both hosts (at least 20 characters). Store it separately: without it, encrypted backups cannot be recovered.
-4. Re-run the Ansible deployment from `dev`. Ansible installs Borgmatic and rclone, verifies S3 read/write/delete access with a small temporary object, creates root-only config files, and enables timers. `main` is not modified.
-5. After deployment, trigger the first backup on each host with `sudo systemctl start borgmatic.service`.
-6. Review `systemctl status borgmatic.service`, `systemctl list-timers borgmatic.timer`, and `sudo journalctl -u borgmatic.service --since today`.
-7. Query Prometheus metrics `servehub_borgmatic_backup_last_run_success`, `servehub_offsite_backup_last_run_success`, `servehub_backup_pipeline_last_run_success`, and `servehub_offsite_backup_last_success_timestamp_seconds`. Failed uploads raise `OffsiteBackupFailed`; a stale off-site copy raises `OffsiteBackupTooOld`.
-
+1. Choose an S3-compatible provider and create a private bucket. Set `offsite_s3_endpoint` to the base S3 API URL, without a bucket name or path. HTTPS is preferred.
+2. Set `offsite_s3_region` to the provider's region if required; otherwise leave it empty. The project uses rclone's generic `provider = Other` mode, so the service must support the S3 API compatible with that mode. See the [rclone S3 documentation](https://rclone.org/s3/).
+3. Create a dedicated Access Key and Secret Key with permission to list the bucket and read, write, and delete objects. Do not use the account's primary key; scope permissions to the required bucket or prefixes.
+4. Set `offsite_s3_endpoint`, `offsite_s3_region`, `offsite_s3_bucket`, `offsite_s3_access_key_id`, `offsite_s3_secret_access_key`, and distinct `workload`/`edge` prefixes in `ansible/vars/secrets.yml`.
+5. Use the same `borgmatic_encryption_passphrase` on both hosts (at least 20 characters). Store it separately; without it, encrypted backups cannot be recovered.
+6. Re-run the Ansible deployment from `dev`. Ansible verifies read/write/delete access with a temporary object, creates a root-only rclone config, and enables the backup timers.
+7. After deployment, trigger the first backup on each host with `sudo systemctl start borgmatic.service`.
+8. Review `systemctl status borgmatic.service`, `systemctl list-timers borgmatic.timer`, and `sudo journalctl -u borgmatic.service --since today`.
+9. Check Prometheus metrics `servehub_borgmatic_backup_last_run_success`, `servehub_offsite_backup_last_run_success`, `servehub_backup_pipeline_last_run_success`, and `servehub_offsite_backup_last_success_timestamp_seconds`. Failed uploads raise `OffsiteBackupFailed`; a stale off-site copy raises `OffsiteBackupTooOld`.
 ## Data included
 
 Workload: `apps-data/`, `configs/`, `.env`, `certbot/`, and `PersonalData/`. Edge: `apps-data/`, `configs/`, and `.env`. This includes generated configuration and service state that cannot be rebuilt from Git alone.
@@ -38,7 +38,7 @@ Restore into a separate directory on a trusted recovery host with a compatible B
 1. Configure a private rclone remote with the same S3 endpoint, region, Access Key, and Secret Key.
 2. Copy the appropriate prefix into an empty directory. For Workload:
    `sudo mkdir -p /srv/restore/workload-repo`
-   `sudo rclone --config /etc/servehub/rclone.conf copy timeweb-cloud:<bucket>/workload /srv/restore/workload-repo --progress`
+   `sudo rclone --config /etc/servehub/rclone.conf copy offsite-s3:<bucket>/workload /srv/restore/workload-repo --progress`
    For Edge, use `edge` instead of `workload`.
 3. Enter a root shell and read the passphrase into the environment rather than placing it in command arguments:
    `sudo -i`

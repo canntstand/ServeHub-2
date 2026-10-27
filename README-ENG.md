@@ -53,7 +53,7 @@ It is worth clarifying that hosting everything on one powerful VPS would be easi
 
 ## Backup
 - **BorgBackup + Borgmatic:** Encrypted backups of Workload and Edge with `lz4` compression.
-- **rclone + Timeweb Cloud S3:** Synchronizes each local Borg repository to a separate prefix in one private S3 bucket.
+- **rclone + S3-compatible storage:** Synchronizes each local Borg repository to a separate prefix in one private S3 bucket.
 - **Recovery:** Setup, monitoring, and restore instructions are available in [docs/BACKUPS-ENG.md](docs/BACKUPS-ENG.md).
 
 ## Automation

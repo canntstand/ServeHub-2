@@ -6,9 +6,8 @@
       - (offsite_s3_bucket | default('') | string | trim | length) > 0
       - (offsite_s3_access_key_id | default('') | string | trim | length) > 0
       - (offsite_s3_secret_access_key | default('') | string | length) > 0
-      - (offsite_s3_endpoint | default('https://s3.twcstorage.ru', true) | string | trim | length) > 0
-      - (offsite_s3_region | default('ru-1', true) | string | trim | length) > 0
-      - (offsite_s3_endpoint | default('https://s3.twcstorage.ru', true) | string | trim) is match('^https://[^/]+$')
+      - (offsite_s3_endpoint | default('', true) | string | trim | length) > 0
+      - (offsite_s3_endpoint | default('', true) | string | trim) is match('^https?://[^/]+/?$')
       - (offsite_s3_bucket | default('') | string | trim) is match('^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$')
       - (offsite_s3_workload_prefix | default('workload', true) | string | trim) is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
       - (offsite_s3_edge_prefix | default('edge', true) | string | trim) is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
@@ -39,7 +38,7 @@
     - { path: "/etc/servehub", mode: "0700" }
     - { path: "/root/.cache/borg", mode: "0700" }
 
-- name: "[Backup] Настройка подключения rclone к Timeweb S3"
+- name: "[Backup] Настройка подключения rclone к S3-совместимому хранилищу"
   ansible.builtin.template:
     src: "{{ playbook_dir }}/templates/rclone.conf.j2"
     dest: /etc/servehub/rclone.conf
@@ -49,14 +48,14 @@
   register: rclone_config
   no_log: true
 
-- name: "[Backup] Проверка доступа к бакету Timeweb S3"
+- name: "[Backup] Проверка доступа к S3-бакету"
   ansible.builtin.command:
     argv:
       - /usr/bin/rclone
       - --config
       - /etc/servehub/rclone.conf
       - lsd
-      - "timeweb-cloud:{{ offsite_s3_bucket }}"
+      - "offsite-s3:{{ offsite_s3_bucket }}"
   changed_when: false
   no_log: true
 
@@ -82,7 +81,7 @@
           - 5M
           - copyto
           - "/run/servehub-s3-probe-{{ inventory_hostname }}.bin"
-          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
+          - "offsite-s3:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
       changed_when: true
       no_log: true
 
@@ -93,7 +92,7 @@
           - --config
           - /etc/servehub/rclone.conf
           - copyto
-          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
+          - "offsite-s3:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
           - "/run/servehub-s3-probe-{{ inventory_hostname }}.download.bin"
       changed_when: true
       no_log: true
@@ -114,7 +113,7 @@
       ansible.builtin.assert:
         that:
           - s3_probe_compare.rc | default(1) == 0
-        fail_msg: "Проверка чтения Timeweb S3 вернула объект с другим содержимым."
+        fail_msg: "Проверка чтения S3-совместимого хранилища вернула объект с другим содержимым."
       no_log: true
 
     - name: "[Backup] Проверка возможности удалять объекты из S3"
@@ -124,7 +123,7 @@
           - --config
           - /etc/servehub/rclone.conf
           - deletefile
-          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
+          - "offsite-s3:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
       changed_when: true
       no_log: true
 
@@ -136,7 +135,7 @@
           - --config
           - /etc/servehub/rclone.conf
           - deletefile
-          - "timeweb-cloud:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
+          - "offsite-s3:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
       changed_when: false
       failed_when: false
       no_log: true
@@ -238,7 +237,7 @@
       Environment=SERVEHUB_BORGMATIC_CONFIG=/etc/borgmatic/config.yaml
       Environment=SERVEHUB_BORG_REPOSITORY={{ backup_repository_path }}
       Environment=SERVEHUB_RCLONE_CONFIG=/etc/servehub/rclone.conf
-      Environment=SERVEHUB_RCLONE_REMOTE_PATH=timeweb-cloud:{{ offsite_s3_bucket }}/{{ (offsite_s3_workload_prefix | default('workload', true)) if backup_role == 'workload' else (offsite_s3_edge_prefix | default('edge', true)) }}
+      Environment=SERVEHUB_RCLONE_REMOTE_PATH=offsite-s3:{{ offsite_s3_bucket }}/{{ (offsite_s3_workload_prefix | default('workload', true)) if backup_role == 'workload' else (offsite_s3_edge_prefix | default('edge', true)) }}
       Environment=SERVEHUB_BACKUP_ROLE={{ backup_role }}
       Environment="SERVEHUB_COMPOSE_DIR=/home/{{ deploy_user }}/ServeHub-2"
       Environment=SERVEHUB_COMPOSE_FILE={{ backup_compose_file }}

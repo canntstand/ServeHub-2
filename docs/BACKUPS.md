@@ -2,11 +2,11 @@
 
 ## Архитектура
 
-Borg/Borgmatic создаёт зашифрованный локальный репозиторий на каждом сервере. После завершения Borg и восстановления Compose-стека скрипт `scripts/borgmatic_with_metrics.sh` синхронизирует репозиторий с Timeweb Cloud S3 через `rclone` и проверяет, что объекты назначения присутствуют и имеют те же размеры.
+Borg/Borgmatic создаёт зашифрованный локальный репозиторий на каждом сервере. После завершения Borg и восстановления Compose-стека скрипт `scripts/borgmatic_with_metrics.sh` синхронизирует репозиторий с S3-совместимым объектным хранилищем через `rclone` и проверяет наличие объектов и совпадение их размеров.
 
 - Workload: локальный репозиторий — `/mnt/backup_storage/server_backup.borg`, если задан `backup_disk_uuid`; иначе — `/var/lib/servehub-backup/workload-repo`.
 - Edge: локальный репозиторий — `/var/lib/servehub-backup/edge-repo`.
-- Off-site: один приватный бакет, например `timeweb-cloud:<bucket>/workload` и `timeweb-cloud:<bucket>/edge`.
+- Off-site: один приватный бакет с разными префиксами, например `offsite-s3:<bucket>/workload` и `offsite-s3:<bucket>/edge`.
 - Оба репозитория используют единый `borgmatic_encryption_passphrase`, но имеют независимые идентификаторы Borg.
 - Retention: 7 daily, 4 weekly, 6 monthly; сжатие `lz4`. Таймер Edge — 03:00, Workload — 04:00, задержка каждого запуска до 15 минут.
 
@@ -14,15 +14,15 @@ Borg/Borgmatic создаёт зашифрованный локальный ре
 
 ## Перед первым запуском
 
-1. Создайте в Timeweb Cloud приватный бакет холодного класса.
-2. В разделе «Пользователи» создайте отдельного S3-пользователя с правами «Чтение и запись» только для `servehub-2-bucket`. Проверьте вкладку «Права доступа» и не используйте главный ключ аккаунта. Оба сервера будут использовать одну пару ключей этого пользователя.
-3. Заполните в `ansible/vars/secrets.yml` параметры `offsite_s3_bucket`, `offsite_s3_access_key_id`, `offsite_s3_secret_access_key`, endpoint/region и разные префиксы `workload`/`edge`.
-3. Задайте один и тот же `borgmatic_encryption_passphrase` на обоих серверах (не менее 20 символов). Сохраните его отдельно: потеря парольной фразы делает резервные копии недоступными.
-4. Повторно выполните Ansible-деплой из ветки `dev`. Ansible установит Borgmatic и rclone, проверит чтение/запись/удаление тестового объекта в S3, создаст root-only-конфигурации и настроит таймеры. Ветка `main` не используется.
-5. После завершения деплоя выполните первый запуск вручную на каждом сервере: `sudo systemctl start borgmatic.service`.
-6. Проверьте состояние и журнал: `systemctl status borgmatic.service`, `systemctl list-timers borgmatic.timer`, `sudo journalctl -u borgmatic.service --since today`.
-7. Проверьте Prometheus: `servehub_borgmatic_backup_last_run_success`, `servehub_offsite_backup_last_run_success`, `servehub_backup_pipeline_last_run_success` и `servehub_offsite_backup_last_success_timestamp_seconds`. Ошибки выгрузки поднимут `OffsiteBackupFailed`; отсутствие свежей выгрузки — `OffsiteBackupTooOld`.
-
+1. Выберите S3-совместимого провайдера и создайте приватный бакет. В `offsite_s3_endpoint` укажите базовый URL S3 API без имени бакета и пути. Предпочтителен HTTPS.
+2. В `offsite_s3_region` укажите регион, если он требуется провайдером; иначе оставьте значение пустым. В проекте используется общий драйвер rclone `provider = Other`, поэтому провайдер должен поддерживать S3 API, совместимый с этим режимом. См. [документацию rclone S3](https://rclone.org/s3/).
+3. Создайте отдельные Access Key и Secret Key с правами на просмотр бакета и чтение, запись и удаление объектов. Не используйте основной ключ аккаунта; ограничьте разрешения нужным бакетом или префиксами.
+4. Заполните в `ansible/vars/secrets.yml` параметры `offsite_s3_endpoint`, `offsite_s3_region`, `offsite_s3_bucket`, `offsite_s3_access_key_id` и `offsite_s3_secret_access_key`, а также разные префиксы `workload`/`edge`.
+5. Задайте одну и ту же `borgmatic_encryption_passphrase` на обоих серверах (не менее 20 символов). Сохраните её отдельно: потеря парольной фразы делает резервные копии недоступными.
+6. Повторно выполните Ansible-деплой из ветки `dev`. Ansible проверит чтение/запись/удаление тестового объекта, создаст конфигурацию rclone с правами root-only и настроит таймеры.
+7. После завершения деплоя запустите первый бэкап вручную на каждом сервере: `sudo systemctl start borgmatic.service`.
+8. Проверьте состояние `systemctl status borgmatic.service`, расписание `systemctl list-timers borgmatic.timer` и журнал `sudo journalctl -u borgmatic.service --since today`.
+9. Проверьте метрики Prometheus: `servehub_borgmatic_backup_last_run_success`, `servehub_offsite_backup_last_run_success`, `servehub_backup_pipeline_last_run_success` и `servehub_offsite_backup_last_success_timestamp_seconds`. Ошибки выгрузки поднимут `OffsiteBackupFailed`; отсутствие свежей копии — `OffsiteBackupTooOld`.
 ## Что входит в копии
 
 Workload: `apps-data/`, `configs/`, `.env`, `certbot/` и `PersonalData/`. Edge: `apps-data/`, `configs/` и `.env`. Это включает сгенерированные конфиги и состояние сервисов, которое не восстанавливается только из Git.
@@ -38,7 +38,7 @@ S3-копия состоит из зашифрованного Borg-репози
 1. Настройте приватный rclone-конфиг с теми же S3 endpoint, region, Access Key и Secret Key.
 2. Скопируйте соответствующий префикс в пустой каталог. Например, для Workload:
    `sudo mkdir -p /srv/restore/workload-repo`
-   `sudo rclone --config /etc/servehub/rclone.conf copy timeweb-cloud:<bucket>/workload /srv/restore/workload-repo --progress`
+   `sudo rclone --config /etc/servehub/rclone.conf copy offsite-s3:<bucket>/workload /srv/restore/workload-repo --progress`
    Для Edge замените `workload` на `edge`.
 3. Откройте root shell и безопасно передайте парольную фразу в окружение, не записывая её в аргументы команды:
    `sudo -i`

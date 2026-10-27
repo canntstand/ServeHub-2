@@ -413,7 +413,7 @@
                             <span class="form-section-chevron" aria-hidden="true"></span>
                         </summary>
                         <div class="form-section-content">
-                    <small>Endpoint и регион S3, а также префиксы резервных копий задаются автоматически. Имя администратора и пользователь PostgreSQL указываются выше.</small>
+                    <small>Укажите endpoint S3 API. Регион зависит от провайдера и может быть пустым, если не требуется. Префиксы резервных копий workload и edge задаются проектом автоматически.</small>
                     
 <div class="form-field-grid">
                         <div class="form-subsection-title">Пароли и ключи приложений</div>
@@ -456,8 +456,18 @@
 
 
 <div class="form-field-grid">
-                        <div class="form-subsection-title">Доступ к хранилищу S3</div>
+                        <div class="form-subsection-title">Доступ к S3-совместимому хранилищу</div>
 <div class="form-group">
+                        <label class="sr-only" for="sec_s3_endpoint">Endpoint S3 API:</label>
+                        <input type="text" id="sec_s3_endpoint" autocomplete="off" placeholder="Endpoint S3 API (например, https://s3.example.com):">
+                        <small>Базовый URL API без имени бакета и пути. Используйте HTTPS, если провайдер его поддерживает.</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="sr-only" for="sec_s3_region">Регион S3 (необязательно):</label>
+                        <input type="text" id="sec_s3_region" autocomplete="off" placeholder="Регион S3 (необязательно):">
+                        <small>Оставьте пустым, если провайдер не требует регион.</small>
+                    </div>
+                    <div class="form-group">
                         <label class="sr-only" for="sec_s3_bucket">Имя приватного S3-бакета:</label>
                         <input type="text" id="sec_s3_bucket" value="" placeholder="Имя приватного S3-бакета:">
                     </div>

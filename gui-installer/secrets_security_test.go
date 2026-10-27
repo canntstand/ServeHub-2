@@ -58,6 +58,7 @@ func TestValidateDeploymentChecksPresenceOnly(t *testing.T) {
 		"admin_password",
 		"ssh_private_key",
 		"borgmatic_encryption_passphrase",
+		"offsite_s3_endpoint",
 		"offsite_s3_bucket",
 		"offsite_s3_access_key_id",
 		"offsite_s3_secret_access_key",
@@ -80,6 +81,19 @@ func TestValidateDeploymentChecksPresenceOnly(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), key) {
 			t.Errorf("expected only an empty-field error for %q, got %v", key, err)
 		}
+	}
+}
+
+func TestValidateDeploymentRequiresS3EndpointButAllowsEmptyRegion(t *testing.T) {
+	values := validTestDeploymentValues(t)
+	values["offsite_s3_region"] = ""
+	if err := validateDeploymentValues(values, 4); err != nil {
+		t.Fatalf("an empty S3 region must be accepted when the provider does not require one: %v", err)
+	}
+
+	values["offsite_s3_endpoint"] = ""
+	if err := validateDeploymentValues(values, 4); err == nil || !strings.Contains(err.Error(), "offsite_s3_endpoint") {
+		t.Fatalf("a missing S3 endpoint must be rejected, got %v", err)
 	}
 }
 

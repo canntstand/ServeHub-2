@@ -248,6 +248,8 @@ const SECRETS_FIELD_MAP = {
     ssh_private_key: 'sec_private_ssh_key',
     borgmatic_encryption_passphrase: 'sec_borg_pass',
     backup_disk_uuid: 'sec_disk_uuid',
+    offsite_s3_endpoint: 'sec_s3_endpoint',
+    offsite_s3_region: 'sec_s3_region',
     offsite_s3_bucket: 'sec_s3_bucket',
     offsite_s3_access_key_id: 'sec_s3_access_key',
     offsite_s3_secret_access_key: 'sec_s3_secret_key',

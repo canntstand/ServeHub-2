@@ -134,6 +134,8 @@ func TestParseSecretsSupportsUnquotedAndNumericScalars(t *testing.T) {
 func TestMergeSecretUpdatesPreservesUneditableParameters(t *testing.T) {
 	document, err := parseSecretsYAML(yamlInput(
 		"server_name: example.org",
+		"offsite_s3_endpoint: https://s3.old.example",
+		"offsite_s3_region: old-region",
 		"adguard_password_salt: keep-me",
 		"borgmatic_version: 2.1.10",
 		"admin_user: admin",
@@ -145,6 +147,8 @@ func TestMergeSecretUpdatesPreservesUneditableParameters(t *testing.T) {
 	}
 	if err := mergeSecretUpdates(document, map[string]string{
 		"server_name": "new.example.org",
+		"offsite_s3_endpoint": "https://s3.new.example",
+		"offsite_s3_region": "",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -164,6 +168,8 @@ func TestMergeSecretUpdatesPreservesUneditableParameters(t *testing.T) {
 		"postgres_user": "postgres_master",
 		"custom_value": "keep-custom",
 		"server_name": "new.example.org",
+		"offsite_s3_endpoint": "https://s3.new.example",
+		"offsite_s3_region": "",
 	} {
 		if values[key] != expected {
 			t.Errorf("%s = %q, want %q", key, values[key], expected)

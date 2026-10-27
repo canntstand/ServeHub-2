@@ -62,6 +62,7 @@ func validateDeploymentValues(values map[string]string, option int) error {
 		"admin_password",
 		"ssh_private_key",
 		"borgmatic_encryption_passphrase",
+		"offsite_s3_endpoint",
 		"offsite_s3_bucket",
 		"offsite_s3_access_key_id",
 		"offsite_s3_secret_access_key",
