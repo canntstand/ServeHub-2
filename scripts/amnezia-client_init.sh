@@ -20,6 +20,9 @@ install -d -m 0700 "$AWG_DIR"
 # Docker restarts keep the container's writable layer. Remove stale configs
 # left by a previous failed start before processing the source configs.
 while IFS= read -r -d '' stale_conf; do
+    # Avoid resolvconf calls while bringing down an interface from an old
+    # config; DNS is configured by systemd-resolved on the host.
+    sed -i '/^[[:space:]]*[Dd][Nn][Ss][[:space:]]*=/d' "$stale_conf"
     stale_name="$(basename "$stale_conf" .conf)"
     awg-quick down "$stale_name" || true
     rm -f -- "$stale_conf"
