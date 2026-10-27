@@ -514,6 +514,10 @@ func TestRedactSensitiveLogLinePreservesVPNUsernameAndStillMasksSecrets(t *testi
 	if got := redactSensitiveLogLine(command, values); got != command {
 		t.Fatalf("manual VPN SSH command should keep its configured username: got %q, want %q", got, command)
 	}
+	path := "/home/admin/ServeHub-2/apps-data/amnezia/awg0.conf"
+	if got := redactSensitiveLogLine(path, values); got != path {
+		t.Fatalf("manual setup paths should keep the configured username: got %q, want %q", got, path)
+	}
 
 	logLine := "INIT_PASSWORD=admin"
 	got := redactSensitiveLogLine(logLine, values)
