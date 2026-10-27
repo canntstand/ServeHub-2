@@ -30,7 +30,9 @@
   ansible.builtin.set_fact:
     ansible_user: "{{ deploy_user }}"
     ansible_password: ""
-    ansible_become: true
+    # Keep the SSH identity check unprivileged; otherwise ansible_become can
+    # override task-level become: false and id -un may return root.
+    ansible_become: false
     ansible_become_method: sudo
     ansible_become_password: ""
 
@@ -53,6 +55,12 @@
       ключ доступен Ansible (ssh-agent/ansible.cfg/inventory), до отключения
       PasswordAuthentication. При необходимости задайте отдельные vps_ssh_password / vps_sudo_password
       или local_ssh_password / local_sudo_password в vars/secrets.yml.
+
+- name: "[Privilege] Включение sudo после подтверждения SSH-аутентификации"
+  ansible.builtin.set_fact:
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_become_password: ""
 
 - name: "[SSH] Создание управляемого drop-in с настройками безопасности"
   ansible.builtin.copy:
