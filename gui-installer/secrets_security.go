@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // isUnsafeDefaultValue is used when preserving/editing older secrets.yml files.
@@ -50,8 +51,8 @@ func requireBootstrapCredentials(values map[string]string, prefix, label string)
 	return fmt.Errorf("%s: заполните %s либо одновременно %s и %s", label, rootKey, sshKey, sudoKey)
 }
 
-// validateDeploymentValues intentionally checks presence only. Detailed syntax,
-// format, length and entropy checks belong to the deployment itself, not the GUI.
+// validateDeploymentValues checks required values and wg-easy's minimum
+// administrator password length. Other detailed format checks remain separate.
 func validateDeploymentValues(values map[string]string, option int) error {
 	if option < 1 || option > 6 {
 		return fmt.Errorf("неизвестный сценарий деплоя: %d", option)
@@ -71,6 +72,9 @@ func validateDeploymentValues(values map[string]string, option int) error {
 	}
 	if err := requireNonEmptyFields(values, required); err != nil {
 		return err
+	}
+	if utf8.RuneCountInString(values["admin_password"]) < 12 {
+		return fmt.Errorf("admin_password: пароль должен содержать не менее 12 символов для входа в wg-easy")
 	}
 
 	usesVPS := option == 1 || option == 2 || option == 5 || option == 6

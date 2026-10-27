@@ -485,10 +485,6 @@ window.generateAndReviewYaml = async function() {
     });
     const updates = addInactiveBootstrapCredentialRemovals(buildChangedSecretUpdates(normalizedValues));
 
-    if (!window.confirm('Предпросмотр secrets.yml будет содержать пароли, токены, API-ключи и приватный SSH-ключ в открытом виде. Продолжайте только на доверенном устройстве. Показать конфигурацию?')) {
-        return;
-    }
-
     const previewButton = document.querySelector('#step-4 .button-group .btn-primary');
     const originalButtonText = previewButton ? previewButton.innerText : '';
     if (previewButton) {
@@ -500,6 +496,13 @@ window.generateAndReviewYaml = async function() {
         const preview = await PreviewSecrets(updates);
         if (!preview.success) {
             alert('Не удалось сформировать secrets.yml: ' + preview.message);
+            return;
+        }
+        const effectiveAdminPassword = String(preview.values?.admin_password ?? '');
+        if (Array.from(effectiveAdminPassword).length < 12) {
+            alert('ADMIN_PASSWORD должен содержать не менее 12 символов: wg-easy не принимает более короткие пароли.');
+            goToStep(4);
+            document.getElementById('sec_admin_pass')?.focus();
             return;
         }
         generatedSecretUpdates = { ...updates };

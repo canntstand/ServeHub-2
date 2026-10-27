@@ -136,6 +136,21 @@ func redactSensitiveText(text string, values map[string]string) string {
 	return text
 }
 
+// redactSensitiveLogLine preserves the installer-generated SSH tunnel command.
+// Its username is intentionally displayed to the operator; it may otherwise be
+// masked when it happens to equal the value of a secret such as admin_password.
+func redactSensitiveLogLine(line string, values map[string]string) string {
+	trimmed := strings.TrimSpace(line)
+	const tunnelPrefix = "ssh -L 8000:127.0.0.1:51821 "
+	if strings.HasPrefix(trimmed, tunnelPrefix) {
+		target := strings.TrimSpace(strings.TrimPrefix(trimmed, tunnelPrefix))
+		if target != "" && !strings.ContainsAny(target, " \\t\\r\\n") && strings.Count(target, "@") == 1 {
+			return line
+		}
+	}
+	return redactSensitiveText(line, values)
+}
+
 func secretsPaths() (string, string, string, error) {
 	projectDir, err := configuredProjectInstallDirectory()
 	if err != nil {

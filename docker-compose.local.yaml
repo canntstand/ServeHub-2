@@ -81,7 +81,6 @@ services:
       --agree-tos
       --no-eff-email
       --non-interactive
-      --manual-public-ip-logging-ok
       --force-renewal
       -d "${SERVER_NAME}"
       -d "*.${SERVER_NAME}"

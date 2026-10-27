@@ -505,6 +505,23 @@ func TestRedactSensitiveTextMasksValuesAndMultilinePrivateKey(t *testing.T) {
 }
 
 
+func TestRedactSensitiveLogLinePreservesVPNUsernameAndStillMasksSecrets(t *testing.T) {
+	values := map[string]string{
+		"vps_user":      "admin",
+		"admin_password": "admin",
+	}
+	command := "ssh -L 8000:127.0.0.1:51821 admin@192.0.2.10"
+	if got := redactSensitiveLogLine(command, values); got != command {
+		t.Fatalf("manual VPN SSH command should keep its configured username: got %q, want %q", got, command)
+	}
+
+	logLine := "INIT_PASSWORD=admin"
+	got := redactSensitiveLogLine(logLine, values)
+	if got != "INIT_PASSWORD=[REDACTED]" {
+		t.Fatalf("secret should still be redacted outside the SSH prompt, got %q", got)
+	}
+}
+
 func TestMergeSecretUpdatesRemovesInactiveBootstrapCredentials(t *testing.T) {
 	document, err := parseSecretsYAML(yamlInput(
 		"vps_root_password: vps-root",

@@ -255,7 +255,7 @@ func (a *App) RunDeployment(option int, verbose bool) CheckResult {
 			scanner := bufio.NewScanner(p)
 			scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 			for scanner.Scan() {
-				clean := redactSensitiveText(stripAnsi(scanner.Text()), logSensitiveValues)
+				clean := redactSensitiveLogLine(stripAnsi(scanner.Text()), logSensitiveValues)
 				if clean == "" {
 					continue
 				}

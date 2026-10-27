@@ -20,7 +20,7 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 		"local_sudo_password": "",
 		"server_name": "server.infra-test.net",
 		"admin_user": "myadmin",
-		"admin_password": "x",
+		"admin_password": "test-admin-pass",
 		"email": "not-an-email",
 		"telegram_token": "x",
 		"telegram_chat_id": "not-a-number",
@@ -47,7 +47,7 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 	}
 }
 
-func TestValidateDeploymentChecksPresenceOnly(t *testing.T) {
+func TestValidateDeploymentChecksRequiredFields(t *testing.T) {
 	values := validTestDeploymentValues(t)
 	if err := validateDeploymentValues(values, 4); err != nil {
 		t.Fatalf("non-empty values should not be rejected for format or strength: %v", err)
@@ -81,6 +81,35 @@ func TestValidateDeploymentChecksPresenceOnly(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), key) {
 			t.Errorf("expected only an empty-field error for %q, got %v", key, err)
 		}
+	}
+}
+
+func TestValidateDeploymentRequiresMinimumAdminPasswordLength(t *testing.T) {
+	cases := []struct {
+		name     string
+		password string
+		wantErr  bool
+	}{
+		{name: "11 characters rejected", password: "12345678901", wantErr: true},
+		{name: "12 characters accepted", password: "123456789012", wantErr: false},
+		{name: "12 Unicode characters accepted", password: "парольпароль", wantErr: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			values := validTestDeploymentValues(t)
+			values["admin_password"] = tc.password
+			err := validateDeploymentValues(values, 4)
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "admin_password") {
+					t.Fatalf("expected admin_password length error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("password of valid length should be accepted: %v", err)
+			}
+		})
 	}
 }
 
