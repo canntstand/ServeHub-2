@@ -55,7 +55,7 @@ while IFS= read -r -d '' src; do
     ACTIVE_INTERFACES+=("$name")
 done < <(find "$CONFIG_DIR" -type f -name '*.conf' -print0)
 
-if (("${#ACTIVE_INTERFACES[@]}" == 0)); then
+if ((${#ACTIVE_INTERFACES[@]} == 0)); then
     echo "No .conf files found in $CONFIG_DIR" >&2
     exit 1
 fi
