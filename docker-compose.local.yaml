@@ -105,6 +105,7 @@ services:
     volumes:
       - ./configs/homepage/config:/app/config:ro
       - ./configs/homepage/public/images:/app/public/images:ro
+      - ./apps-data/homepage:/var/log/homepage
     deploy:
       resources:
         limits:

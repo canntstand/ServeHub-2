@@ -25,3 +25,6 @@ layout:
   🛠️ Мониторинг и инфраструктура:
     header: true
     style: column
+
+# Store application logs outside the read-only configuration mount.
+logpath: /var/log/homepage
