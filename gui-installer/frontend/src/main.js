@@ -1016,8 +1016,6 @@ function renderInstalledProjectState(state, initialLoad) {
         note.textContent = 'Обнаружен существующий ServeHub-2: ' + state.metadata.display_name +
             ' (commit ' + state.metadata.commit_sha + '). Установщик автоматически использует этот репозиторий без повторной загрузки и замены кода. Для установки другой версии выберите пустую директорию.';
     } else {
-        // Fresh-install details are consolidated into the version warning below.
-        // Keep this separate note for existing or incomplete installations only.
         note.style.display = 'none';
         note.textContent = '';
     }
