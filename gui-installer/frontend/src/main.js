@@ -295,6 +295,8 @@ function applySeparateSudoPassword(server, enabled) {
             ? 'SSH-пароль пользователя:'
             : 'Пароль пользователя для SSH и sudo:';
     }
+    const sshInput = document.getElementById(`sec_${server}_ssh_pass`);
+    if (sshInput && sshLabel) sshInput.placeholder = sshLabel.textContent;
 
     const sudoField = document.querySelector(`[data-separate-sudo-field="${server}"]`);
     if (sudoField) {
