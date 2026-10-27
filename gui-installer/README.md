@@ -1,19 +1,42 @@
-# README
+# GUI-установщик ServeHub-2
 
-## About
+GUI-установщик на Go/Wails позволяет выбрать версию ServeHub-2, подготовить параметры и секреты, а затем запустить развёртывание или обновление. Ansible выполняется в Docker-контейнере.
 
-This is the official Wails Vanilla template.
+## Требования для запуска
 
-You can configure the project by editing `wails.json`. More information about the project settings can be found
-here: https://wails.io/docs/reference/project-config
+- Docker Engine и Docker Compose должны быть установлены и запущены на компьютере, где запускается установщик.
+- Нужен доступ к GitHub, пакетным репозиториям и используемым API/службам во время развёртывания.
+- Подробные требования и порядок установки описаны в [руководстве по установке](../docs/INSTALLATION.md).
 
-## Live Development
+## Разработка
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide very fast hot reload of your frontend changes. If you want to develop in a browser
-and have access to your Go methods, there is also a dev server that runs on http://localhost:34115. Connect
-to this in your browser, and you can call your Go code from devtools.
+Для сборки из исходников используются Go версии, указанные в `go.mod` (`go 1.26.0`, toolchain `go1.27.3`), Node.js, pnpm и Wails CLI v2. На Linux также нужны GTK и `libwebkit2gtk-4.1-dev`.
 
-## Building
+Установите frontend-зависимости и запустите режим разработки из каталога `gui-installer/`:
 
-To build a redistributable, production mode package, use `wails build`.
+```bash
+cd frontend
+pnpm install
+cd ..
+wails dev
+```
+
+## Сборка
+
+Из каталога `gui-installer/`:
+
+Windows:
+
+```powershell
+wails build
+```
+
+Linux:
+
+```bash
+wails build -tags webkit2_41
+```
+
+Готовые бинарные файлы создаются в `build/bin/`. Для создания Linux-пакета `.deb` из корня репозитория используйте `./scripts/build_deb.sh`.
+
+Дополнительные инструкции по сборке и упаковке находятся в [руководстве по установке](../docs/INSTALLATION.md#сборка-gui-установщика-из-исходников).
