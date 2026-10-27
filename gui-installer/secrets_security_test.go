@@ -29,7 +29,7 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 		"postgres_password": "x",
 		"nextcloud_redis_pass": "x",
 		"secret_vaultwarden_password": "x",
-		"hbox_pepper": "x",
+		"hbox_pepper": strings.Repeat("ab", 32),
 		"ssh_public_key": "not-a-public-key",
 		"ssh_private_key": "not-a-private-key",
 		"borgmatic_encryption_passphrase": "x",
@@ -44,6 +44,7 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 		"hermes_api_base_url": "not-a-url",
 		"hermes_api_key": "x",
 		"hermes_model": "x",
+		"hermes_dashboard_basic_auth_secret": strings.Repeat("cd", 32),
 	}
 }
 
@@ -110,6 +111,72 @@ func TestValidateDeploymentRequiresMinimumAdminPasswordLength(t *testing.T) {
 				t.Fatalf("password of valid length should be accepted: %v", err)
 			}
 		})
+	}
+}
+
+func TestValidateDeploymentRequiresHomeboxPepperMinimumByteLength(t *testing.T) {
+	cases := []struct {
+		name    string
+		pepper  string
+		wantErr bool
+	}{
+		{name: "31 ASCII bytes rejected", pepper: strings.Repeat("a", 31), wantErr: true},
+		{name: "32 ASCII bytes accepted", pepper: strings.Repeat("a", 32), wantErr: false},
+		{name: "15 two-byte UTF-8 characters rejected", pepper: strings.Repeat("é", 15), wantErr: true},
+		{name: "16 two-byte UTF-8 characters accepted", pepper: strings.Repeat("é", 16), wantErr: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			values := validTestDeploymentValues(t)
+			values["hbox_pepper"] = tc.pepper
+			err := validateDeploymentValues(values, 4)
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "hbox_pepper") {
+					t.Fatalf("expected Homebox pepper byte-length error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Homebox pepper with at least 32 bytes should be accepted: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateDeploymentRequiresValidHermesDashboardSecretForVPS(t *testing.T) {
+	cases := []struct {
+		name    string
+		secret  string
+		wantErr bool
+	}{
+		{name: "empty rejected", secret: "", wantErr: true},
+		{name: "63 hex characters rejected", secret: strings.Repeat("a", 63), wantErr: true},
+		{name: "non-hex characters rejected", secret: strings.Repeat("g", 64), wantErr: true},
+		{name: "64 hex characters accepted", secret: strings.Repeat("a1", 32), wantErr: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			values := validTestDeploymentValues(t)
+			values["hermes_dashboard_basic_auth_secret"] = tc.secret
+			err := validateDeploymentValues(values, 6)
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "hermes_dashboard_basic_auth_secret") {
+					t.Fatalf("expected Hermes dashboard secret validation error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("valid 32-byte Hermes dashboard secret should be accepted: %v", err)
+			}
+		})
+	}
+
+	values := validTestDeploymentValues(t)
+	values["hermes_dashboard_basic_auth_secret"] = ""
+	if err := validateDeploymentValues(values, 4); err != nil {
+		t.Fatalf("local-only deployment must not require the Edge Hermes dashboard secret: %v", err)
 	}
 }
 

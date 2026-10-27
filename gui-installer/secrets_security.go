@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -93,6 +94,9 @@ func validateDeploymentValues(values map[string]string, option int) error {
 		if err := requireNonEmptyFields(values, localRequired); err != nil {
 			return err
 		}
+		if len([]byte(strings.TrimSpace(values["hbox_pepper"]))) < 32 {
+			return fmt.Errorf("hbox_pepper: значение должно содержать не менее 32 байт")
+		}
 	}
 
 	if usesVPS {
@@ -102,9 +106,14 @@ func validateDeploymentValues(values map[string]string, option int) error {
 			"hermes_api_base_url",
 			"hermes_api_key",
 			"hermes_model",
+			"hermes_dashboard_basic_auth_secret",
 		}
 		if err := requireNonEmptyFields(values, vpsRequired); err != nil {
 			return err
+		}
+		dashboardSecretBytes, decodeErr := hex.DecodeString(strings.TrimSpace(values["hermes_dashboard_basic_auth_secret"]))
+		if decodeErr != nil || len(dashboardSecretBytes) != 32 {
+			return fmt.Errorf("hermes_dashboard_basic_auth_secret: требуется ровно 64 шестнадцатеричных символа (32 байта)")
 		}
 	}
 

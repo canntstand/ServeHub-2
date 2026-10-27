@@ -175,7 +175,16 @@ window.runInstallation = async function() {
 
             spinner.style.display = 'none';
 
-            if (secretsCheck.success && !existingSecrets.isTemplate) {
+            const existingPepper = String(existingSecrets.values?.hbox_pepper ?? '').trim();
+            const generatedPepper = String(document.getElementById('sec_hbox_pepper')?.value ?? '').trim();
+            const existingHermesDashboardSecret = String(existingSecrets.values?.hermes_dashboard_basic_auth_secret ?? '').trim();
+            const generatedHermesDashboardSecret = String(document.getElementById('sec_hermes_dashboard_basic_auth_secret')?.value ?? '').trim();
+            const generatedSecuritySecretsNeedSaving = !existingSecrets.isTemplate && (
+                existingPepper !== generatedPepper ||
+                existingHermesDashboardSecret !== generatedHermesDashboardSecret
+            );
+
+            if (secretsCheck.success && !existingSecrets.isTemplate && !generatedSecuritySecretsNeedSaving) {
                 installText.innerText = '✓ ' + result.message + '\n\nКонфигурация найдена: файл secrets.yml уже существует. Шаги создания и настройки будут пропущены.';
                 installText.style.color = 'var(--accent-bright)';
                 
@@ -190,7 +199,9 @@ window.runInstallation = async function() {
                 }
 
             } else {
-                installText.innerText = `✓ ${result.message}`;
+                installText.innerText = generatedSecuritySecretsNeedSaving
+                    ? `✓ ${result.message}\n\nУстановщик подготовил новые секреты Homebox/Hermes. Перейдите к форме, чтобы проверить и сохранить их перед деплоем.`
+                    : `✓ ${result.message}`;
                 installText.style.color = 'var(--accent-bright)';
                 
                 btnFinish.disabled = false;
@@ -359,6 +370,430 @@ function isTemplatePlaceholder(value) {
         text === 'ssh-ed25519 replace_with_your_public_key';
 }
 
+function generateSecureHexSecret(byteLength) {
+    if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') return '';
+    try {
+        const secretBytes = new Uint8Array(byteLength);
+        window.crypto.getRandomValues(secretBytes);
+        return Array.from(secretBytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    } catch (_) {
+        return '';
+    }
+}
+
+function utf8ByteLength(value) {
+    const text = String(value ?? '');
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(text).length;
+    return new Blob([text]).size;
+}
+
+function isHexSecretOfLength(value, byteLength) {
+    return new RegExp(`^[0-9a-fA-F]{${byteLength * 2}}import './style.css';
+import { CheckDocker, GetProjectVersions, ResolveProjectVersion, GetProjectInstallDirectory, InspectProjectInstallDirectory, SetProjectInstallDirectory, ChooseProjectInstallDirectory, PerformProjectAction, CancelProjectInstallation, SaveSecrets, PreviewSecrets, ValidateDeploymentSecrets, CloseApp, MinimizeApp, MaximizeApp, RunDeployment, CheckSecrets, LoadSecrets, SendEnter } from '../wailsjs/go/main/App.js';
+import { EventsOn } from '../wailsjs/runtime/runtime.js';
+
+let generatedYamlString = "";
+let generatedSecretUpdates = {};
+let generatedPreviewValues = {};
+let sourceSecretValues = {};
+let sourceSecretIsTemplate = true;
+let secretFormInitialized = false;
+let secretFormProjectSHA = "";
+let secretFormProjectDirectory = "";
+
+const STEP_TITLES = {
+    1: 'Выбор версии проекта',
+    2: 'Проверка требований',
+    3: 'Установка компонентов',
+    4: 'Настройка secrets.yml',
+    5: 'Проверка конфигурации',
+    6: 'Выбор сценария деплоя',
+    7: 'Запуск деплоя',
+};
+
+function updateStepProgress(stepNumber) {
+    const totalSteps = 7;
+    const progress = document.getElementById('step-progress');
+    if (progress) progress.style.display = stepNumber === 0 ? 'none' : '';
+    document.body.classList.toggle('is-welcome-screen', stepNumber === 0);
+    if (stepNumber < 1 || stepNumber > totalSteps) return;
+
+    const fill = document.getElementById('step-progress-fill');
+    const track = document.querySelector('.step-progress-track');
+    const currentEl = document.getElementById('step-progress-current');
+    const titleEl = document.getElementById('step-progress-title');
+
+    if (fill) {
+        const pct = ((stepNumber - 1) / (totalSteps - 1)) * 100;
+        fill.style.width = `${pct}%`;
+        if (track) track.setAttribute('aria-valuenow', String(Math.round(pct)));
+    }
+    if (currentEl) currentEl.innerText = String(stepNumber).padStart(2, '0');
+    if (titleEl) titleEl.innerText = STEP_TITLES[stepNumber] || '';
+
+    document.querySelectorAll('.step-dot').forEach((dot) => {
+        const dotStep = parseInt(dot.getAttribute('data-step'), 10);
+        dot.classList.remove('completed', 'active');
+        if (dotStep < stepNumber) dot.classList.add('completed');
+        if (dotStep === stepNumber) dot.classList.add('active');
+    });
+}
+
+window.goToStep = function(stepNumber) {
+    document.querySelectorAll('.step').forEach(step => {
+        step.classList.remove('active');
+    });
+
+    const nextStep = document.getElementById(`step-${stepNumber}`);
+    if (nextStep) {
+        nextStep.classList.add('active');
+    }
+
+    updateStepProgress(stepNumber);
+
+    if (stepNumber === 2) {
+        runDockerCheck();
+    }
+
+    if (stepNumber === 3) {
+        runInstallation();
+    }
+}
+
+window.runDockerCheck = async function() {
+    const statusText = document.getElementById('status-text');
+    const spinner = document.getElementById('status-loading');
+    const btnNext = document.getElementById('btn-step2-next');
+    const btnRetry = document.getElementById('btn-retry');
+
+    spinner.style.display = 'block';
+    spinner.className = 'spinner';
+    statusText.innerText = 'Проверяем Docker и Docker Compose...';
+    statusText.style.color = 'var(--text-secondary)';
+    btnNext.disabled = true;
+    btnRetry.style.display = 'none';
+
+    await new Promise(resolve => setTimeout(resolve, 700));
+
+    try {
+        const result = await CheckDocker();
+
+        spinner.style.display = 'none';
+
+        if (result.success) {
+            statusText.innerText = `✓ ${result.message}`;
+            statusText.style.color = 'var(--success)';
+            btnNext.disabled = false;
+        } else {
+            statusText.innerText = `✗ Ошибка: ${result.message}.`;
+            statusText.style.color = 'var(--danger)';
+            btnRetry.style.display = 'block';
+        }
+    } catch (err) {
+        spinner.style.display = 'none';
+        statusText.innerText = 'Критическая ошибка при вызове проверки бэкенда:\n' + err;
+        statusText.style.color = 'var(--danger)';
+        btnRetry.style.display = 'block';
+    }
+}
+
+window.runInstallation = async function() {
+    const installText = document.getElementById('install-text');
+    const spinner = document.getElementById('install-loading');
+    const btnFinish = document.getElementById('btn-finish');
+    const btnRetry = document.getElementById('btn-install-retry');
+    const btnEditSecrets = document.getElementById('btn-edit-secrets');
+    const btnStep6Back = document.getElementById('btn-step6-back');
+
+    spinner.style.display = 'block';
+    installText.innerText = 'Проверяем выбранную версию и загружаем её во временный каталог...';
+    installText.style.color = 'var(--text-secondary)';
+    btnFinish.disabled = true;
+    btnFinish.style.display = 'inline-block';
+    btnRetry.style.display = 'none';
+    btnEditSecrets.style.display = 'none';
+
+    try {
+        const action = selectedProjectAction();
+        let selection = null;
+        if (action !== 'use') {
+            selection = getSelectedProjectVersion();
+            if (!selection.valid) {
+                spinner.style.display = 'none';
+                installText.innerText = selection.message || 'Сначала выберите и проверьте версию проекта.';
+                installText.style.color = 'var(--danger)';
+                btnFinish.style.display = 'none';
+                btnRetry.style.display = 'inline-block';
+                return;
+            }
+        }
+        const directoryInput = document.getElementById('project-install-directory');
+        const directoryResult = await SetProjectInstallDirectory(String(directoryInput?.value ?? '').trim());
+        if (!directoryResult.success) throw new Error(directoryResult.message || 'Не удалось сохранить каталог установки.');
+        projectInstallDirectory = directoryResult.directory;
+        projectInstallState = directoryResult.installed;
+        projectInstallDirectoryVerified = true;
+        const cancelButton = document.getElementById('btn-install-cancel');
+        if (cancelButton) cancelButton.style.display = action === 'install' || action === 'update' ? 'inline-block' : 'none';
+        const result = await PerformProjectAction(action === 'install' && projectInstallState?.exists ? 'update' : action, selection?.mode ?? '', selection?.ref ?? '', selection?.expectedSHA ?? '', true, true);
+        if (cancelButton) cancelButton.style.display = 'none';
+        
+        if (result.success) {
+            const refreshedInstall = await GetProjectInstallDirectory();
+            if (refreshedInstall.success) {
+                projectInstallDirectory = refreshedInstall.directory;
+                projectInstallState = refreshedInstall.installed;
+                projectInstallDirectoryVerified = true;
+                const pathInput = document.getElementById('project-install-directory');
+                if (pathInput) pathInput.value = projectInstallDirectory;
+                renderInstalledProjectState(projectInstallState, true);
+                window.updateProjectActionUI();
+            }
+            const secretsCheck = await CheckSecrets();
+            const existingSecrets = await LoadSecrets();
+            if (!existingSecrets.success) {
+                throw new Error(existingSecrets.message || 'Не удалось прочитать и проверить secrets.yml или его шаблон.');
+            }
+            const selectedCommitSHA = selection?.expectedSHA ?? String(projectInstallState?.metadata?.commit_sha ?? '');
+            if (!secretFormInitialized || secretFormProjectSHA !== selectedCommitSHA ||
+                secretFormProjectDirectory !== projectInstallDirectory) {
+                populateSecretsForm(existingSecrets.values, existingSecrets.isTemplate);
+                secretFormInitialized = true;
+                secretFormProjectSHA = selectedCommitSHA;
+                secretFormProjectDirectory = projectInstallDirectory;
+            }
+
+            spinner.style.display = 'none';
+
+            const existingPepper = String(existingSecrets.values?.hbox_pepper ?? '').trim();
+            const generatedPepper = String(document.getElementById('sec_hbox_pepper')?.value ?? '').trim();
+            const existingHermesDashboardSecret = String(existingSecrets.values?.hermes_dashboard_basic_auth_secret ?? '').trim();
+            const generatedHermesDashboardSecret = String(document.getElementById('sec_hermes_dashboard_basic_auth_secret')?.value ?? '').trim();
+            const generatedSecuritySecretsNeedSaving = !existingSecrets.isTemplate && (
+                existingPepper !== generatedPepper ||
+                existingHermesDashboardSecret !== generatedHermesDashboardSecret
+            );
+
+            if (secretsCheck.success && !existingSecrets.isTemplate && !generatedSecuritySecretsNeedSaving) {
+                installText.innerText = '✓ ' + result.message + '\n\nКонфигурация найдена: файл secrets.yml уже существует. Шаги создания и настройки будут пропущены.';
+                installText.style.color = 'var(--accent-bright)';
+                
+                btnFinish.disabled = false;
+                btnFinish.innerText = 'Перейти к выбору развертки';
+                btnFinish.setAttribute('onclick', 'goToStep(6)');
+
+                btnEditSecrets.style.display = 'inline-block';
+
+                if (btnStep6Back) {
+                    btnStep6Back.setAttribute('onclick', 'goToStep(3)');
+                }
+
+            } else {
+                installText.innerText = generatedSecuritySecretsNeedSaving
+                    ? `✓ ${result.message}\n\nУстановщик подготовил новые секреты Homebox/Hermes. Перейдите к форме, чтобы проверить и сохранить их перед деплоем.`
+                    : `✓ ${result.message}`;
+                installText.style.color = 'var(--accent-bright)';
+                
+                btnFinish.disabled = false;
+                btnFinish.innerText = 'Продолжить к настройке';
+                btnFinish.setAttribute('onclick', 'goToStep(4)');
+
+                if (btnStep6Back) {
+                    btnStep6Back.setAttribute('onclick', 'goToStep(5)');
+                }
+            }
+        } else {
+            spinner.style.display = 'none';
+            installText.innerText = `✗ Ошибка установки: ${result.message}`;
+            installText.style.color = 'var(--danger)';
+            btnFinish.style.display = 'none';
+            btnRetry.style.display = 'inline-block';
+        }
+    } catch (err) {
+        const cancelButton = document.getElementById('btn-install-cancel');
+        if (cancelButton) cancelButton.style.display = 'none';
+        spinner.style.display = 'none';
+        installText.innerText = 'Критическая ошибка в процессе установки:\n' + err;
+        installText.style.color = 'var(--danger)';
+        btnFinish.style.display = 'none';
+        btnRetry.style.display = 'inline-block';
+    }
+}
+
+const SECRETS_FIELD_MAP = {
+    vps_public_ip: 'sec_vps_ip',
+    vps_user: 'sec_vps_user',
+    vps_root_password: 'sec_vps_root_pass',
+    vps_ssh_password: 'sec_vps_ssh_pass',
+    vps_sudo_password: 'sec_vps_sudo_pass',
+    local_private_ip: 'sec_local_ip',
+    local_user: 'sec_local_user',
+    local_root_password: 'sec_local_root_pass',
+    local_ssh_password: 'sec_local_ssh_pass',
+    local_sudo_password: 'sec_local_sudo_pass',
+    server_name: 'sec_server_name',
+    admin_user: 'sec_admin_user',
+    postgres_user: 'sec_pg_user',
+    hbox_pepper: 'sec_hbox_pepper',
+    admin_password: 'sec_admin_pass',
+    email: 'sec_email',
+    telegram_token: 'sec_tg_token',
+    telegram_chat_id: 'sec_tg_chat_id',
+    webnames_apikey: 'sec_webnames',
+    postgres_password: 'sec_pg_pass',
+    nextcloud_redis_pass: 'sec_redis_pass',
+    secret_vaultwarden_password: 'sec_vw_admin_pass',
+    ssh_public_key: 'sec_public_ssh_key',
+    ssh_private_key: 'sec_private_ssh_key',
+    borgmatic_encryption_passphrase: 'sec_borg_pass',
+    backup_disk_uuid: 'sec_disk_uuid',
+    offsite_s3_endpoint: 'sec_s3_endpoint',
+    offsite_s3_region: 'sec_s3_region',
+    offsite_s3_bucket: 'sec_s3_bucket',
+    offsite_s3_access_key_id: 'sec_s3_access_key',
+    offsite_s3_secret_access_key: 'sec_s3_secret_key',
+    hermes_api_base_url: 'sec_hermes_api_base_url',
+    hermes_api_key: 'sec_hermes_api_key',
+    hermes_model: 'sec_hermes_model',
+    hermes_dashboard_basic_auth_secret: 'sec_hermes_dashboard_basic_auth_secret',
+};
+
+const SENSITIVE_SECRET_FIELDS = new Set([
+    'vps_root_password', 'vps_ssh_password', 'vps_sudo_password',
+    'local_root_password', 'local_ssh_password', 'local_sudo_password',
+    'admin_password', 'telegram_token', 'webnames_apikey',
+    'postgres_password', 'nextcloud_redis_pass', 'secret_vaultwarden_password',
+    'hbox_pepper', 'adguard_password_salt', 'ssh_private_key',
+    'borgmatic_encryption_passphrase', 'offsite_s3_access_key_id',
+    'offsite_s3_secret_access_key', 'hermes_api_key',
+    'hermes_dashboard_basic_auth_secret',
+]);
+
+const BOOTSTRAP_AUTH_FIELDS = {
+    vps: { root: 'vps_root_password', user: ['vps_ssh_password', 'vps_sudo_password'] },
+    local: { root: 'local_root_password', user: ['local_ssh_password', 'local_sudo_password'] },
+};
+let bootstrapAuthModes = { vps: 'root', local: 'root' };
+let separateSudoPasswords = { vps: false, local: false };
+
+function inferSeparateSudoPassword(values, server) {
+    const [sshKey, sudoKey] = BOOTSTRAP_AUTH_FIELDS[server].user;
+    const sshValue = String(values?.[sshKey] ?? '').trim();
+    const sudoValue = String(values?.[sudoKey] ?? '').trim();
+    return sudoValue !== '' && sudoValue !== sshValue;
+}
+
+function applySeparateSudoPassword(server, enabled) {
+    if (!Object.prototype.hasOwnProperty.call(BOOTSTRAP_AUTH_FIELDS, server)) return;
+    separateSudoPasswords[server] = Boolean(enabled);
+
+    const checkbox = document.getElementById(`sec_${server}_separate_sudo`);
+    if (checkbox) checkbox.checked = separateSudoPasswords[server];
+
+    const sshLabel = document.getElementById(`sec_${server}_ssh_password_label`);
+    if (sshLabel) {
+        sshLabel.textContent = separateSudoPasswords[server]
+            ? 'SSH-пароль пользователя:'
+            : 'Пароль пользователя для SSH и sudo:';
+    }
+    const sshInput = document.getElementById(`sec_${server}_ssh_pass`);
+    if (sshInput && sshLabel) sshInput.placeholder = sshLabel.textContent;
+
+    const sudoField = document.querySelector(`[data-separate-sudo-field="${server}"]`);
+    if (sudoField) {
+        sudoField.hidden = bootstrapAuthModes[server] !== 'user' || !separateSudoPasswords[server];
+    }
+}
+
+function addInactiveBootstrapCredentialRemovals(updates) {
+    for (const [server, fields] of Object.entries(BOOTSTRAP_AUTH_FIELDS)) {
+        const mode = bootstrapAuthModes[server] === 'user' ? 'user' : 'root';
+        const inactiveKeys = mode === 'root' ? fields.user : [fields.root];
+        for (const key of inactiveKeys) {
+            updates[`__delete_auth__${key}`] = 'true';
+        }
+    }
+    return updates;
+}
+
+function inferBootstrapAuthMode(values, server) {
+    const fields = BOOTSTRAP_AUTH_FIELDS[server];
+    const rootValue = String(values?.[fields.root] ?? '').trim();
+    const userValues = fields.user.map(key => String(values?.[key] ?? '').trim());
+    if (rootValue !== '' && !isTemplatePlaceholder(rootValue)) return 'root';
+    if (userValues.some(value => value !== '' && !isTemplatePlaceholder(value))) return 'user';
+    return 'root';
+}
+
+function applyBootstrapAuthMode(server, mode) {
+    if (!Object.prototype.hasOwnProperty.call(BOOTSTRAP_AUTH_FIELDS, server)) return;
+    const selectedMode = mode === 'user' ? 'user' : 'root';
+    bootstrapAuthModes[server] = selectedMode;
+    const selector = document.getElementById(`sec_${server}_auth_mode`);
+    if (selector && selector.value !== selectedMode) selector.value = selectedMode;
+
+    document.querySelectorAll(`[data-bootstrap-auth^="${server}:"]`).forEach((field) => {
+        const fieldMode = String(field.getAttribute('data-bootstrap-auth') || '').split(':')[1];
+        field.hidden = fieldMode !== selectedMode;
+    });
+    applySeparateSudoPassword(server, separateSudoPasswords[server]);
+}
+
+window.setBootstrapAuthMode = function(server, mode) {
+    applyBootstrapAuthMode(server, mode);
+};
+
+window.setSeparateSudoPassword = function(server, enabled) {
+    applySeparateSudoPassword(server, enabled);
+};
+
+function isTemplatePlaceholder(value) {
+    const text = String(value ?? '').trim().toLowerCase();
+    return text.startsWith('replace_with_') ||
+        text.includes('replace_with_your_') ||
+        text.startsWith('your_') ||
+        text.includes('of_the_bot_you_created') ||
+        text.includes('where_ansible_is_installed') ||
+        text.startsWith('change_this_to_') ||
+        text.endsWith('_secure_password') ||
+        text === 'hbox_key_pepper' ||
+        text === 'ssh-ed25519 replace_with_your_public_key';
+}
+
+).test(String(value ?? '').trim());
+}
+
+function initializeGeneratedSecuritySecrets() {
+    const hboxField = document.getElementById('sec_hbox_pepper');
+    const hermesField = document.getElementById('sec_hermes_dashboard_basic_auth_secret');
+    if (!hboxField || !hermesField) {
+        alert('Не удалось подготовить секреты Homebox/Hermes: поля конфигурации не найдены.');
+        return false;
+    }
+
+    const currentPepper = String(hboxField.value ?? '').trim();
+    if (utf8ByteLength(currentPepper) < 32) {
+        const generatedPepper = generateSecureHexSecret(32);
+        if (!generatedPepper) {
+            alert('Не удалось безопасно сгенерировать ключ Homebox. Проверьте поддержку криптографического генератора в установщике.');
+            return false;
+        }
+        hboxField.value = generatedPepper;
+    }
+
+    const currentHermesSecret = String(hermesField.value ?? '').trim();
+    if (!isHexSecretOfLength(currentHermesSecret, 32)) {
+        const generatedHermesSecret = generateSecureHexSecret(32);
+        if (!generatedHermesSecret) {
+            alert('Не удалось безопасно сгенерировать секрет Hermes Dashboard. Проверьте поддержку криптографического генератора в установщике.');
+            return false;
+        }
+        hermesField.value = generatedHermesSecret;
+    }
+
+    return true;
+}
+
 function populateSecretsForm(values, isTemplate = false) {
     const source = values && typeof values === 'object' ? values : {};
     sourceSecretValues = { ...source };
@@ -380,6 +815,8 @@ function populateSecretsForm(values, isTemplate = false) {
         applyBootstrapAuthMode(server, inferBootstrapAuthMode(source, server));
         applySeparateSudoPassword(server, inferSeparateSudoPassword(source, server));
     }
+
+    initializeGeneratedSecuritySecrets();
 }
 
 function collectSecretFormValues(normalized = {}) {
@@ -454,20 +891,25 @@ window.editExistingSecrets = async function() {
 }
 
 window.generateAndReviewYaml = async function() {
+    const hboxField = document.getElementById('sec_hbox_pepper');
+    const hboxPepper = String(hboxField?.value ?? '').trim();
+    if (utf8ByteLength(hboxPepper) < 32) {
+        alert('Ключ Homebox должен содержать не менее 32 байт. Оставьте автоматически созданный ключ или введите более длинное значение.');
+        goToStep(4);
+        hboxField?.focus();
+        return;
+    }
+
     const hermesSecretField = document.getElementById('sec_hermes_dashboard_basic_auth_secret');
-    let hermesDashboardSecret = String(hermesSecretField?.value ?? '').trim();
-    if (!hermesDashboardSecret) {
-        if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') {
-            alert('Не удалось создать внутренний секрет сессии Hermes. Повторите попытку в поддерживаемой версии установщика.');
-            return;
-        }
-        const secretBytes = new Uint8Array(32);
-        window.crypto.getRandomValues(secretBytes);
-        hermesDashboardSecret = Array.from(secretBytes, byte => byte.toString(16).padStart(2, '0')).join('');
-        if (hermesSecretField) hermesSecretField.value = hermesDashboardSecret;
+    const hermesDashboardSecret = String(hermesSecretField?.value ?? '').trim();
+    if (!isHexSecretOfLength(hermesDashboardSecret, 32)) {
+        alert('Не удалось подготовить внутренний секрет Hermes Dashboard. Повторно откройте конфигурацию и попробуйте ещё раз.');
+        goToStep(4);
+        return;
     }
 
     const normalizedValues = collectSecretFormValues({
+        hbox_pepper: hboxPepper,
         hermes_dashboard_basic_auth_secret: hermesDashboardSecret,
     });
     const updates = addInactiveBootstrapCredentialRemovals(buildChangedSecretUpdates(normalizedValues));
