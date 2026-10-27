@@ -2873,3 +2873,16 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
 .form-group.bootstrap-auth-checkbox small {
     margin-top: 2px;
 }
+
+/* Keep field labels available to assistive technology without repeating the placeholder visually. */
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}

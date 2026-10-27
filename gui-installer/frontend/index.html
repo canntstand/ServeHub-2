@@ -212,11 +212,11 @@
                     <small>IP и Linux-пользователь нужны только для тех серверов, которые входят в выбранный сценарий. Пароли bootstrap требуются при полном развёртывании; если root-пароль задан и подходит для первичного входа, SSH/sudo-поля можно оставить пустыми.</small>
                     <div class="form-subsection-heading">VPS / Edge</div>
                     <div class="form-group">
-                        <label>Публичный IP VPS:</label>
+                        <label class="sr-only" for="sec_vps_ip">Публичный IP VPS:</label>
                         <input type="text" id="sec_vps_ip" value="" placeholder="Публичный IP VPS:">
                     </div>
                     <div class="form-group">
-                        <label>Имя пользователя VPS (SSH/sudo):</label>
+                        <label class="sr-only" for="sec_vps_user">Имя пользователя VPS (SSH/sudo):</label>
                         <input type="text" id="sec_vps_user" value="" placeholder="Имя пользователя VPS (SSH/sudo):">
                     </div>
                     
@@ -231,11 +231,11 @@
                         <small>В secrets.yml сохраняются только учётные данные выбранного режима. Фактический способ SSH-подключения по-прежнему автоматически обрабатывает Ansible.</small>
                     </div>
                     <div class="form-group bootstrap-auth-field" data-bootstrap-auth="vps:root">
-                        <label>Пароль root VPS:</label>
+                        <label class="sr-only" for="sec_vps_root_pass">Пароль root VPS:</label>
                         <input type="text" id="sec_vps_root_pass" value="" autocomplete="off" placeholder="Пароль root VPS:">
                     </div>
                     <div class="form-group bootstrap-auth-field" data-bootstrap-auth="vps:user">
-                        <label id="sec_vps_ssh_password_label">Пароль пользователя для SSH и sudo:</label>
+                        <label class="sr-only" for="sec_vps_ssh_pass" id="sec_vps_ssh_password_label">Пароль пользователя для SSH и sudo:</label>
                         <input type="text" id="sec_vps_ssh_pass" value="" autocomplete="off" placeholder="Пароль пользователя для SSH и sudo:">
                     </div>
                     <div class="form-group bootstrap-auth-field bootstrap-auth-checkbox" data-bootstrap-auth="vps:user">
@@ -246,7 +246,7 @@
                         <small>Если флажок выключен, одно значение будет использоваться для SSH и sudo.</small>
                     </div>
                     <div class="form-group bootstrap-auth-field" data-bootstrap-auth="vps:user" data-separate-sudo-field="vps" hidden>
-                        <label>Отдельный пароль sudo VPS:</label>
+                        <label class="sr-only" for="sec_vps_sudo_pass">Отдельный пароль sudo VPS:</label>
                         <input type="text" id="sec_vps_sudo_pass" value="" autocomplete="off" placeholder="Отдельный пароль sudo VPS:">
                     </div>
                     
@@ -254,11 +254,11 @@
 
 <div class="form-subsection-heading">Домашний сервер / Workload</div>
                     <div class="form-group">
-                        <label>Приватный IP домашнего сервера:</label>
+                        <label class="sr-only" for="sec_local_ip">Приватный IP домашнего сервера:</label>
                         <input type="text" id="sec_local_ip" value="" placeholder="Приватный IP домашнего сервера:">
                     </div>
                     <div class="form-group">
-                        <label>Пользователь домашнего сервера:</label>
+                        <label class="sr-only" for="sec_local_user">Пользователь домашнего сервера:</label>
                         <input type="text" id="sec_local_user" value="" placeholder="Пользователь домашнего сервера:">
                     </div>
                     
@@ -273,11 +273,11 @@
                         <small>В secrets.yml сохраняются только учётные данные выбранного режима. Фактический способ SSH-подключения по-прежнему автоматически обрабатывает Ansible.</small>
                     </div>
                     <div class="form-group bootstrap-auth-field" data-bootstrap-auth="local:root">
-                        <label>Пароль root домашнего сервера:</label>
+                        <label class="sr-only" for="sec_local_root_pass">Пароль root домашнего сервера:</label>
                         <input type="text" id="sec_local_root_pass" value="" autocomplete="off" placeholder="Пароль root домашнего сервера:">
                     </div>
                     <div class="form-group bootstrap-auth-field" data-bootstrap-auth="local:user">
-                        <label id="sec_local_ssh_password_label">Пароль пользователя для SSH и sudo:</label>
+                        <label class="sr-only" for="sec_local_ssh_pass" id="sec_local_ssh_password_label">Пароль пользователя для SSH и sudo:</label>
                         <input type="text" id="sec_local_ssh_pass" value="" autocomplete="off" placeholder="Пароль пользователя для SSH и sudo:">
                     </div>
                     <div class="form-group bootstrap-auth-field bootstrap-auth-checkbox" data-bootstrap-auth="local:user">
@@ -288,7 +288,7 @@
                         <small>Если флажок выключен, одно значение будет использоваться для SSH и sudo.</small>
                     </div>
                     <div class="form-group bootstrap-auth-field" data-bootstrap-auth="local:user" data-separate-sudo-field="local" hidden>
-                        <label>Отдельный пароль sudo домашнего сервера:</label>
+                        <label class="sr-only" for="sec_local_sudo_pass">Отдельный пароль sudo домашнего сервера:</label>
                         <input type="text" id="sec_local_sudo_pass" value="" autocomplete="off" placeholder="Отдельный пароль sudo домашнего сервера:">
                     </div>
 
@@ -309,7 +309,7 @@
                         <div class="form-section-content">
                     <small>Домен и email обязательны для сценариев с локальным Workload/Certbot; для VPS-only можно оставить пустыми.</small>
                     <div class="form-group">
-                        <label>Доменное имя проекта (например: server.ru):</label>
+                        <label class="sr-only" for="sec_server_name">Доменное имя проекта (например: server.ru):</label>
                         <input type="text" id="sec_server_name" value="" placeholder="Доменное имя проекта (например: server.ru):">
                     </div>
                     
@@ -317,18 +317,18 @@
 <div class="form-field-grid">
                         <div class="form-subsection-title">Учётная запись администратора</div>
                         <div class="form-group">
-                            <label>Имя администратора:</label>
+                            <label class="sr-only" for="sec_admin_user">Имя администратора:</label>
                             <input type="text" id="sec_admin_user" value="" autocomplete="off" placeholder="Имя администратора:">
                         </div>
 <div class="form-group">
-                        <label>Глобальный пароль администратора:</label>
+                        <label class="sr-only" for="sec_admin_pass">Глобальный пароль администратора:</label>
                         <input type="text" id="sec_admin_pass" value="" autocomplete="off" placeholder="Глобальный пароль администратора:">
                     </div>
                     
 </div>
 
 <div class="form-group">
-                        <label>Email (для генерации SSL-сертификатов через Certbot):</label>
+                        <label class="sr-only" for="sec_email">Email (для генерации SSL-сертификатов через Certbot):</label>
                         <input type="text" id="sec_email" value="" placeholder="Email (для генерации SSL-сертификатов через Certbot):">
                     </div>
 
@@ -345,12 +345,12 @@
                         </summary>
                         <div class="form-section-content">
                     <div class="form-group">
-                        <label>Telegram Бот Токен:</label>
+                        <label class="sr-only" for="sec_tg_token">Telegram Бот Токен:</label>
                         <input type="text" id="sec_tg_token" value="" autocomplete="off" placeholder="Telegram Бот Токен:">
                         <small>Требуется для сценариев с VPS/Edge (Alertmanager). Для local-only можно оставить пустым.</small>
                     </div>
                     <div class="form-group">
-                        <label>Telegram Chat ID:</label>
+                        <label class="sr-only" for="sec_tg_chat_id">Telegram Chat ID:</label>
                         <input type="text" id="sec_tg_chat_id" value="" inputmode="numeric" placeholder="Telegram Chat ID:">
                         <small>Требуется вместе с токеном Telegram для VPS/Edge; для local-only можно оставить пустым.</small>
                     </div>
@@ -368,7 +368,7 @@
                         </summary>
                         <div class="form-section-content">
                     <div class="form-group">
-                        <label>API-ключ Webnames.ru (для Wildcard-сертификатов):</label>
+                        <label class="sr-only" for="sec_webnames">API-ключ Webnames.ru (для Wildcard-сертификатов):</label>
                         <input type="text" id="sec_webnames" value="" autocomplete="off" placeholder="API-ключ Webnames.ru (для Wildcard-сертификатов):">
                         <small>Требуется для local-сценариев, где Certbot выпускает сертификаты через DNS-01. Для VPS-only можно оставить пустым.</small>
                     </div>
@@ -390,15 +390,15 @@
 <div class="form-field-grid">
                         <div class="form-subsection-title">Учётные данные PostgreSQL и Redis</div>
                         <div class="form-group">
-                            <label>Пользователь PostgreSQL:</label>
+                            <label class="sr-only" for="sec_pg_user">Пользователь PostgreSQL:</label>
                             <input type="text" id="sec_pg_user" value="" autocomplete="off" placeholder="Пользователь PostgreSQL:">
                         </div>
 <div class="form-group">
-                        <label>Пароль суперпользователя Postgres:</label>
+                        <label class="sr-only" for="sec_pg_pass">Пароль суперпользователя Postgres:</label>
                         <input type="text" id="sec_pg_pass" value="" autocomplete="off" placeholder="Пароль суперпользователя Postgres:">
                     </div>
                     <div class="form-group">
-                        <label>Пароль Redis для Nextcloud:</label>
+                        <label class="sr-only" for="sec_redis_pass">Пароль Redis для Nextcloud:</label>
                         <input type="text" id="sec_redis_pass" value="" autocomplete="off" placeholder="Пароль Redis для Nextcloud:">
                     </div>
 
@@ -422,11 +422,11 @@
 <div class="form-field-grid">
                         <div class="form-subsection-title">Пароли и ключи приложений</div>
 <div class="form-group">
-                        <label>Пароль админ-панели Vaultwarden:</label>
+                        <label class="sr-only" for="sec_vw_admin_pass">Пароль админ-панели Vaultwarden:</label>
                         <input type="text" id="sec_vw_admin_pass" value="" autocomplete="off" placeholder="Пароль админ-панели Vaultwarden:">
                     </div>
                     <div class="form-group">
-                        <label>Homebox ключ:</label>
+                        <label class="sr-only" for="sec_hbox_pepper">Homebox ключ:</label>
                         <input type="text" id="sec_hbox_pepper" value="" autocomplete="off" placeholder="Homebox ключ:">
                     </div>
                     
@@ -436,23 +436,23 @@
 <div class="form-field-grid">
                         <div class="form-subsection-title">SSH-доступ и шифрование резервных копий</div>
                     <div class="form-group">
-                        <label>Публичный SSH-ключ для установки на серверы:</label>
+                        <label class="sr-only" for="sec_public_ssh_key">Публичный SSH-ключ для установки на серверы:</label>
                         <input type="text" id="sec_public_ssh_key" value="" placeholder="Публичный SSH-ключ для установки на серверы:">
                     </div>
                     <div class="form-group">
-                        <label>Приватный SSH-ключ контроллера (необходим для Ansible):</label>
+                        <label class="sr-only" for="sec_private_ssh_key">Приватный SSH-ключ контроллера (необходим для Ansible):</label>
                         <textarea id="sec_private_ssh_key" rows="6" placeholder="Приватный SSH-ключ контроллера (необходим для Ansible):"></textarea>
                         <small>Укажите соответствующие друг другу публичный и приватный SSH-ключи. Для сценариев без bootstrap публичный ключ уже должен быть разрешён на целевых серверах.</small>
                     </div>
                     <div class="form-group">
-                        <label>Фраза шифрования borgmatic:</label>
+                        <label class="sr-only" for="sec_borg_pass">Фраза шифрования borgmatic:</label>
                         <input type="text" id="sec_borg_pass" placeholder="Фраза шифрования borgmatic:" autocomplete="off">
                     </div>
                     
 </div>
                     
 <div class="form-group">
-                        <label>UUID диска для бэкапов (blkid):</label>
+                        <label class="sr-only" for="sec_disk_uuid">UUID диска для бэкапов (blkid):</label>
                         <input type="text" id="sec_disk_uuid" value="" placeholder="UUID диска для бэкапов (blkid):">
                         <small>Необязательный параметр. Заполняйте только при наличии отдельного диска для локального Borg-репозитория.</small>
                     </div>
@@ -462,15 +462,15 @@
 <div class="form-field-grid">
                         <div class="form-subsection-title">Доступ к хранилищу S3</div>
 <div class="form-group">
-                        <label>Имя приватного S3-бакета:</label>
+                        <label class="sr-only" for="sec_s3_bucket">Имя приватного S3-бакета:</label>
                         <input type="text" id="sec_s3_bucket" value="" placeholder="Имя приватного S3-бакета:">
                     </div>
                     <div class="form-group">
-                        <label>S3 Access Key:</label>
+                        <label class="sr-only" for="sec_s3_access_key">S3 Access Key:</label>
                         <input type="text" id="sec_s3_access_key" autocomplete="off" placeholder="S3 Access Key:">
                     </div>
                     <div class="form-group">
-                        <label>S3 Secret Access Key:</label>
+                        <label class="sr-only" for="sec_s3_secret_key">S3 Secret Access Key:</label>
                         <input type="text" id="sec_s3_secret_key" autocomplete="off" placeholder="S3 Secret Access Key:">
                     </div>
                     
@@ -491,16 +491,16 @@
                         </summary>
                         <div class="form-section-content">
                     <div class="form-group">
-                        <label>OpenAI-compatible API Base URL:</label>
+                        <label class="sr-only" for="sec_hermes_api_base_url">OpenAI-compatible API Base URL:</label>
                         <input type="text" id="sec_hermes_api_base_url" autocomplete="off" placeholder="OpenAI-compatible API Base URL:">
                         <small>Адрес API провайдера, включая /v1 при необходимости.</small>
                     </div>
                     <div class="form-group">
-                        <label>Модель Hermes:</label>
+                        <label class="sr-only" for="sec_hermes_model">Модель Hermes:</label>
                         <input type="text" id="sec_hermes_model" value="" autocomplete="off" placeholder="Модель Hermes:">
                     </div>
                     <div class="form-group">
-                        <label>API-ключ провайдера:</label>
+                        <label class="sr-only" for="sec_hermes_api_key">API-ключ провайдера:</label>
                         <input type="text" id="sec_hermes_api_key" value="" autocomplete="off" placeholder="API-ключ провайдера:">
                         <small>Ключ нельзя сгенерировать локально. Обязателен для сценариев с VPS/Edge; для локального сервера не используется.</small>
                     </div>
