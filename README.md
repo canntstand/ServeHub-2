@@ -132,3 +132,7 @@ sudo apt install ./gui-installer/build/bin/servehub-installer.deb
 ```
 
 Готовый пакет servehub-installer.deb будет сохранен в папке gui-installer/build/bin/.
+
+## Документация
+
+Полные руководства по архитектуре, установке, компонентам, эксплуатации, безопасности и устранению неполадок находятся в [`docs/`](docs/README.md). Документы помечены как созданные с помощью ИИ.

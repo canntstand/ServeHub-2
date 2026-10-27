@@ -138,3 +138,7 @@ sudo apt install ./gui-installer/build/bin/servehub-installer.deb
 ```
 
 The finished package servehub-installer.deb will be saved in gui-installer/build/bin/.
+
+## Documentation
+
+Guides for architecture, installation, components, operations, security, and troubleshooting are available in [`docs/`](docs/README-ENG.md). Documentation files are marked as AI-generated.
