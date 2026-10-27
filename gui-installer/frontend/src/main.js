@@ -1022,8 +1022,6 @@ function renderInstalledProjectState(state, initialLoad) {
         note.textContent = '';
     }
 
-    // Keep this line focused on the path and verification result. Installation
-    // details belong in project-installed-note, otherwise the same state appears twice.
     const pathStatus = state && state.directory
         ? ('Каталог проверен: ' + state.directory + '.')
         : '';

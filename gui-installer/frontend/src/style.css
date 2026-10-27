@@ -205,7 +205,6 @@ button {
     opacity: 0.55;
 }
 
-/* Call-to-action: dark violet fill, muted pink only as the edge highlight */
 .btn-accent,
 .btn-primary.btn-accent {
     background-color: var(--violet);
@@ -1283,8 +1282,6 @@ textarea:focus {
     }
 }
 
-
-/* Full-window workspace; form pages no longer sit inside a second framed pane. */
 html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; }
 body {
     display:block;
@@ -1310,7 +1307,6 @@ body {
 }
 .title,.brand-title { display:none !important; }
 
-/* Minimal chrome: brand in the custom titlebar, current step in the progress area. */
 .window-drag-zone {
     height:42px; padding:0 18px; background:rgba(22,24,27,.97);
     border-bottom:1px solid rgba(196,178,156,.16); backdrop-filter:blur(12px);
@@ -1336,7 +1332,6 @@ body {
 .step-progress-label { margin-top:0; color:#C7C3BC; font-family:'Cascadia Code','Cascadia',monospace; font-size:12px; font-weight:550; letter-spacing:.1px; text-align:left; }
 #step-progress-current,#step-progress-title { color:#E9E6E1; font-weight:650; }
 
-/* No fixed-height, rounded "window in the window": one document scroll region instead. */
 .form-container {
     width:100%; height:auto; max-height:none; min-height:0; overflow:visible;
     background:transparent; border:0; border-radius:0; padding:4px 0 12px;
@@ -1363,7 +1358,6 @@ body {
 input:focus,select:focus,textarea:focus { border-color:var(--accent)!important; background:#25292F; outline:none; box-shadow:0 0 0 3px rgba(196,178,156,.1); }
 .form-group small { margin-top:6px; line-height:1.5; font-size:11px; color:var(--text-muted); }
 
-/* Step 1 is also full-width, no card wrapped around the version form. */
 #step-1 .version-picker { width:100%; max-width:none; margin:0; padding:0; background:transparent; border:0; border-radius:0; text-align:left; }
 #step-1 .install-directory-settings { margin:0 0 18px; padding:0 0 16px; border-bottom:1px solid rgba(196,178,156,.17); }
 #step-1 .project-action-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:12px 0 18px; padding:0; border:0; }
@@ -1381,7 +1375,6 @@ input:focus,select:focus,textarea:focus { border-color:var(--accent)!important; 
 .install-directory-controls { grid-template-columns:minmax(0,1fr) auto auto; gap:9px; }
 .install-directory-controls button { min-height:40px; padding:8px 14px; font-size:12px; }
 
-/* Status and actions use the same content area as the active step. */
 .status-box {
     width:100%; max-width:none; margin:16px 0 20px; padding:18px 0;
     border:0; border-top:1px solid rgba(196,178,156,.16); border-bottom:1px solid rgba(196,178,156,.16);
@@ -1458,8 +1451,6 @@ input[type="checkbox"],input[type="radio"] { accent-color:var(--accent); }
     .preview-container { height:44vh; min-height:210px; }
 }
 
-
-/* Cascadia Code is shipped with the frontend, so avoid depending on host fonts. */
 html, body, button, input, select, textarea, option, label, small, p, span, div,
 legend, summary, code, pre, .step-progress-label, .window-title, .tooltip-content {
     font-family: 'Cascadia Code', 'Cascadia', monospace !important;
@@ -1753,7 +1744,6 @@ button svg, button .icon, .btn-icon {
     }
 }
 
-
 /* ---------- First-launch welcome screen ---------- */
 #step-0 {
     width: 100%;
@@ -2026,7 +2016,6 @@ button svg, button .icon, .btn-icon {
     }
 }
 
-
 /* ---------- Responsive layout and visual polish ---------- */
 :root {
     --titlebar-height: 42px;
@@ -2115,7 +2104,7 @@ body.is-welcome-screen #step-0.active {
 }
 
 .intro-screen {
-    /* The welcome page is the app's main canvas, not a card inside the window. */
+    
     width: 100%;
     max-width: none;
     min-width: 0;
@@ -2218,7 +2207,6 @@ body.is-welcome-screen #step-0.active {
     letter-spacing: .75px;
 }
 
-/* Progress is a single, aligned panel instead of a disconnected line and caption. */
 .step-progress {
     top: var(--titlebar-height);
     left: 0;
@@ -2641,10 +2629,6 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
     overflow-wrap: anywhere;
 }
 
-
-
-/* Credential-heavy installer form: group related secret fields and keep
-   their labels/controls aligned without nested cards or horizontal scrolling. */
 .form-field-grid {
     grid-column: 1 / -1;
     display: grid;
@@ -2678,7 +2662,6 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
         grid-column: 1;
     }
 }
-
 
 /* ---------- Collapsible secret-form sections ---------- */
 .form-section-card {
@@ -2834,7 +2817,6 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
     }
 }
 
-
 /* Bootstrap credential mode selector */
 .bootstrap-auth-field[hidden] {
     display: none !important;
@@ -2844,8 +2826,6 @@ input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:dis
     width: 100%;
 }
 
-
-/* Compact inline checkbox for optional separate sudo credentials. */
 .form-group .checkbox-inline-label {
     display: flex;
     flex-direction: row;
