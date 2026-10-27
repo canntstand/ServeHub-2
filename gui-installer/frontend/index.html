@@ -69,7 +69,7 @@
                             <span class="intro-feature-index" aria-hidden="true">01</span>
                             <div class="intro-feature-copy">
                                 <h2>Выберите версию</h2>
-                                <p>Опубликованный тег или ветка dev — выбранный код будет закреплён перед загрузкой.</p>
+                                <p>Выберите тег релиза или ветку dev.</p>
                             </div>
                         </article>
                         <article class="intro-feature">
@@ -209,7 +209,7 @@
                             <span class="form-section-chevron" aria-hidden="true"></span>
                         </summary>
                         <div class="form-section-content">
-                    <small>IP и Linux-пользователь нужны только для тех серверов, которые входят в выбранный сценарий. Пароли bootstrap требуются при полном развёртывании; если root-пароль задан и подходит для первичного входа, SSH/sudo-поля можно оставить пустыми.</small>
+                    <small>IP и Linux-пользователь нужны только для серверов выбранного сценария. При полном развёртывании требуются bootstrap-учётные данные; если доступ под root настроен, поля SSH/sudo можно оставить пустыми. В secrets.yml сохраняются данные выбранного режима, а SSH-подключение обрабатывает Ansible.</small>
                     <div class="form-subsection-heading">VPS / Edge</div>
                     <div class="form-group">
                         <label class="sr-only" for="sec_vps_ip">Публичный IP VPS:</label>
@@ -228,7 +228,6 @@
                             <option value="root">Вход под root</option>
                             <option value="user">Обычный пользователь с sudo</option>
                         </select>
-                        <small>В secrets.yml сохраняются только учётные данные выбранного режима. Фактический способ SSH-подключения по-прежнему автоматически обрабатывает Ansible.</small>
                     </div>
                     <div class="form-group bootstrap-auth-field" data-bootstrap-auth="vps:root">
                         <label class="sr-only" for="sec_vps_root_pass">Пароль root VPS:</label>
@@ -270,7 +269,6 @@
                             <option value="root">Вход под root</option>
                             <option value="user">Обычный пользователь с sudo</option>
                         </select>
-                        <small>В secrets.yml сохраняются только учётные данные выбранного режима. Фактический способ SSH-подключения по-прежнему автоматически обрабатывает Ansible.</small>
                     </div>
                     <div class="form-group bootstrap-auth-field" data-bootstrap-auth="local:root">
                         <label class="sr-only" for="sec_local_root_pass">Пароль root домашнего сервера:</label>
@@ -344,15 +342,14 @@
                             <span class="form-section-chevron" aria-hidden="true"></span>
                         </summary>
                         <div class="form-section-content">
+                    <small>Токен и Chat ID требуются вместе для сценариев с VPS/Edge (Alertmanager); для local-only их можно оставить пустыми.</small>
                     <div class="form-group">
                         <label class="sr-only" for="sec_tg_token">Telegram Бот Токен:</label>
                         <input type="text" id="sec_tg_token" value="" autocomplete="off" placeholder="Telegram Бот Токен:">
-                        <small>Требуется для сценариев с VPS/Edge (Alertmanager). Для local-only можно оставить пустым.</small>
                     </div>
                     <div class="form-group">
                         <label class="sr-only" for="sec_tg_chat_id">Telegram Chat ID:</label>
                         <input type="text" id="sec_tg_chat_id" value="" inputmode="numeric" placeholder="Telegram Chat ID:">
-                        <small>Требуется вместе с токеном Telegram для VPS/Edge; для local-only можно оставить пустым.</small>
                     </div>
 
                     </div>
@@ -388,7 +385,6 @@
                     
 
 <div class="form-field-grid">
-                        <div class="form-subsection-title">Учётные данные PostgreSQL и Redis</div>
                         <div class="form-group">
                             <label class="sr-only" for="sec_pg_user">Пользователь PostgreSQL:</label>
                             <input type="text" id="sec_pg_user" value="" autocomplete="off" placeholder="Пользователь PostgreSQL:">
