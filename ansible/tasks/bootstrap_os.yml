@@ -330,7 +330,7 @@
           for kernel_candidate in /boot/vmlinuz-*; do
             [[ -f "$kernel_candidate" ]] && kernel_images+=("$kernel_candidate")
           done
-          if (( ${#kernel_images[@]} == 0 )); then
+          if [[ -z "${kernel_images[*]-}" ]]; then
             echo "Cannot determine the target kernel: neither /vmlinuz nor /boot/vmlinuz-* contains a valid versioned kernel image." >&2
             exit 1
           fi
