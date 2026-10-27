@@ -326,14 +326,17 @@
         # In that case, select the newest installed versioned image in /boot.
         if [[ -z "$kernel_image" ]]; then
           shopt -s nullglob
-          kernel_images=(/boot/vmlinuz-*)
+          kernel_images=()
+          for kernel_candidate in /boot/vmlinuz-*; do
+            [[ -f "$kernel_candidate" ]] && kernel_images+=("$kernel_candidate")
+          done
           if (( ${#kernel_images[@]} == 0 )); then
-            echo "Cannot determine the target kernel: neither /vmlinuz nor /boot/vmlinuz-* contains a versioned kernel image." >&2
+            echo "Cannot determine the target kernel: neither /vmlinuz nor /boot/vmlinuz-* contains a valid versioned kernel image." >&2
             exit 1
           fi
 
-          kernel_image="$(printf '%s\\n' "${kernel_images[@]}" | sort -V | tail -n 1)"
-          printf 'Warning: no usable /vmlinuz symlink; using newest installed kernel image: %s\\n' "$kernel_image" >&2
+          kernel_image="$(printf '%s\n' "${kernel_images[@]}" | sort -V | tail -n 1)"
+          printf 'Warning: no usable /vmlinuz symlink; using newest installed kernel image: %s\n' "$kernel_image" >&2
         fi
 
         kernel_image_name="$(basename "$kernel_image")"
