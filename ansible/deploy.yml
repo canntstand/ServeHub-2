@@ -137,6 +137,8 @@
 - name: "Проверка восстановления AmneziaWG и связности VPN после настройки Workload"
   hosts: local
   gather_facts: false
+  vars_files:
+    - vars/secrets.yml
   become: true
   tags: postflight
   tasks:
