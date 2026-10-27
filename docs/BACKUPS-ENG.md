@@ -1,3 +1,5 @@
+> **AI-generated documentation:** Drafted with AI assistance and checked against branch `dev`.
+
 # ServeHub-2 Backup and Recovery
 
 ## Design
