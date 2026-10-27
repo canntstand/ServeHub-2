@@ -1,50 +1,108 @@
-> **AI-generated documentation:** Документ подготовлен с помощью ИИ; содержание сверено с кодом ветки `dev`.
+> **Документация создана с помощью ИИ.** Документ подготовлен на основе ветки `dev`; перед применением команд сверяйте их с актуальным кодом.
 
-# Установка
+# Установка и сборка ServeHub-2
 
-## Требования
+## Что нужно подготовить
 
-- Два узла Ubuntu Server 24.04 LTS: публичный Edge/VPS и Workload, доступный по SSH.
-- Docker Engine и Docker Compose на компьютере, где запускается GUI: Ansible выполняется в контейнере.
-- SSH/root или существующий пользователь с sudo для bootstrap.
-- Домен, Webnames API key, Telegram-бот и заранее созданный S3 bucket.
-- Исходящий доступ к пакетным репозиториям, GitHub, Webnames API и S3.
+- **Серверы:** два узла Ubuntu Server 24.04 LTS — публичный Edge/VPS и Workload, доступный по SSH. Проект рассчитан на чистые серверы или серверы, уже развёрнутые этим проектом; для иных конфигураций совместимость не гарантируется.
+- **Доступ:** SSH-доступ к обоим узлам, root/sudo для bootstrap либо заранее настроенный deploy-пользователь. Убедитесь, что приватный SSH-ключ соответствует публичному ключу, заданному в конфигурации.
+- **Домен и TLS:** домен и Webnames API key. Настройте A-запись основного домена и wildcard `*` на VPN-адрес Workload `10.8.0.2` для доступа к сервисам через VPN. Certbot использует DNS-01 через Webnames; публичный IP Edge для VPN-only сервисов указывать не нужно.
+- **Telegram:** токен бота и chat ID для уведомлений, если планируете использовать Telegram-алертинг.
+- **S3:** заранее создайте приватный S3-совместимый бакет. Подготовьте базовый API endpoint (HTTPS, без имени бакета и пути), регион при необходимости, Access Key и Secret Key с правами чтения, записи и удаления объектов. Проект не создаёт бакет автоматически. Ограничьте ключи нужным бакетом/префиксами.
+- **Секреты:** заполните `ansible/vars/secrets.yml`; храните файл с правами `0600` и не коммитьте его. Парольную фразу Borg (минимум 20 символов) храните отдельно от серверов и S3. GUI использует обычный YAML; Ansible Vault не поддерживается сквозным процессом установки.
+- **Компьютер установщика:** для GUI необходимы работающие Docker Engine и Docker Compose, так как Ansible запускается в контейнере. Также нужен доступ к GitHub, пакетным репозиториям, Webnames API и S3.
+- **Для тестирования:** установите Vagrant и VirtualBox. В Vagrantfile определены две Ubuntu 24.04 VM; при запросе bridge выберите сетевой интерфейс с доступом в интернет. Убедитесь, что VPN/split-tunneling не перехватывает сеть `192.168.0.0/24` и не мешает SSH к VM.
 
-Используйте чистые тестовые узлы. Развёртывание изменяет SSH, firewall, маршрутизацию и Docker.
+Развёртывание меняет SSH, firewall, маршрутизацию и Docker. Начните с чистых тестовых VM и сохраните доступ к консоли провайдера VPS.
 
 ## GUI-установщик
 
-1. Выберите родительский каталог; проект будет в подкаталоге `ServeHub-2`.
-2. Выберите стабильный релиз, Git-тег или `dev`. Установщик закрепляет выбранный исходный код полным commit SHA.
+1. Запустите GUI из каталога `gui-installer/`. При выборе каталога установки укажите родительский каталог: установщик создаст внутри него `ServeHub-2`.
+2. Выберите стабильный релиз, опубликованный Git-тег или `dev`. Установщик фиксирует выбранный код полным commit SHA.
 3. Заполните и проверьте `ansible/vars/secrets.yml`.
-4. Выберите сценарий установки и пройдите preflight.
-5. Дождитесь окончания Ansible и postflight.
+4. Выберите сценарий и пройдите preflight-проверки. Сценарии без bootstrap предполагают, что SSH и sudo уже настроены.
+5. Дождитесь окончания Ansible и проверьте postflight-результаты.
 
-Сценарии: 1 — полный Edge+Workload; 2 — сервисы Edge+Workload без bootstrap; 3 — полный Workload с уже подготовленным Edge; 4 — Workload без bootstrap с проверкой Edge; 5 — полный Edge; 6 — Edge без bootstrap. Сценарии 3/4 требуют здорового `wg-easy` на Edge.
+Сценарии развёртывания включают полный Edge+Workload, развёртывание без bootstrap, Workload с уже подготовленным Edge и Edge-only. Workload-сценарии, зависящие от Edge, требуют успешного healthcheck сервиса wg-easy на Edge.
 
-## Secrets
+## Настройка secrets.yml
 
-Для CLI можно начать с шаблона:
+Для CLI можно начать с примера:
 
 ~~~bash
 cp ansible/vars/secrets.yml.example ansible/vars/secrets.yml
 chmod 600 ansible/vars/secrets.yml
 ~~~
 
-Важные группы: IP/пользователи (`vps_public_ip`, `vps_user`, `local_private_ip`, `local_user`), начальные SSH/sudo/root credentials, `server_name`, `email`, `admin_user`, `admin_password`, Telegram, `webnames_apikey`, PostgreSQL/Redis, SSH deploy key, `borgmatic_encryption_passphrase`, S3 endpoint/bucket/keys/prefixes, Hermes API URL/key/model и dashboard secret.
+Проверьте IP-адреса и пользователей обоих серверов, bootstrap credentials, `server_name`, `email`, `admin_user`, `admin_password`, Telegram, `webnames_apikey`, пароли PostgreSQL/Redis, SSH deploy key, `borgmatic_encryption_passphrase`, S3 endpoint/region/bucket/ключи/префиксы и настройки Hermes API/model/dashboard.
 
-`admin_password` должен иметь минимум 12 символов; Borg passphrase — минимум 20. PostgreSQL password используется в URL, поэтому задавайте URL-safe значение. Hermes dashboard secret — 64 hex-символа. Endpoint S3 — базовый HTTPS URL без bucket и пути; бакет должен существовать. GUI ожидает обычный YAML: Ansible Vault не поддерживается сквозным процессом.
+В текущих проверках `admin_password` должен содержать не менее 12 символов, парольная фраза Borg — не менее 20 символов, а Hermes dashboard secret — 64 hex-символа. Пароль PostgreSQL используется в URL, поэтому задавайте URL-safe значение. Endpoint S3 указывайте без имени бакета и пути. Бакет должен существовать заранее.
 
 ## Первый VPN-клиент Workload
 
-Во время полного развёртывания Workload настройте профиль клиента через wg-easy. SSH-туннель к UI:
+При первоначальной настройке создайте клиент в wg-easy через SSH-туннель, не открывая панель в публичный интернет:
 
 ~~~bash
 ssh -L 8000:127.0.0.1:51821 <vps_user>@<vps_public_ip>
 ~~~
 
-Откройте `http://127.0.0.1:8000`, создайте клиента с адресом `10.8.0.2`, экспортируйте профиль и сохраните на Workload как `apps-data/amnezia/awg0.conf`. Права должны быть `0600`. Не открывайте TCP 51821 публично.
+Откройте `http://127.0.0.1:8000`, создайте клиента с адресом `10.8.0.2`, экспортируйте профиль и сохраните его на Workload как `apps-data/amnezia/awg0.conf` с правами `0600`. TCP 51821 не должен быть публично доступен.
 
-## DNS и CLI
+## Проверка после установки
 
-Приложения используют отдельные поддомены; предполагаемый доступ идёт через VPN на `10.8.0.2`. Certbot на Workload использует Webnames DNS-01 для wildcard-сертификата. `./scripts/manage_deploy.sh` — CLI-альтернатива, но по умолчанию плейбук использует `dev` и не предоставляет тот же процесс выбора версии, что GUI.
+Проверьте здоровье Compose-сервисов, доступ к веб-приложениям через VPN, TLS-сертификат, Prometheus targets, доставку Telegram-уведомлений и успешный backup. Выполните тестовое восстановление данных. Команды обслуживания и диагностики приведены в [руководстве по эксплуатации](OPERATIONS.md), [устранению неполадок](TROUBLESHOOTING.md) и [резервному копированию](BACKUPS.md).
+
+## Тестирование через Vagrant
+
+В корне репозитория:
+
+~~~bash
+vagrant up
+vagrant halt
+vagrant destroy -f
+~~~
+
+В `secrets.yml` для тестовых VM используйте пользователя и пароль `vagrant`, если соответствующий сценарий требует эти значения. При создании VM выберите правильный bridged interface. Если после подключения VPN перестал работать SSH к тестовым машинам, проверьте маршруты и split-tunneling.
+
+## Сборка GUI-установщика из исходников
+
+### Зависимости
+
+- Go **1.26+** (проектный `go.mod` указывает `go 1.26.0`, toolchain `go1.27.3`).
+- Node.js и пакетный менеджер, указанные Wails v2 для используемого frontend.
+- Wails CLI v2.
+- На Linux — `libwebkit2gtk-4.1-dev`, GTK и инструменты сборки, необходимые Wails.
+
+Установите Wails CLI v2 согласно [официальной инструкции Wails](https://wails.io/docs/gettingstarted/installation), затем перейдите в `gui-installer/`.
+
+### Сборка бинарного файла
+
+Windows:
+
+~~~powershell
+wails build
+~~~
+
+Linux:
+
+~~~bash
+wails build -tags webkit2_41
+~~~
+
+Готовый бинарный файл будет в `gui-installer/build/bin/`.
+
+### Сборка Linux .deb
+
+Из корня репозитория выполните:
+
+~~~bash
+./scripts/build_deb.sh
+~~~
+
+Скрипт при отсутствии бинарного файла запускает `wails build -tags webkit2_41`. Готовый пакет: `gui-installer/build/bin/servehub-installer.deb`. Установка:
+
+~~~bash
+sudo apt install ./gui-installer/build/bin/servehub-installer.deb
+~~~
+
+Скрипт пакует приложение для архитектуры amd64.
