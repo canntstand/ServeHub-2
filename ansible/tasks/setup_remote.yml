@@ -298,7 +298,6 @@
     cmd: docker compose -f docker-compose.remote.yaml config --quiet
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   changed_when: false
-  no_log: true
 
 - name: "[Docker] Запуск стека Edge без устаревших контейнеров"
   community.docker.docker_compose_v2:

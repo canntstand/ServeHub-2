@@ -74,6 +74,17 @@ jobs:
           docker compose -f docker-compose.local.yaml config --quiet
           docker compose -f docker-compose.remote.yaml config --quiet
 
+      - name: Validate Grafana Alloy configurations
+        id: alloy_validation
+        continue-on-error: true
+        run: |
+          docker run --rm --entrypoint /bin/alloy \
+            -v "$GITHUB_WORKSPACE/configs/alloy:/etc/alloy:ro" \
+            grafana/alloy:v1.21.2 validate /etc/alloy/remote.alloy
+          docker run --rm --entrypoint /bin/alloy \
+            -v "$GITHUB_WORKSPACE/configs/alloy:/etc/alloy:ro" \
+            grafana/alloy:v1.21.2 validate /etc/alloy/local.alloy
+
       - name: Test Prometheus alert rules
         id: prometheus_rules_validation
         continue-on-error: true
@@ -287,6 +298,7 @@ jobs:
           ANSIBLE_OUTCOME: ${{ steps.ansible_syntax.outcome }}
           COMPOSE_OUTCOME: ${{ steps.compose_validation.outcome }}
           PROMETHEUS_RULES_OUTCOME: ${{ steps.prometheus_rules_validation.outcome }}
+          ALLOY_OUTCOME: ${{ steps.alloy_validation.outcome }}
           SHELL_SYNTAX_OUTCOME: ${{ steps.shell_syntax.outcome }}
           TRIVY_MISCONFIG_OUTCOME: ${{ steps.trivy_misconfig.outcome }}
           TRIVY_SOURCE_VULNS_OUTCOME: ${{ steps.trivy_source_vulns.outcome }}
@@ -309,6 +321,7 @@ jobs:
           check_outcome "Ansible syntax" "$ANSIBLE_OUTCOME"
           check_outcome "Docker Compose validation" "$COMPOSE_OUTCOME"
           check_outcome "Prometheus alert-rule tests" "$PROMETHEUS_RULES_OUTCOME"
+          check_outcome "Grafana Alloy configuration validation" "$ALLOY_OUTCOME"
           check_outcome "Shell and firewall syntax" "$SHELL_SYNTAX_OUTCOME"
           check_outcome "Critical repository misconfiguration scan" "$TRIVY_MISCONFIG_OUTCOME"
           check_outcome "Critical source dependency scan" "$TRIVY_SOURCE_VULNS_OUTCOME"

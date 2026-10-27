@@ -14,7 +14,7 @@ Borg/Borgmatic creates an encrypted local repository on each host. After Borg ha
 
 ## Initial setup
 
-1. Choose an S3-compatible provider and create a private bucket. Set `offsite_s3_endpoint` to the base S3 API URL, without a bucket name or path. HTTPS is preferred.
+1. Choose an S3-compatible provider and create a private bucket beforehand. ServeHub sets `no_check_bucket = true` and does not try to create buckets during writes, so the S3 key does not need CreateBucket permission. Set `offsite_s3_endpoint` to the base S3 API URL, without a bucket name or path. HTTPS is preferred.
 2. Set `offsite_s3_region` to the provider's region if required; otherwise leave it empty. The project uses rclone's generic `provider = Other` mode, so the service must support the S3 API compatible with that mode. See the [rclone S3 documentation](https://rclone.org/s3/).
 3. Create a dedicated Access Key and Secret Key with permission to list the bucket and read, write, and delete objects. Do not use the account's primary key; scope permissions to the required bucket or prefixes.
 4. Set `offsite_s3_endpoint`, `offsite_s3_region`, `offsite_s3_bucket`, `offsite_s3_access_key_id`, `offsite_s3_secret_access_key`, and distinct `workload`/`edge` prefixes in `ansible/vars/secrets.yml`.

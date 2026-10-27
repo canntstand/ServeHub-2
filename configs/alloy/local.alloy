@@ -23,8 +23,8 @@ loki.source.docker "docker_logs" {
   targets = discovery.docker.local_containers.targets
 
   labels = {
-    "server"   = "local-minipc"
-    "instance" = "local-minipc"
+    "server"   = "local-minipc",
+    "instance" = "local-minipc",
   }
 
   relabel_rules = discovery.relabel.docker_logs_relabel.rules

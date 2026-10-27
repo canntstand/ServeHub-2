@@ -97,7 +97,6 @@
       - -n
       - "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
   changed_when: false
-  no_log: true
 
 - name: "[Certbot] Проверка наличия API_KEY"
   ansible.builtin.command:
@@ -107,14 +106,12 @@
       - '^[[:space:]]*(export[[:space:]]+)?API_KEY='
       - "/home/{{ deploy_user }}/ServeHub-2/certbot/certbot-dns-webnames/config.sh"
   changed_when: false
-  no_log: true
 
 - name: "[Docker Compose] Проверка конфигурации локального стека до изменений данных"
   ansible.builtin.command:
     cmd: docker compose -f docker-compose.local.yaml config --quiet
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   changed_when: false
-  no_log: true
 
 - name: "[Certbot] Установка прав на DNS hook-скрипты"
   ansible.builtin.file:
@@ -158,7 +155,6 @@
     chdir: "/home/{{ deploy_user }}/ServeHub-2"
   when: not current_cert_stat.stat.exists
   register: certbot_initial_issue
-  no_log: true
 
 - name: "[Certbot] Продление сертификата перед истечением"
   ansible.builtin.command:
@@ -169,7 +165,6 @@
     - cert_expiry_check.rc is defined
     - cert_expiry_check.rc != 0
   register: certbot_renewal
-  no_log: true
 
 - name: "[FS] Создание корня apps-data"
   ansible.builtin.file:

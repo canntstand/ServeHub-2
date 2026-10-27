@@ -23,8 +23,8 @@ loki.source.docker "docker_logs" {
   targets = discovery.docker.local_containers.targets
 
   labels = {
-    "server"   = "remote-ubuntu"
-    "instance" = "remote-ubuntu"
+    "server"   = "remote-ubuntu",
+    "instance" = "remote-ubuntu",
   }
 
   relabel_rules = discovery.relabel.docker_logs_relabel.rules

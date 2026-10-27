@@ -16,7 +16,6 @@
       Задайте одну общую borgmatic_encryption_passphrase (не менее 20 символов),
       имя приватного бакета и S3 Access/Secret Key в vars/secrets.yml.
       Префиксы Workload и Edge должны быть непустыми и различаться.
-  no_log: true
 
 - name: "[Backup] Создание каталога локального Borg-репозитория"
   ansible.builtin.file:
@@ -48,6 +47,21 @@
   register: rclone_config
   no_log: true
 
+- name: "[Backup] Сброс отметки успешной проверки S3 при изменении конфигурации"
+  ansible.builtin.file:
+    path: /etc/servehub/s3-preflight.success
+    state: absent
+  when: rclone_config.changed and not ansible_check_mode
+
+- name: "[Backup] Проверка отметки успешной проверки S3"
+  ansible.builtin.stat:
+    path: /etc/servehub/s3-preflight.success
+  register: s3_preflight_marker
+
+- name: "[Backup] Определение необходимости проверки S3"
+  ansible.builtin.set_fact:
+    s3_preflight_required: "{{ (rclone_config.changed or not s3_preflight_marker.stat.exists) and not ansible_check_mode }}"
+
 - name: "[Backup] Проверка доступа к S3-бакету"
   ansible.builtin.command:
     argv:
@@ -56,8 +70,12 @@
       - /etc/servehub/rclone.conf
       - lsd
       - "offsite-s3:{{ offsite_s3_bucket }}"
+  register: s3_bucket_listing
   changed_when: false
-  no_log: true
+
+- name: "[Backup] Результат проверки доступа к S3-бакету"
+  ansible.builtin.debug:
+    var: s3_bucket_listing.stdout_lines
 
 - name: "[Backup] Подготовка временного файла 6 MiB для проверки S3 multipart-upload"
   ansible.builtin.command:
@@ -67,7 +85,7 @@
       - 6M
       - "/run/servehub-s3-probe-{{ inventory_hostname }}.bin"
   changed_when: true
-  when: rclone_config.changed and not ansible_check_mode
+  when: s3_preflight_required | bool
 
 - name: "[Backup] Проверка multipart-записи, чтения и удаления объектов в S3"
   block:
@@ -83,7 +101,6 @@
           - "/run/servehub-s3-probe-{{ inventory_hostname }}.bin"
           - "offsite-s3:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
       changed_when: true
-      no_log: true
 
     - name: "[Backup] Скачивание временного объекта из S3"
       ansible.builtin.command:
@@ -95,7 +112,6 @@
           - "offsite-s3:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
           - "/run/servehub-s3-probe-{{ inventory_hostname }}.download.bin"
       changed_when: true
-      no_log: true
 
     - name: "[Backup] Проверка содержимого загруженного multipart-объекта"
       ansible.builtin.command:
@@ -107,14 +123,12 @@
       register: s3_probe_compare
       changed_when: false
       failed_when: false
-      no_log: true
 
     - name: "[Backup] Отказ от настройки, если содержимое объекта отличается"
       ansible.builtin.assert:
         that:
           - s3_probe_compare.rc | default(1) == 0
         fail_msg: "Проверка чтения S3-совместимого хранилища вернула объект с другим содержимым."
-      no_log: true
 
     - name: "[Backup] Проверка возможности удалять объекты из S3"
       ansible.builtin.command:
@@ -125,7 +139,6 @@
           - deletefile
           - "offsite-s3:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
       changed_when: true
-      no_log: true
 
   always:
     - name: "[Backup] Очистка временного объекта из S3 после проверки"
@@ -138,7 +151,6 @@
           - "offsite-s3:{{ offsite_s3_bucket }}/.servehub-preflight/{{ inventory_hostname }}.bin"
       changed_when: false
       failed_when: false
-      no_log: true
 
     - name: "[Backup] Удаление временных локальных файлов проверки S3"
       ansible.builtin.file:
@@ -147,7 +159,16 @@
       loop:
         - "/run/servehub-s3-probe-{{ inventory_hostname }}.bin"
         - "/run/servehub-s3-probe-{{ inventory_hostname }}.download.bin"
-  when: rclone_config.changed and not ansible_check_mode
+  when: s3_preflight_required | bool
+
+- name: "[Backup] Фиксация успешной проверки S3"
+  ansible.builtin.copy:
+    dest: /etc/servehub/s3-preflight.success
+    content: "S3 preflight passed\n"
+    owner: root
+    group: root
+    mode: "0600"
+  when: s3_preflight_required | bool
 
 - name: "[Backup] Генерация конфигурации Borgmatic"
   ansible.builtin.template:
@@ -166,8 +187,23 @@
       - /etc/borgmatic/config.yaml
       - config
       - validate
+  register: borgmatic_validation
   changed_when: false
+  failed_when: false
   no_log: true
+
+- name: "[Backup] Вывод безопасной диагностики Borgmatic"
+  ansible.builtin.assert:
+    that:
+      - borgmatic_validation.rc | default(1) == 0
+    fail_msg: >-
+      Borgmatic config validation failed (rc {{ borgmatic_validation.rc | default('unknown') }}).
+      {{
+        ((borgmatic_validation.stderr | default('')) or
+         (borgmatic_validation.stdout | default('')) or
+         'Команда не вернула подробностей')
+        | replace(borgmatic_encryption_passphrase | string, '[REDACTED]')
+      }}
 
 - name: "[Backup] Проверка существующего локального репозитория Borg"
   ansible.builtin.stat:
@@ -185,7 +221,6 @@
       - repokey-blake2
       - --make-parent-dirs
   when: not borg_repo_stat.stat.exists
-  no_log: true
 
 - name: "[Backup] Проверка доступа к уже существующему репозиторию Borg"
   ansible.builtin.command:

@@ -329,7 +329,6 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
       - /run:rw,noexec,nosuid,size=16m
@@ -386,6 +385,11 @@ services:
       - "10.8.0.1:9119:9119"
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
     security_opt:
       - no-new-privileges:true
     environment:
