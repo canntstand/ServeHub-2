@@ -21,6 +21,10 @@ The project targets **Ubuntu Server 24.04 LTS**. Ansible handles deployment, and
 - **Backups:** Borg/Borgmatic and encrypted repository mirrors in S3-compatible object storage.
 - **Hermes Agent:** an Edge component with a persistent workspace for files the agent is allowed to access.
 
+## Enabling wg-easy Prometheus metrics
+
+Prometheus metrics are disabled by default. In wg-easy, open **Admin Panel → General** and enable **Prometheus**. The scrape job is already configured in the project; see the [components guide](docs/COMPONENTS.md) for target verification and authentication details. Do not expose TCP port `51821` to the public internet.
+
 ## Prerequisites
 
 Prepare the following before deployment:

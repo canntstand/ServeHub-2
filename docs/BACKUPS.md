@@ -1,6 +1,6 @@
-> **Документация создана с помощью ИИ.** Содержание сверено с кодом ветки `dev`; перед применением команд проверяйте актуальные файлы проекта.
-
 # Резервное копирование и восстановление ServeHub-2
+
+> **Документация создана с помощью ИИ.** Содержание сверено с кодом ветки `dev`; перед применением команд проверяйте актуальные файлы проекта.
 
 ## Архитектура
 
@@ -25,6 +25,7 @@ Borg/Borgmatic создаёт зашифрованный локальный ре
 7. После завершения деплоя запустите первый бэкап вручную на каждом сервере: `sudo systemctl start borgmatic.service`.
 8. Проверьте состояние `systemctl status borgmatic.service`, расписание `systemctl list-timers borgmatic.timer` и журнал `sudo journalctl -u borgmatic.service --since today`.
 9. Проверьте метрики Prometheus: `servehub_borgmatic_backup_last_run_success`, `servehub_offsite_backup_last_run_success`, `servehub_backup_pipeline_last_run_success` и `servehub_offsite_backup_last_success_timestamp_seconds`. Ошибки выгрузки поднимут `OffsiteBackupFailed`; отсутствие свежей копии — `OffsiteBackupTooOld`.
+
 ## Что входит в копии
 
 Workload: `apps-data/`, `configs/`, `.env`, `certbot/` и `PersonalData/`. Edge: `apps-data/`, `configs/` и `.env`. Это включает сгенерированные конфиги и состояние сервисов, которое не восстанавливается только из Git.

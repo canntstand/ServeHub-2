@@ -1,6 +1,6 @@
-> **Документация создана с помощью ИИ.** Документ подготовлен на основе ветки `dev`; перед применением команд сверяйте их с актуальным кодом.
-
 # Установка и сборка ServeHub-2
+
+> **Документация создана с помощью ИИ.** Документ подготовлен на основе ветки `dev`; перед применением команд сверяйте их с актуальным кодом.
 
 ## Что нужно подготовить
 
@@ -29,10 +29,10 @@
 
 Для CLI можно начать с примера:
 
-~~~bash
+```bash
 cp ansible/vars/secrets.yml.example ansible/vars/secrets.yml
 chmod 600 ansible/vars/secrets.yml
-~~~
+```
 
 Проверьте IP-адреса и пользователей обоих серверов, bootstrap credentials, `server_name`, `email`, `admin_user`, `admin_password`, Telegram, `webnames_apikey`, пароли PostgreSQL/Redis, SSH deploy key, `borgmatic_encryption_passphrase`, S3 endpoint/region/bucket/ключи/префиксы и настройки Hermes API/model/dashboard.
 
@@ -42,11 +42,13 @@ chmod 600 ansible/vars/secrets.yml
 
 При первоначальной настройке создайте клиент в wg-easy через SSH-туннель, не открывая панель в публичный интернет:
 
-~~~bash
+```bash
 ssh -L 8000:127.0.0.1:51821 <vps_user>@<vps_public_ip>
-~~~
+```
 
 Откройте `http://127.0.0.1:8000`, создайте клиента с адресом `10.8.0.2`, экспортируйте профиль и сохраните его на Workload как `apps-data/amnezia/awg0.conf` с правами `0600`. TCP 51821 не должен быть публично доступен.
+
+После создания первого VPN-клиента включите Prometheus в панели wg-easy (**Admin Panel → General → Prometheus**). Задание сбора уже присутствует в конфигурации проекта; убедитесь, что target `wg-easy` в Prometheus имеет состояние `UP`. Не открывайте порт панели в публичный интернет. Подробности и настройки авторизации описаны в [руководстве по компонентам](COMPONENTS.md).
 
 ## Проверка после установки
 
@@ -56,11 +58,11 @@ ssh -L 8000:127.0.0.1:51821 <vps_user>@<vps_public_ip>
 
 В корне репозитория:
 
-~~~bash
+```bash
 vagrant up
 vagrant halt
 vagrant destroy -f
-~~~
+```
 
 В `secrets.yml` для тестовых VM используйте пользователя и пароль `vagrant`, если соответствующий сценарий требует эти значения. При создании VM выберите правильный bridged interface. Если после подключения VPN перестал работать SSH к тестовым машинам, проверьте маршруты и split-tunneling.
 
@@ -79,15 +81,15 @@ vagrant destroy -f
 
 Windows:
 
-~~~powershell
+```powershell
 wails build
-~~~
+```
 
 Linux:
 
-~~~bash
+```bash
 wails build -tags webkit2_41
-~~~
+```
 
 Готовый бинарный файл будет в `gui-installer/build/bin/`.
 
@@ -95,14 +97,14 @@ wails build -tags webkit2_41
 
 Из корня репозитория выполните:
 
-~~~bash
+```bash
 ./scripts/build_deb.sh
-~~~
+```
 
 Скрипт при отсутствии бинарного файла запускает `wails build -tags webkit2_41`. Готовый пакет: `gui-installer/build/bin/servehub-installer.deb`. Установка:
 
-~~~bash
+```bash
 sudo apt install ./gui-installer/build/bin/servehub-installer.deb
-~~~
+```
 
 Скрипт пакует приложение для архитектуры amd64.
