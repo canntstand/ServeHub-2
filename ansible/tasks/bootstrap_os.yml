@@ -306,12 +306,37 @@
       set -Eeuo pipefail
 
       if [[ -e /var/run/reboot-required ]]; then
-        kernel_image="$(readlink -f /vmlinuz)"
-        kernel_image_name="$(basename "$kernel_image")"
-        if [[ "$kernel_image_name" != vmlinuz-* ]]; then
-          echo "Cannot determine the kernel selected for the next boot from /vmlinuz." >&2
-          exit 1
+        # Prefer the canonical Ubuntu kernel symlink, but do not assume that
+        # /vmlinuz exists or resolves directly to a versioned kernel image.
+        kernel_image=""
+        for kernel_candidate in /vmlinuz /boot/vmlinuz; do
+          if [[ ! -e "$kernel_candidate" && ! -L "$kernel_candidate" ]]; then
+            continue
+          fi
+
+          resolved_kernel_image="$(readlink -e "$kernel_candidate" 2>/dev/null || true)"
+          kernel_image_name="$(basename "$resolved_kernel_image")"
+          if [[ "$kernel_image_name" == vmlinuz-* ]]; then
+            kernel_image="$resolved_kernel_image"
+            break
+          fi
+        done
+
+        # Some minimal/cloud VM images do not expose a usable /vmlinuz link.
+        # In that case, select the newest installed versioned image in /boot.
+        if [[ -z "$kernel_image" ]]; then
+          shopt -s nullglob
+          kernel_images=(/boot/vmlinuz-*)
+          if (( ${#kernel_images[@]} == 0 )); then
+            echo "Cannot determine the target kernel: neither /vmlinuz nor /boot/vmlinuz-* contains a versioned kernel image." >&2
+            exit 1
+          fi
+
+          kernel_image="$(printf '%s\\n' "${kernel_images[@]}" | sort -V | tail -n 1)"
+          printf 'Warning: no usable /vmlinuz symlink; using newest installed kernel image: %s\\n' "$kernel_image" >&2
         fi
+
+        kernel_image_name="$(basename "$kernel_image")"
         target_kernel="${kernel_image_name#vmlinuz-}"
       else
         target_kernel="$(uname -r)"
