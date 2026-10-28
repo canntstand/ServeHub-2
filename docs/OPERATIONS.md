@@ -10,7 +10,7 @@ Edge: `docker compose -f docker-compose.remote.yaml ps`, `docker compose -f dock
 
 Workload: `docker compose -f docker-compose.local.yaml ps`, `docker compose -f docker-compose.local.yaml logs --tail=200 <service>`.
 
-Добавьте `-f` к `logs` для потокового просмотра. Проверить Compose без запуска можно командой `docker compose -f docker-compose.local.yaml config --quiet`. Не удаляйте `apps-data/` или volumes для исправления ошибок запуска.
+Добавьте `-f` к `logs` для потокового просмотра. Проверить конфигурацию Compose без запуска контейнеров можно отдельно на каждом сервере: Edge — `docker compose -f docker-compose.remote.yaml config --quiet`; Workload — `docker compose -f docker-compose.local.yaml config --quiet`. Не удаляйте `apps-data/` или volumes для исправления ошибок запуска.
 
 ## Обновление
 

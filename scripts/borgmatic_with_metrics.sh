@@ -112,9 +112,11 @@ on_exit() {
             if awk \
                 -v stack="$STACK_RESTORE_STATUS" \
                 -v pipeline="$PIPELINE_SUCCESS" \
+                -v last_run="$LAST_RUN_TIMESTAMP" \
                 -v last_success="$LAST_PIPELINE_SUCCESS" '
                 $1 == "servehub_backup_stack_restore_success" { $2 = stack }
                 $1 == "servehub_backup_pipeline_last_run_success" { $2 = pipeline }
+                $1 == "servehub_backup_pipeline_last_run_timestamp_seconds" { $2 = last_run }
                 $1 == "servehub_backup_pipeline_last_success_timestamp_seconds" { $2 = last_success }
                 { print }
             ' "$METRICS_FILE" > "$temporary_file" \
@@ -322,6 +324,9 @@ servehub_backup_stack_restore_success $STACK_RESTORE_STATUS
 # HELP servehub_backup_pipeline_last_run_success Whether local backup, S3 sync, and Compose restoration all succeeded.
 # TYPE servehub_backup_pipeline_last_run_success gauge
 servehub_backup_pipeline_last_run_success $PIPELINE_SUCCESS
+# HELP servehub_backup_pipeline_last_run_timestamp_seconds Unix timestamp of the most recent full backup pipeline attempt.
+# TYPE servehub_backup_pipeline_last_run_timestamp_seconds gauge
+servehub_backup_pipeline_last_run_timestamp_seconds $LAST_RUN_TIMESTAMP
 # HELP servehub_backup_pipeline_last_success_timestamp_seconds Unix timestamp of the last fully successful backup pipeline.
 # TYPE servehub_backup_pipeline_last_success_timestamp_seconds gauge
 servehub_backup_pipeline_last_success_timestamp_seconds $LAST_PIPELINE_SUCCESS
