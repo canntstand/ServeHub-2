@@ -27,7 +27,7 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 		"webnames_apikey": "x",
 		"postgres_user": "postgres_user",
 		"postgres_password": "x",
-		"nextcloud_redis_pass": "x",
+		"nextcloud_redis_pass": strings.Repeat("ab", 32),
 		"secret_vaultwarden_password": "x",
 		"hbox_pepper": strings.Repeat("ab", 32),
 		"ssh_public_key": "not-a-public-key",
@@ -45,6 +45,42 @@ func validTestDeploymentValues(t *testing.T) map[string]string {
 		"hermes_api_key": "x",
 		"hermes_model": "x",
 		"hermes_dashboard_basic_auth_secret": strings.Repeat("cd", 32),
+	}
+}
+
+func TestValidateDeploymentRequiresHexRedisSecretForLocal(t *testing.T) {
+	cases := []struct {
+		name    string
+		secret  string
+		wantErr bool
+	}{
+		{name: "62 hex characters rejected", secret: strings.Repeat("ab", 31), wantErr: true},
+		{name: "non-hex characters rejected", secret: strings.Repeat("g", 32), wantErr: true},
+		{name: "ampersand in legacy password rejected", secret: "HJ8T&dHd190dark", wantErr: true},
+		{name: "64 hex characters accepted", secret: strings.Repeat("a1", 32), wantErr: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			values := validTestDeploymentValues(t)
+			values["nextcloud_redis_pass"] = tc.secret
+			err := validateDeploymentValues(values, 4)
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "nextcloud_redis_pass") {
+					t.Fatalf("expected Redis secret validation error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("valid generated Redis secret should be accepted: %v", err)
+			}
+		})
+	}
+
+	values := validTestDeploymentValues(t)
+	values["nextcloud_redis_pass"] = "legacy&secret"
+	if err := validateDeploymentValues(values, 6); err != nil {
+		t.Fatalf("VPS-only deployment must not require a local Redis secret: %v", err)
 	}
 }
 

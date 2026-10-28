@@ -42,7 +42,20 @@ func yamlInput(lines ...string) []byte {
 	return []byte(strings.Join(lines, string(rune(10))) + string(rune(10)))
 }
 
-func TestMergeSecretUpdatesPreservesUnknownFieldsCommentsAndTypes(t *testing.T) {
+func assertYAMLCommentsRemoved(t *testing.T, node *yaml.Node) {
+	t.Helper()
+	if node == nil {
+		return
+	}
+	if node.HeadComment != "" || node.LineComment != "" || node.FootComment != "" {
+		t.Fatalf("YAML comment remained after serialization: head=%q line=%q foot=%q", node.HeadComment, node.LineComment, node.FootComment)
+	}
+	for _, child := range node.Content {
+		assertYAMLCommentsRemoved(t, child)
+	}
+}
+
+func TestMergeSecretUpdatesPreservesUnknownFieldsAndTypesAndDropsComments(t *testing.T) {
 	source := yamlInput(
 		"# retain this file comment",
 		"server_name: old.example # retain this inline comment",
@@ -71,15 +84,16 @@ func TestMergeSecretUpdatesPreservesUnknownFieldsCommentsAndTypes(t *testing.T) 
 	if err != nil {
 		t.Fatalf("marshal YAML: %v", err)
 	}
-	if !strings.Contains(string(serialized), "retain this file comment") ||
-		!strings.Contains(string(serialized), "retain this inline comment") {
-		t.Fatalf("comments were not preserved: %s", serialized)
+	if strings.Contains(string(serialized), "retain this file comment") ||
+		strings.Contains(string(serialized), "retain this inline comment") {
+		t.Fatalf("YAML comments should be omitted from serialized output: %s", serialized)
 	}
 
 	reparsed, err := parseSecretsYAML(serialized)
 	if err != nil {
 		t.Fatalf("reparse YAML: %v", err)
 	}
+	assertYAMLCommentsRemoved(t, reparsed)
 	values := secretScalarValues(reparsed)
 	if values["server_name"] != "new.example" {
 		t.Fatalf("server_name = %q", values["server_name"])
@@ -272,8 +286,13 @@ func TestSaveSecretsValidatesReadbackAndSets0600(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := parseSecretsYAML(readBack); err != nil {
+	readBackDocument, err := parseSecretsYAML(readBack)
+	if err != nil {
 		t.Fatalf("saved YAML failed readback parsing: %v", err)
+	}
+	assertYAMLCommentsRemoved(t, readBackDocument)
+	if strings.Contains(string(readBack), "preserve custom settings") {
+		t.Fatalf("saved secrets YAML should not contain comments: %s", readBack)
 	}
 	if !strings.Contains(string(readBack), "custom_setting:") {
 		t.Fatalf("custom setting missing after save: %s", readBack)

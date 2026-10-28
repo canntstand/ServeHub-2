@@ -300,12 +300,12 @@
                             <span class="form-section-index" aria-hidden="true">02</span>
                             <span class="form-section-summary-copy">
                                 <span class="form-section-summary-title">Глобальные параметры</span>
-                                <span class="form-section-summary-description">Домен, учётная запись администратора и email</span>
+                                <span class="form-section-summary-description">Домен, учётная запись администратора, PostgreSQL и email</span>
                             </span>
                             <span class="form-section-chevron" aria-hidden="true"></span>
                         </summary>
                         <div class="form-section-content">
-                    <small>Домен и email обязательны для сценариев с локальным Workload/Certbot; для VPS-only можно оставить пустыми.</small>
+                    <small>Домен, email и параметры PostgreSQL обязательны для сценариев с локальным Workload; для VPS-only их можно оставить пустыми.</small>
                     <div class="form-group">
                         <label class="sr-only" for="sec_server_name">Доменное имя проекта (например: server.ru):</label>
                         <input type="text" id="sec_server_name" value="" placeholder="Доменное имя проекта (например: server.ru):">
@@ -325,10 +325,23 @@
                     
 </div>
 
-<div class="form-group">
+                    <div class="form-group">
                         <label class="sr-only" for="sec_email">Email (для генерации SSL-сертификатов через Certbot):</label>
                         <input type="text" id="sec_email" value="" placeholder="Email (для генерации SSL-сертификатов через Certbot):">
                     </div>
+
+                    <div class="form-field-grid">
+                        <div class="form-subsection-title">Параметры PostgreSQL</div>
+                        <div class="form-group">
+                            <label class="sr-only" for="sec_pg_user">Пользователь PostgreSQL:</label>
+                            <input type="text" id="sec_pg_user" value="" autocomplete="off" placeholder="Пользователь PostgreSQL:">
+                        </div>
+                        <div class="form-group">
+                            <label class="sr-only" for="sec_pg_pass">Пароль суперпользователя PostgreSQL:</label>
+                            <input type="text" id="sec_pg_pass" value="" autocomplete="off" placeholder="Пароль суперпользователя PostgreSQL:">
+                        </div>
+                    </div>
+                    <small>Внутренний пароль Redis для Nextcloud генерируется автоматически и не требует ручного ввода.</small>
 
                     </div>
                     </details>
@@ -375,37 +388,6 @@
                     <details class="form-section-card">
                         <summary class="form-section-summary">
                             <span class="form-section-index" aria-hidden="true">05</span>
-                            <span class="form-section-summary-copy">
-                                <span class="form-section-summary-title">PostgreSQL и Redis</span>
-                                <span class="form-section-summary-description">Пользователь и пароли баз данных</span>
-                            </span>
-                            <span class="form-section-chevron" aria-hidden="true"></span>
-                        </summary>
-                        <div class="form-section-content">
-                    
-
-<div class="form-field-grid">
-                        <div class="form-group">
-                            <label class="sr-only" for="sec_pg_user">Пользователь PostgreSQL:</label>
-                            <input type="text" id="sec_pg_user" value="" autocomplete="off" placeholder="Пользователь PostgreSQL:">
-                        </div>
-<div class="form-group">
-                        <label class="sr-only" for="sec_pg_pass">Пароль суперпользователя Postgres:</label>
-                        <input type="text" id="sec_pg_pass" value="" autocomplete="off" placeholder="Пароль суперпользователя Postgres:">
-                    </div>
-                    <div class="form-group">
-                        <label class="sr-only" for="sec_redis_pass">Пароль Redis для Nextcloud:</label>
-                        <input type="text" id="sec_redis_pass" value="" autocomplete="off" placeholder="Пароль Redis для Nextcloud:">
-                    </div>
-
-                    
-</div>
-
-</div>
-                    </details>
-                    <details class="form-section-card">
-                        <summary class="form-section-summary">
-                            <span class="form-section-index" aria-hidden="true">06</span>
                             <span class="form-section-summary-copy">
                                 <span class="form-section-summary-title">Безопасность и бэкапы</span>
                                 <span class="form-section-summary-description">Ключи SSH, шифрование и внешнее хранилище</span>
@@ -489,7 +471,7 @@
                     </details>
                     <details class="form-section-card">
                         <summary class="form-section-summary">
-                            <span class="form-section-index" aria-hidden="true">07</span>
+                            <span class="form-section-index" aria-hidden="true">06</span>
                             <span class="form-section-summary-copy">
                                 <span class="form-section-summary-title">Hermes Agent</span>
                                 <span class="form-section-summary-description">Параметры API провайдера для Edge</span>
@@ -514,6 +496,7 @@
                     <input type="hidden" id="sec_hermes_dashboard_basic_auth_secret" value="">
                         </div>
                     </details>
+                    <input type="hidden" id="sec_redis_pass" value="">
                 </div>
 
                 <div class="button-group">
@@ -529,6 +512,9 @@
                 
                 <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px; max-width: 550px;">
                     Ниже представлен итоговый файл. Вы можете пролистать и проверить его.
+                </p>
+                <p id="redis-secret-migration-note" class="sensitive-yaml-warning" role="status" hidden>
+                    Обнаружен старый формат внутреннего пароля Redis. После подтверждения установщик заменит его безопасным автоматически сгенерированным значением. При применении локального деплоя Redis и Nextcloud получат согласованную конфигурацию.
                 </p>
                 <p class="sensitive-yaml-warning" role="alert">
                     ВНИМАНИЕ: YAML содержит пароли, токены, API-ключи и приватный SSH-ключ в открытом виде. Перед продолжением сохраните резервную копию. Не публикуйте файл, не отправляйте третьим лицам и не оставляйте копии в общедоступных каталогах.

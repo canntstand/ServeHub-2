@@ -10,6 +10,8 @@ let sourceSecretIsTemplate = true;
 let secretFormInitialized = false;
 let secretFormProjectSHA = "";
 let secretFormProjectDirectory = "";
+let redisSecretReplacementNeedsConfirmation = false;
+let redisSecretReplacementConfirmed = false;
 
 const STEP_TITLES = {
     1: 'Выбор версии проекта',
@@ -393,8 +395,9 @@ function isHexSecretOfLength(value, byteLength) {
 function initializeGeneratedSecuritySecrets() {
     const hboxField = document.getElementById('sec_hbox_pepper');
     const hermesField = document.getElementById('sec_hermes_dashboard_basic_auth_secret');
-    if (!hboxField || !hermesField) {
-        alert('Не удалось подготовить секреты Homebox/Hermes: поля конфигурации не найдены.');
+    const redisField = document.getElementById('sec_redis_pass');
+    if (!hboxField || !hermesField || !redisField) {
+        alert('Не удалось подготовить секреты Homebox/Hermes/Redis: поля конфигурации не найдены.');
         return false;
     }
 
@@ -418,9 +421,34 @@ function initializeGeneratedSecuritySecrets() {
         hermesField.value = generatedHermesSecret;
     }
 
+    const currentRedisSecret = String(redisField.value ?? '');
+    const validCurrentRedisSecret =
+        currentRedisSecret === currentRedisSecret.trim() &&
+        isHexSecretOfLength(currentRedisSecret, 32);
+    if (!validCurrentRedisSecret) {
+        const existingRedisSecret = String(sourceSecretValues?.nextcloud_redis_pass ?? '');
+        const hasLegacyRedisSecret =
+            !sourceSecretIsTemplate &&
+            Object.prototype.hasOwnProperty.call(sourceSecretValues, 'nextcloud_redis_pass') &&
+            existingRedisSecret.trim() !== '' &&
+            !isTemplatePlaceholder(existingRedisSecret) &&
+            !(existingRedisSecret === existingRedisSecret.trim() &&
+              isHexSecretOfLength(existingRedisSecret, 32));
+
+        const generatedRedisSecret = generateSecureHexSecret(32);
+        if (!generatedRedisSecret) {
+            alert('Не удалось безопасно сгенерировать пароль Redis для Nextcloud. Проверьте поддержку криптографического генератора в установщике.');
+            return false;
+        }
+        redisField.value = generatedRedisSecret;
+        if (hasLegacyRedisSecret) {
+            redisSecretReplacementNeedsConfirmation = true;
+            redisSecretReplacementConfirmed = false;
+        }
+    }
+
     return true;
 }
-
 function populateSecretsForm(values, isTemplate = false) {
     const source = values && typeof values === 'object' ? values : {};
     sourceSecretValues = { ...source };
@@ -443,6 +471,8 @@ function populateSecretsForm(values, isTemplate = false) {
         applySeparateSudoPassword(server, inferSeparateSudoPassword(source, server));
     }
 
+    redisSecretReplacementNeedsConfirmation = false;
+    redisSecretReplacementConfirmed = false;
     initializeGeneratedSecuritySecrets();
 }
 
@@ -518,6 +548,16 @@ window.editExistingSecrets = async function() {
 }
 
 window.generateAndReviewYaml = async function() {
+    if (!initializeGeneratedSecuritySecrets()) return;
+
+    if (redisSecretReplacementNeedsConfirmation && !redisSecretReplacementConfirmed) {
+        const accepted = window.confirm(
+            'В существующей конфигурации найден пароль Redis старого формата. Установщик создал новый случайный 32-байтовый hex-секрет, совместимый с конфигурацией PHP-сессий Nextcloud. Продолжить и заменить старое значение в secrets.yml? Новый пароль будет виден в предпросмотре и сохранится только после подтверждения на шаге 5.'
+        );
+        if (!accepted) return;
+        redisSecretReplacementConfirmed = true;
+    }
+
     const hboxField = document.getElementById('sec_hbox_pepper');
     const hboxPepper = String(hboxField?.value ?? '').trim();
     if (utf8ByteLength(hboxPepper) < 32) {
@@ -564,6 +604,10 @@ window.generateAndReviewYaml = async function() {
         generatedSecretUpdates = { ...updates };
         generatedPreviewValues = { ...(preview.values || {}) };
         generatedYamlString = preview.content;
+        const redisMigrationNote = document.getElementById('redis-secret-migration-note');
+        if (redisMigrationNote) {
+            redisMigrationNote.hidden = !redisSecretReplacementNeedsConfirmation;
+        }
         document.getElementById('yaml-preview').innerText = generatedYamlString;
 
         const btnStep6Back = document.getElementById('btn-step6-back');
@@ -611,6 +655,10 @@ window.saveYamlAndFinish = async function() {
             sourceSecretIsTemplate = false;
             generatedSecretUpdates = {};
             generatedPreviewValues = {};
+            redisSecretReplacementNeedsConfirmation = false;
+            redisSecretReplacementConfirmed = false;
+            const redisMigrationNote = document.getElementById('redis-secret-migration-note');
+            if (redisMigrationNote) redisMigrationNote.hidden = true;
             goToStep(6);
         } else {
             alert(`Ошибка записи файла: ${result.message}`);

@@ -94,6 +94,10 @@ func validateDeploymentValues(values map[string]string, option int) error {
 		if err := requireNonEmptyFields(values, localRequired); err != nil {
 			return err
 		}
+		redisSecret, redisErr := hex.DecodeString(strings.TrimSpace(values["nextcloud_redis_pass"]))
+		if redisErr != nil || len(redisSecret) != 32 {
+			return fmt.Errorf("nextcloud_redis_pass: требуется 64 шестнадцатеричных символа (32 байта); секрет генерируется установщиком автоматически")
+		}
 		if len([]byte(strings.TrimSpace(values["hbox_pepper"]))) < 32 {
 			return fmt.Errorf("hbox_pepper: значение должно содержать не менее 32 байт")
 		}

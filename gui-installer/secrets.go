@@ -395,10 +395,23 @@ func mergeSecretUpdates(document *yaml.Node, updates map[string]string) error {
 
 	return validateSecretYAMLNode(root, "$")
 }
+func clearYAMLComments(node *yaml.Node) {
+	if node == nil {
+		return
+	}
+	node.HeadComment = ""
+	node.LineComment = ""
+	node.FootComment = ""
+	for _, child := range node.Content {
+		clearYAMLComments(child)
+	}
+}
+
 func marshalSecretsYAML(document *yaml.Node) ([]byte, error) {
 	if _, err := parseSecretsYAMLFromNode(document); err != nil {
 		return nil, err
 	}
+	clearYAMLComments(document)
 	content, err := yaml.Marshal(document)
 	if err != nil {
 		return nil, fmt.Errorf("не удалось сериализовать YAML: %w", err)
