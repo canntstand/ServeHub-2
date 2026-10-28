@@ -528,7 +528,7 @@ services:
         condition: service_healthy
     environment:
       - NODE_DB_URI=mongodb://habitica-db/habitica
-      - BASE_URL=https://habitica.${SERVER_NAME}
+      - BASE_URL=http://habitica.${SERVER_NAME}
       - INVITE_ONLY=false
     networks:
       default:
