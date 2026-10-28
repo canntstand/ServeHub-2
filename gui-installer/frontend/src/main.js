@@ -181,9 +181,12 @@ window.runInstallation = async function() {
             const generatedPepper = String(document.getElementById('sec_hbox_pepper')?.value ?? '').trim();
             const existingHermesDashboardSecret = String(existingSecrets.values?.hermes_dashboard_basic_auth_secret ?? '').trim();
             const generatedHermesDashboardSecret = String(document.getElementById('sec_hermes_dashboard_basic_auth_secret')?.value ?? '').trim();
+            const existingRedisSecret = String(existingSecrets.values?.nextcloud_redis_pass ?? '');
+            const generatedRedisSecret = String(document.getElementById('sec_redis_pass')?.value ?? '');
             const generatedSecuritySecretsNeedSaving = !existingSecrets.isTemplate && (
                 existingPepper !== generatedPepper ||
-                existingHermesDashboardSecret !== generatedHermesDashboardSecret
+                existingHermesDashboardSecret !== generatedHermesDashboardSecret ||
+                existingRedisSecret !== generatedRedisSecret
             );
 
             if (secretsCheck.success && !existingSecrets.isTemplate && !generatedSecuritySecretsNeedSaving) {
@@ -202,7 +205,7 @@ window.runInstallation = async function() {
 
             } else {
                 installText.innerText = generatedSecuritySecretsNeedSaving
-                    ? `✓ ${result.message}\n\nУстановщик подготовил новые секреты Homebox/Hermes. Перейдите к форме, чтобы проверить и сохранить их перед деплоем.`
+                    ? `✓ ${result.message}\n\nУстановщик подготовил внутренний секрет Redis и/или новые секреты Homebox/Hermes. Перейдите к форме, чтобы проверить и сохранить их перед деплоем.`
                     : `✓ ${result.message}`;
                 installText.style.color = 'var(--accent-bright)';
                 
