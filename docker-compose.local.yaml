@@ -227,13 +227,12 @@ services:
       - CONTAINERS=1
       - EVENTS=1
       - INFO=1
+      - NETWORKS=1
       - PING=1
       - VERSION=1
       - POST=0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    ports:
-      - "127.0.0.1:2375:2375"
     networks:
       - docker_api
     deploy:
@@ -250,12 +249,16 @@ services:
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
-    network_mode: "host"
-    command: run --server.http.listen-addr=127.0.0.1:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    ports:
+      - "127.0.0.1:12345:12345"
     volumes:
       - ./configs/alloy/local.alloy:/etc/alloy/config.alloy:ro
       - ./apps-data/alloy:/var/lib/alloy/data
     logging: *default-logging
+    networks:
+      - docker_api
+      - alloy_egress
     depends_on:
       amnezia-client:
         condition: service_healthy
@@ -680,6 +683,8 @@ services:
 networks:
   docker_api:
     internal: true
+  alloy_egress:
+    driver: bridge
   reverse_proxy:
     internal: true
     ipam:

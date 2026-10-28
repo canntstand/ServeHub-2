@@ -1,5 +1,5 @@
 discovery.docker "local_containers" {
-  host             = "tcp://127.0.0.1:2375"
+  host             = "tcp://docker-socket-proxy:2375"
   refresh_interval = "2m"
 }
 
@@ -19,7 +19,7 @@ discovery.relabel "docker_logs_relabel" {
 }
 
 loki.source.docker "docker_logs" {
-  host    = "tcp://127.0.0.1:2375"
+  host    = "tcp://docker-socket-proxy:2375"
   targets = discovery.docker.local_containers.targets
 
   labels = {

@@ -337,6 +337,7 @@ services:
       - CONTAINERS=1
       - EVENTS=1
       - INFO=1
+      - NETWORKS=1
       - PING=1
       - VERSION=1
       - POST=0

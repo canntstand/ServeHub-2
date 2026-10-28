@@ -51,7 +51,7 @@
           "range": false
         },
         {
-          "expr": "probe_success{job=\"blackbox-tls\"}",
+          "expr": "last_over_time(probe_success{job=\"blackbox-tls\"}[2h])",
           "legendFormat": "{{check_name}}",
           "refId": "B",
           "instant": true,
@@ -119,7 +119,7 @@
       },
       "targets": [
         {
-          "expr": "(probe_ssl_earliest_cert_expiry{job=\"blackbox-tls\"} - time()) / 86400",
+          "expr": "(last_over_time(probe_ssl_earliest_cert_expiry{job=\"blackbox-tls\"}[2h]) - time()) / 86400",
           "legendFormat": "{{check_name}}",
           "refId": "A",
           "instant": true,
@@ -182,7 +182,7 @@
           "refId": "A"
         },
         {
-          "expr": "probe_success{job=\"blackbox-tls\"}",
+          "expr": "last_over_time(probe_success{job=\"blackbox-tls\"}[2h])",
           "legendFormat": "{{check_name}}",
           "refId": "B"
         }

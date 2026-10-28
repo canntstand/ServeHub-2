@@ -2,7 +2,14 @@ groups:
   - name: blackbox_probe_alerts
     rules:
       - alert: ProbeFailed
-        expr: probe_success{job=~"blackbox-http|blackbox-tls"} == 0
+        expr: |
+          (
+            probe_success{job="blackbox-http"} == 0
+          )
+          or
+          (
+            last_over_time(probe_success{job="blackbox-tls"}[2h]) == 0
+          )
         for: 10m
         keep_firing_for: 5m
         labels:
@@ -13,8 +20,15 @@ groups:
 
       - alert: CertificateExpiringSoon
         expr: |
-          (probe_ssl_earliest_cert_expiry{job="blackbox-tls"} - time() < 2592000)
-          and on(instance) (probe_success{job="blackbox-tls"} == 1)
+          (
+            last_over_time(
+              probe_ssl_earliest_cert_expiry{job="blackbox-tls"}[2h]
+            ) - time() < 2592000
+          )
+          and on(instance)
+          (
+            last_over_time(probe_success{job="blackbox-tls"}[2h]) == 1
+          )
         for: 2h
         labels:
           severity: warning
