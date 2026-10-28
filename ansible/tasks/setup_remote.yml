@@ -137,6 +137,7 @@
       $IPT -A SERVEHUB_INPUT -i wg0 -s 10.8.0.2 -p tcp -m multiport --dports 8082,8090,9090,9100,51821 -j ACCEPT
       $IPT -A SERVEHUB_INPUT -i wg0 -s 10.8.0.0/24 -p tcp -m multiport --dports 8082,8090,9090,9100,51821 -j DROP
       $IPT -A SERVEHUB_INPUT -i br+ -s 172.16.0.0/12 -d 10.8.0.1 -p tcp --dport 8082 -j ACCEPT
+      $IPT -A SERVEHUB_INPUT -i br+ -s 172.16.0.0/12 -d 10.8.0.1 -p tcp --dport 9090 -j ACCEPT
       $IPT -A SERVEHUB_INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       $IPT -A SERVEHUB_INPUT -p icmp -j ACCEPT
       if $IPT -nL f2b-sshd >/dev/null 2>&1; then
