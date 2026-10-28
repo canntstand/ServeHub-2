@@ -110,6 +110,24 @@ jobs:
 
           import yaml
 
+          backup_script = Path("scripts/borgmatic_with_metrics.sh").read_text(encoding="utf-8")
+          backup_contract = (
+              "PIPELINE_STATUS=1",
+              "PIPELINE_SUCCESS=0",
+              "servehub_backup_pipeline_last_run_success $PIPELINE_SUCCESS",
+              '-v pipeline="$PIPELINE_SUCCESS"',
+              'exit "$PIPELINE_STATUS"',
+          )
+          missing_contract = [item for item in backup_contract if item not in backup_script]
+          if missing_contract:
+              raise SystemExit(
+                  "Backup pipeline status/metric contract is broken: "
+                  + ", ".join(missing_contract)
+              )
+          if backup_script.count("PIPELINE_SUCCESS=1") != 2:
+              raise SystemExit("Expected success metric assignment in normal and EXIT-trap paths")
+          print("Backup pipeline exit-status and Prometheus metric contract OK")
+
           paths = (
               "ansible/tasks/setup_local.yml",
               "ansible/tasks/setup_remote.yml",

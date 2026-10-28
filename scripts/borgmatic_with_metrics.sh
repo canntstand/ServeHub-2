@@ -45,6 +45,7 @@ BORG_STATUS=1
 OFFSITE_STATUS=0
 STACK_RESTORE_STATUS=1
 PIPELINE_STATUS=1
+PIPELINE_SUCCESS=0
 STACK_START_NEEDED=0
 METRICS_PUBLISHED=0
 RUNNING_SERVICES=()
@@ -99,16 +100,18 @@ on_exit() {
         LAST_RUN_TIMESTAMP="$(date +%s)"
         if (( BORG_STATUS == 0 && OFFSITE_STATUS == 1 && STACK_RESTORE_STATUS == 1 )); then
             PIPELINE_STATUS=0
+            PIPELINE_SUCCESS=1
             LAST_PIPELINE_SUCCESS="$LAST_RUN_TIMESTAMP"
         else
             PIPELINE_STATUS=1
+            PIPELINE_SUCCESS=0
         fi
 
         local temporary_file
         if temporary_file="$(mktemp "${METRICS_FILE}.tmp.XXXXXX")"; then
             if awk \
                 -v stack="$STACK_RESTORE_STATUS" \
-                -v pipeline="$PIPELINE_STATUS" \
+                -v pipeline="$PIPELINE_SUCCESS" \
                 -v last_success="$LAST_PIPELINE_SUCCESS" '
                 $1 == "servehub_backup_stack_restore_success" { $2 = stack }
                 $1 == "servehub_backup_pipeline_last_run_success" { $2 = pipeline }
@@ -282,9 +285,11 @@ if (( OFFSITE_STATUS == 1 )); then
 fi
 if (( BORG_STATUS == 0 && OFFSITE_STATUS == 1 && STACK_RESTORE_STATUS == 1 )); then
     PIPELINE_STATUS=0
+    PIPELINE_SUCCESS=1
     LAST_PIPELINE_SUCCESS="$LAST_RUN_TIMESTAMP"
 else
     PIPELINE_STATUS=1
+    PIPELINE_SUCCESS=0
 fi
 
 if ! temporary_file="$(mktemp "${METRICS_FILE}.tmp.XXXXXX")"; then
@@ -316,7 +321,7 @@ servehub_offsite_backup_last_success_timestamp_seconds $LAST_OFFSITE_SUCCESS
 servehub_backup_stack_restore_success $STACK_RESTORE_STATUS
 # HELP servehub_backup_pipeline_last_run_success Whether local backup, S3 sync, and Compose restoration all succeeded.
 # TYPE servehub_backup_pipeline_last_run_success gauge
-servehub_backup_pipeline_last_run_success $PIPELINE_STATUS
+servehub_backup_pipeline_last_run_success $PIPELINE_SUCCESS
 # HELP servehub_backup_pipeline_last_success_timestamp_seconds Unix timestamp of the last fully successful backup pipeline.
 # TYPE servehub_backup_pipeline_last_success_timestamp_seconds gauge
 servehub_backup_pipeline_last_success_timestamp_seconds $LAST_PIPELINE_SUCCESS
