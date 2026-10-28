@@ -360,7 +360,10 @@ services:
     image: redis:8.8.3
     container_name: nextcloud-redis
     restart: unless-stopped
-    command: redis-server --requirepass ${NEXTCLOUD_REDIS_PASS}
+    command:
+      - redis-server
+      - --requirepass
+      - "${NEXTCLOUD_REDIS_PASS}"
     logging: *default-logging
     deploy:
       resources:
