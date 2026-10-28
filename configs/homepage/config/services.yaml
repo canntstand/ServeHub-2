@@ -37,14 +37,6 @@
         icon: si-grafana
         href: https://grafana.{{HOMEPAGE_VAR_SERVER_NAME}}/
         description: Дашборды и метрики
-    - Prometheus:
-        icon: si-prometheus
-        href: https://prometheus.{{HOMEPAGE_VAR_SERVER_NAME}}/
-        description: Сбор и запрос метрик
-    - Alertmanager:
-        icon: si-prometheus
-        href: https://alertmanager.{{HOMEPAGE_VAR_SERVER_NAME}}/
-        description: Управление алертами
     - WireGuard:
         icon: si-wireguard
         href: https://wireguard.{{HOMEPAGE_VAR_SERVER_NAME}}/
@@ -53,6 +45,14 @@
         icon: si-adguard
         href: https://adguard.{{HOMEPAGE_VAR_SERVER_NAME}}/
         description: DNS и блокировка рекламы
+    - Prometheus:
+        icon: si-prometheus
+        href: https://prometheus.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Сбор и запрос метрик
+    - Alertmanager:
+        icon: mdi-bell-ring
+        href: https://alertmanager.{{HOMEPAGE_VAR_SERVER_NAME}}/
+        description: Управление алертами
     - Hermes Agent:
         icon: mdi-robot
         href: https://hermes.{{HOMEPAGE_VAR_SERVER_NAME}}/
