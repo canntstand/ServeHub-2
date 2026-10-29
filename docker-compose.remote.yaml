@@ -6,7 +6,7 @@ x-logging: &default-logging
 
 services:
   wg-easy:
-    image: ghcr.io/wg-easy/wg-easy:15.4.0
+    image: ghcr.io/wg-easy/wg-easy:15.5.0
     container_name: wg-easy
     logging: *default-logging
     environment:
@@ -25,7 +25,7 @@ services:
       - INIT_DNS=10.8.0.1
       - INIT_IPV4_CIDR=10.8.0.0/24
       - INIT_IPV6_CIDR=fdcc:ad94:bacf:61a4::cafe:0/112
-      - INIT_ALLOWED_IPS=10.8.0.0/24
+      - INIT_ALLOWED_IPS=0.0.0.0/0, ::/0
     volumes:
       - ./apps-data/wg-easy:/etc/wireguard
       - /lib/modules:/lib/modules:ro
