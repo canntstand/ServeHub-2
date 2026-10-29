@@ -377,6 +377,23 @@ server {
     add_header Strict-Transport-Security "max-age=15552000; includeSubDomains" always;
     allow 127.0.0.1; allow 10.8.0.0/24; deny all;
 
+    # Prometheus streams notification events using Server-Sent Events (SSE).
+    # Disable buffering and keep idle event streams open.
+    location = /api/v1/notifications/live {
+        proxy_pass http://10.8.0.1:9090;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        gzip off;
+    }
+
     location / {
         proxy_pass http://10.8.0.1:9090;
         proxy_http_version 1.1;
