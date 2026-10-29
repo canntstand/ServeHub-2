@@ -18,6 +18,8 @@ RUN apk add --no-cache \
         https://github.com/amnezia-vpn/amneziawg-tools.git \
         /tmp/amneziawg-tools \
     && make -C /tmp/amneziawg-tools/src \
+    && sed -i 's|\[\[ $proto == -4 \]\] && cmd sysctl -q net\.ipv4\.conf\.all\.src_valid_mark=1|[[ $proto == -4 ]] \&\& [[ $(sysctl -n net.ipv4.conf.all.src_valid_mark) != 1 ]] \&\& cmd sysctl -q net.ipv4.conf.all.src_valid_mark=1|' \
+        /tmp/amneziawg-tools/src/wg-quick/linux.bash \
     && install -Dm0755 \
         /tmp/amneziawg-tools/src/wg \
         /usr/bin/awg \
