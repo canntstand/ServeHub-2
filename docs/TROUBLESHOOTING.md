@@ -1,7 +1,5 @@
 # Устранение неполадок
 
-> **Документация создана с помощью ИИ.** Содержание сверено с кодом ветки `dev`; перед применением команд проверяйте актуальные файлы проекта.
-
 ## GUI не запускает Ansible
 
 Проверьте `docker info` и `docker compose version`: установщик запускает Ansible внутри контейнера, поэтому Docker Engine должен работать. Проверьте доступность GitHub и выбранного источника версии.
@@ -35,6 +33,25 @@
 
 Подробности настройки приведены в [документации компонентов](COMPONENTS.md).
 
+## Hermes не предоставляет terminal или execute_code
+
+Сначала проверьте журнал и состояние инструмента именно в проблемном профиле. Команды выполняйте на Edge из каталога `ServeHub-2`:
+
+```bash
+docker compose -f docker-compose.remote.yaml ps hermes
+docker compose -f docker-compose.remote.yaml logs --tail=200 hermes
+docker exec hermes hermes doctor
+docker exec hermes hermes --profile main-bot tools --summary
+docker exec hermes hermes --profile main-bot config get terminal.backend
+```
+
+Замените `main-bot` на имя нужного профиля. Список инструментов, показанный командой `tools --summary`, сам по себе не гарантирует, что инструмент передан модели в Telegram; проверьте секцию Telegram и воспроизведите реальный вызов из нового диалога.
+
+Конфигурация может отличаться между профилями, особенно после переноса данных со старого сервера. Если меняете backend, делайте это для соответствующего профиля и перезапускайте единый gateway командой `docker compose -f docker-compose.remote.yaml restart hermes`, затем повторяйте тест. При `terminal.backend: local` команды выполняются в среде Hermes, а не в shell хоста. Не подключайте Docker socket и не включайте privileged-режим как обходной путь.
+
+Рабочая папка внутри контейнера `/workspace` соответствует каталогу `apps-data/hermes-workspace/` на Edge. Если инструмент работает, но не видит файлы, проверьте наличие файлов на хосте, bind mount и права доступа, не выдавая каталогам права `0777`.
+
 ## Контейнеры, метрики или алерты
 
 Проверьте логи, права каталогов, свободное место, переменные окружения, healthcheck и Prometheus targets. Не удаляйте `apps-data/` или volumes. Для бэкапов смотрите метрики `servehub_borgmatic_backup_last_run_success`, `servehub_offsite_backup_last_run_success`, `servehub_backup_pipeline_last_run_success`. Реальное восстановление следует проверять отдельно.
+

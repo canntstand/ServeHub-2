@@ -1,7 +1,5 @@
 # Компоненты
 
-> **Документация создана с помощью ИИ.** Содержание сверено с кодом ветки `dev`; перед применением команд проверяйте актуальные файлы проекта.
-
 ## Ansible и GUI
 
 `ansible/deploy.yml` выполняет bootstrap, синхронизацию кода, роли Edge/Workload и postflight. `bootstrap_os.yml` готовит Ubuntu, SSH, пользователя развёртывания, Docker и AmneziaWG. `setup_remote.yml` настраивает Edge, `setup_local.yml` — Workload, `setup_backup.yml` — Borgmatic/S3. GUI на Go/Wails выбирает релиз/тег/`dev`, закрепляет SHA, проверяет целостность файлов и запускает Ansible в Docker.
@@ -42,8 +40,13 @@ Scrape job `wg-easy` уже задан в `ansible/templates/prometheus.yml.j2`.
 
 ## Hermes
 
-Hermes обязателен на Edge. Ansible создаёт `apps-data/hermes/.env` и `config.yaml` только при первом развёртывании, чтобы не перезаписывать Dashboard settings. `apps-data/hermes-workspace/` монтируется как `/workspace` и доступна агенту: не размещайте там секреты без необходимости. Dashboard защищён Basic Auth и предназначен для HTTPS/VPN на `https://hermes.<домен>/`; не публикуйте порт 9119.
+Hermes — обязательный сервис Edge. Для первого развёртывания задайте `hermes_api_base_url` (endpoint, совместимый с OpenAI Chat Completions API и доступный с Edge), `hermes_api_key`, `hermes_model` и `hermes_dashboard_basic_auth_secret` (ровно 64 шестнадцатеричных символа). Также используются `admin_user` и `admin_password` для Basic Auth панели.
+
+Ansible создаёт `apps-data/hermes/.env` и `config.yaml` только при первом развёртывании, чтобы последующие запуски не перезаписывали настройки и данные профилей. Каталог `apps-data/hermes/` монтируется как `/opt/data`, а `apps-data/hermes-workspace/` — как `/workspace`. Workspace предназначена для файлов, которые агенту разрешено читать и изменять; считайте всё её содержимое доступным агенту и не храните там приватные SSH-ключи, API-токены или другие секреты без явной необходимости.
+
+Запросы и содержимое файлов, переданные модели, могут отправляться настроенному API-провайдеру; выбирайте endpoint с учётом требований к конфиденциальности и условий провайдера. Инструменты терминала и выполнения кода работают внутри среды выполнения Hermes. В текущем Compose в контейнер Hermes не монтируется Docker socket; не добавляйте `/var/run/docker.sock` и не включайте privileged-режим только ради включения терминала. Dashboard защищён Basic Auth и предназначен для HTTPS/VPN на `https://hermes.<домен>/`; порт 9119 не следует публиковать в публичном интернете.
 
 ## Постоянные данные
 
 `ansible/templates/` содержит шаблоны runtime-конфигураций; `.env` и `ansible/vars/secrets.yml` содержат секреты; `apps-data/` и `PersonalData/` необходимы для восстановления и не восстанавливаются клонированием Git.
+
