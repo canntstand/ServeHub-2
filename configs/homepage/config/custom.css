@@ -46,26 +46,6 @@ div[class*="calendar-container"] {
     border: none !important;
 }
 
-a[href*="adguard."]::after,
-a[href*="wireguard."]::after,
-a[href*="hermes."]::after {
-    content: "• VPS" !important;
-    position: absolute !important;
-    top: 14px !important;
-    right: 16px !important;
-    background: rgba(255, 255, 255, 0.08) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    color: rgba(255, 255, 255, 0.7) !important;
-    font-size: 10px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.8px !important;
-    padding: 3px 8px !important;
-    border-radius: 20px !important;
-    text-transform: uppercase !important;
-    line-height: 1 !important;
-    pointer-events: none !important;
-}
-
 a[href*="adguard."]:hover::after,
 a[href*="wireguard."]:hover::after,
 a[href*="hermes."]:hover::after {
