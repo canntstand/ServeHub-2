@@ -57,12 +57,12 @@ services:
       - /tmp:rw,noexec,nosuid,size=16m
     network_mode: "host"
     extra_hosts:
-      - "${SERVER_NAME}:10.8.0.2"
-      - "grafana.${SERVER_NAME}:10.8.0.2"
-      - "hermes.${SERVER_NAME}:10.8.0.2"
-      - "actual.${SERVER_NAME}:10.8.0.2"
-      - "prometheus.${SERVER_NAME}:10.8.0.2"
-      - "alertmanager.${SERVER_NAME}:10.8.0.2"
+      - "${SERVER_NAME}=10.8.0.2"
+      - "grafana.${SERVER_NAME}=10.8.0.2"
+      - "hermes.${SERVER_NAME}=10.8.0.2"
+      - "actual.${SERVER_NAME}=10.8.0.2"
+      - "prometheus.${SERVER_NAME}=10.8.0.2"
+      - "alertmanager.${SERVER_NAME}=10.8.0.2"
     volumes:
       - ./configs/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
     command:
