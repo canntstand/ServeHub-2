@@ -504,7 +504,24 @@
     enabled: true
     state: started
 
-- name: "[Network] Установка сервиса amnezia-dns"
+- name: "[Network] Установка скрипта автоматического восстановления DNS AmneziaWG"
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../scripts/servehub-amnezia-dns-watch.sh"
+    dest: /usr/local/sbin/servehub-amnezia-dns-watch.sh
+    owner: root
+    group: root
+    mode: "0750"
+  register: amnezia_dns_script
+
+- name: "[Network] Проверка синтаксиса скрипта DNS"
+  ansible.builtin.command:
+    argv:
+      - /bin/bash
+      - -n
+      - /usr/local/sbin/servehub-amnezia-dns-watch.sh
+  changed_when: false
+
+- name: "[Network] Установка постоянного сервиса автоматического восстановления DNS"
   ansible.builtin.copy:
     dest: /etc/systemd/system/amnezia-dns.service
     owner: root
@@ -512,33 +529,30 @@
     mode: "0644"
     content: |
       [Unit]
-      Description=Configure DNS routing over ServeHub AmneziaWG interface
-      Requires=docker.service
-      After=docker.service systemd-resolved.service
-      PartOf=docker.service
+      Description=Keep ServeHub DNS configured over AmneziaWG
+      Wants=systemd-resolved.service
+      After=systemd-resolved.service
 
       [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      TimeoutStartSec=120
-      ExecStartPre=/bin/bash -ec 'for i in {1..100}; do /usr/sbin/ip link show awg0 >/dev/null 2>&1 && exit 0; sleep 1; done; echo "awg0 did not appear within 100 seconds" >&2; exit 1'
-      ExecStart=/usr/bin/resolvectl dns awg0 10.8.0.1
-      ExecStartPost=/usr/bin/resolvectl domain awg0 ~.
+      Type=simple
+      ExecStart=/usr/local/sbin/servehub-amnezia-dns-watch.sh
+      Restart=always
+      RestartSec=2
 
       [Install]
       WantedBy=multi-user.target
   register: amnezia_dns_service
 
-- name: "[Network] Перечитывание systemd при изменении DNS unit"
+- name: "[Network] Перечитывание systemd при изменении DNS скрипта или unit"
   ansible.builtin.systemd_service:
     daemon_reload: true
-  when: amnezia_dns_service.changed
+  when: amnezia_dns_service.changed or amnezia_dns_script.changed
 
-- name: "[Network] Активация/перезапуск DNS-сервиса"
+- name: "[Network] Активация/перезапуск DNS-службы"
   ansible.builtin.systemd_service:
     name: amnezia-dns.service
     enabled: true
-    state: "{{ 'restarted' if amnezia_dns_service.changed else 'started' }}"
+    state: "{{ 'restarted' if amnezia_dns_service.changed or amnezia_dns_script.changed else 'started' }}"
     daemon_reload: false
 
 - name: "[Backup] Проверка UUID отдельного диска"
