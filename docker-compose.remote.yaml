@@ -329,7 +329,7 @@ services:
           memory: 1G
 
   docker-socket-proxy:
-    image: tecnativa/docker-socket-proxy:0.1.2
+    image: tecnativa/docker-socket-proxy:3.4
     container_name: docker-socket-proxy
     restart: unless-stopped
     logging: *default-logging
